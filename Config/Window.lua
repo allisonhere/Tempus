@@ -200,7 +200,16 @@ local function CreateWindow()
     win:RegisterForDrag("LeftButton")
     win:SetScript("OnDragStart", win.StartMoving)
     win:SetScript("OnDragStop", win.StopMovingOrSizing)
-    win:SetScript("OnHide", CloseMenu)
+    -- Previews started from the settings end when the settings close.
+    win:SetScript("OnHide", function()
+        CloseMenu()
+        if T.Display and T.Display.testMode then T.Display:SetTestMode(false) end
+        local GF = T.GroupFrames
+        if GF and GF.showSamples then
+            GF.showSamples = nil
+            if GF.UpdateTestFrames then GF:UpdateTestFrames() end
+        end
+    end)
     tinsert(UISpecialFrames, "TempusOptionsFrame")
 
     local shadow = Tex(win, "BACKGROUND", { 0, 0, 0, 0.45 }, -8)

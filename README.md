@@ -4,6 +4,18 @@ A complete World of Warcraft interface in one clean look: buff timers, unit fram
 
 Built for the new Classic client (interface 16001), where the game hides health, auras and range from addons in combat. Tempus is written around that: hidden values go straight from the game into bars, text and colours, and auras are drawn by the game's own aura containers, so everything keeps updating mid-fight.
 
+![Tempus settings](screenshots/mainscreen.png)
+
+## Screenshots
+
+| Nameplates | Party & raid frames |
+|---|---|
+| ![Nameplate with con strip, relative level and quest marker](screenshots/nameplates.png) | ![Sample party and raid frames: role icons, aggro border, dispel tint, range fading](screenshots/party-raid.png) |
+| **Buffs & debuffs** | **Action bars & info bar** |
+| ![Buff, debuff and weapon enchant timers](screenshots/buff-debuff.png) | ![Action bars with the info bar below](screenshots/actionbar.png) |
+| **Unit frames** | |
+| ![Player, target with buffs, and target-of-target frames](screenshots/unitframes.png) | |
+
 ## Modules
 
 - **Buffs & Debuffs**: icon or bar timers, a watch list for buffs you never want to forget, expiry warnings, click to recast or cancel.

@@ -2,6 +2,7 @@ package-as: Tempus
 
 ignore:
   - README.md
+  - screenshots
   - CHANGELOG.md
   - .github
   - .gitignore

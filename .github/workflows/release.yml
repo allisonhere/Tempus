@@ -1,0 +1,24 @@
+# Builds Tempus.zip when a version tag (v2.1.0 etc.) is pushed and attaches it to a GitHub
+# release. Once the CurseForge project exists, add its ID to Tempus.toc
+# (## X-Curse-Project-ID) and a CF_API_KEY repository secret to upload there as well.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: BigWigsMods/packager@v2
+        env:
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}

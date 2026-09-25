@@ -1,0 +1,45 @@
+## Interface: 16001, 11508
+## Title: |cff3fc1ffTempus|r UI
+## Notes: A complete interface suite: buff timers, unit frames, nameplates, party and raid frames, action bars, minimap, info bar and skins, in one clean look.
+## Author: Allie
+## Version: 2.1.0
+## IconTexture: Interface\Icons\INV_Misc_PocketWatch_01
+## SavedVariables: TempusDB
+## X-Website: https://github.com/allisonhere/Tempus
+
+Core\Core.lua
+Core\Style.lua
+Core\Movers.lua
+Core\Probe.lua
+Core\FPSTest.lua
+Config\Widgets.lua
+
+Modules\Buffs\Auras.lua
+Modules\Buffs\Display.lua
+Modules\Buffs\Alerts.lua
+Modules\Buffs\Module.lua
+Modules\Buffs\Pages.lua
+
+Modules\UnitFrames\UnitFrames.lua
+Modules\UnitFrames\Pages.lua
+Modules\Nameplates\Nameplates.lua
+Modules\Nameplates\Pages.lua
+Modules\GroupFrames\GroupFrames.lua
+Modules\GroupFrames\Pages.lua
+
+Modules\ActionBars\ActionBars.lua
+Modules\ActionBars\Pages.lua
+
+Modules\Minimap\Minimap.lua
+Modules\Minimap\DataBar.lua
+Modules\Minimap\StatusBars.lua
+Modules\Minimap\Pages.lua
+
+Modules\Skins\Skins.lua
+Modules\Skins\Tooltip.lua
+Modules\Skins\Chat.lua
+Modules\Skins\AddOns.lua
+Modules\Skins\Pages.lua
+
+Config\Window.lua
+Config\Installer.lua

@@ -1,0 +1,8 @@
+package-as: Tempus
+
+ignore:
+  - README.md
+  - CHANGELOG.md
+  - .github
+  - .gitignore
+  - .pkgmeta

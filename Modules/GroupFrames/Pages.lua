@@ -43,7 +43,7 @@ T:RegisterPage("groupframes", { key = "gf_general", label = "General", order = 1
     p:Section("Healing")
     p:Check(GFDB, "healPrediction", "Show incoming heals")
     p:Check(GFDB, "absorbs", "Show absorb shields")
-    p:Check(GFDB, "dispel", "Debuffs you can dispel", "One large icon in the middle, bordered in the debuff type's colour.")
+    p:Check(GFDB, "dispel", "Debuffs you can dispel", "A larger icon at the bottom right, bordered in the debuff type's colour.")
     p:Check(GFDB, "dispelTint", "Tint the frame in the dispel colour")
     p:Check(GFDB, "debuffs", "Other important debuffs", "Bottom left; the ones the game flags for group frames.")
     p:Slider(GFDB, "debuffSize", "Debuff size", 10, 30, 1)

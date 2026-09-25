@@ -467,7 +467,7 @@ local function AuraGroups()
     local groups = {}
     if db.dispel then
         groups.dispel = { key = "dispel", filter = "HARMFUL|RAID_PLAYER_DISPELLABLE", size = db.debuffSize + 2, max = 1,
-            corner = "CENTER", growX = "RIGHT" }
+            corner = "BOTTOMRIGHT", growX = "LEFT" }
     end
     if db.debuffs then
         groups.debuffs = { key = "debuffs", filter = db.dispel and "HARMFUL|RAID|!RAID_PLAYER_DISPELLABLE" or "HARMFUL|RAID",
@@ -484,7 +484,8 @@ local function AnchorGroup(b, g, c)
     local content = b.content
     c:ClearAllPoints()
     if g.key == "dispel" then
-        c:SetPoint("CENTER", content.health, "CENTER", 0, 0)
+        -- Bottom right: clear of the centred name, the debuffs (bottom left) and HoTs (top right).
+        c:SetPoint("BOTTOMRIGHT", content.health, "BOTTOMRIGHT", -2, 2)
     elseif g.key == "debuffs" then
         c:SetPoint("BOTTOMLEFT", content.health, "BOTTOMLEFT", 2, 2)
     else
@@ -511,7 +512,7 @@ local function ConfigureAuras(b)
         c:SetEnabled(false)
         c:SetSize(g.size, g.size)
         AnchorGroup(b, g, c)
-        local corner = g.corner == "CENTER" and "LEFT" or g.corner
+        local corner = g.corner
         c:SetFlowLayoutAxis(AnchorUtil.FlowLayoutAxis.Horizontal)
         c:SetFlowLayoutAnchorPoint(corner)
         c:SetFlowLayoutGrowthDirection(g.growX == "LEFT" and FD.Left or FD.Right, FD.Up)
@@ -1125,7 +1126,7 @@ local function FillSample(b, cfg, data)
         ic:SetSize(g.size, g.size)
         ic:ClearAllPoints()
         local step = (i - 1) * (g.size + 1)
-        if key == "dispel" then ic:SetPoint("CENTER", c.health, "CENTER")
+        if key == "dispel" then ic:SetPoint("BOTTOMRIGHT", c.health, "BOTTOMRIGHT", -2, 2)
         elseif key == "debuffs" then ic:SetPoint("BOTTOMLEFT", c.health, "BOTTOMLEFT", 2 + step, 2)
         else ic:SetPoint("TOPRIGHT", c, "TOPRIGHT", -2 - step, -2) end
         ic.icon:SetTexture(tex)

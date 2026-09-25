@@ -24,4 +24,6 @@
 - Settings pages could stop scrolling partway down.
 
 ### Changed
+- New Tempus logo (a clock whose hands form a T) in the AddOns list, settings, installer and minimap button, replacing the pocket-watch icon.
 - Developer probing is off by default (`/tempus probe` to turn it on, `/tempus probe off` to clear it).
+- Tempus UI is now published under an All Rights Reserved license (see LICENSE): free to download and play with; redistribution or reuse needs permission.

@@ -6,6 +6,7 @@ T.name = "Tempus"
 T.version = (C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata)(ADDON, "Version") or "1.0"
 T.accent = { 0.25, 0.76, 1 }
 T.accentHex = "3fc1ff"
+T.LOGO = "Interface\\AddOns\\Tempus\\media\\icon"     -- round clock logo (media/icon.tga)
 
 -- Accent colours on offer. T.accent is changed in place, so every file that holds a
 -- reference to it sees the new colour; anything already drawn updates after /reload.

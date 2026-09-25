@@ -200,10 +200,9 @@ function T:InitMinimapButton()
     bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
     bg:SetPoint("TOPLEFT", 7, -5)
     local icon = mm:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(17, 17)
-    icon:SetTexture("Interface\\Icons\\INV_Misc_PocketWatch_01")
-    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    icon:SetPoint("TOPLEFT", 7, -6)
+    icon:SetSize(20, 20)
+    icon:SetTexture(T.LOGO)
+    icon:SetPoint("TOPLEFT", 6, -5)
     mm:SetScript("OnClick", function(_, button)
         if button == "RightButton" then
             T.db.locked = not T.db.locked

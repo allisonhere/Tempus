@@ -1,4 +1,6 @@
-# Tempus UI
+<p align="center"><img src="branding/logo.png" width="160" alt="Tempus logo: a clock whose hands form a T, inside a violet-to-cyan timer ring"></p>
+
+<h1 align="center">Tempus UI</h1>
 
 A complete World of Warcraft interface in one clean look: buff timers, unit frames, nameplates, party and raid frames, action bars, a square minimap, an info bar, and skins for Blizzard's windows. Every part is a module you can turn off.
 
@@ -58,4 +60,4 @@ Copy the `Tempus` folder into `World of Warcraft/_classic_/Interface/AddOns/` (o
 
 ## License
 
-See the project page; until a license file is added, all rights are reserved.
+Copyright (c) 2026 Allison Bayless. All rights reserved. You're welcome to download and play with Tempus UI; copying, re-uploading or reusing its code or artwork needs permission. See [LICENSE](LICENSE).

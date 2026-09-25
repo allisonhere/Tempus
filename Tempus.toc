@@ -3,7 +3,7 @@
 ## Notes: A complete interface suite: buff timers, unit frames, nameplates, party and raid frames, action bars, minimap, info bar and skins, in one clean look.
 ## Author: Allie
 ## Version: 2.1.0
-## IconTexture: Interface\Icons\INV_Misc_PocketWatch_01
+## IconTexture: Interface\AddOns\Tempus\media\icon
 ## SavedVariables: TempusDB
 ## X-Website: https://github.com/allisonhere/Tempus
 

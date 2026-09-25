@@ -3,6 +3,7 @@ package-as: Tempus
 ignore:
   - README.md
   - screenshots
+  - branding
   - CHANGELOG.md
   - .github
   - .gitignore

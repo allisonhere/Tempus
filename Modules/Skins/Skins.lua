@@ -12,7 +12,7 @@ SK.defaults = {
     windows = true,
     tooltips = true, tooltipCursor = false, tooltipHealth = true,
     chat = true, chatAlpha = 0.55,
-    bagnon = true, dbm = true, healium = true,
+    bagnon = true, dbm = true,
     parchment = true,           -- keep parchment on reading surfaces (quests, gossip, books, mail)
     trackerPanel = true, trackerAlpha = 0.45,
 }

@@ -18,7 +18,6 @@ T:RegisterPage("skins", { key = "skins", label = "Skins", order = 1, build = fun
     p:Slider(cfg, "trackerAlpha", "Panel opacity", 0.1, 1, 0.05, UI.pct)
     p:Section("Other addons")
     p:Check(cfg, "bagnon", "Bagnon", "Tempus skin for Bagnon's frames and square item slots with quality borders.")
-    p:Check(cfg, "healium", "Healium", "Restyles Healium's frames, bars, heal buttons and debuff/aggro borders. Visual only - click-casting is untouched.")
     p:Check(cfg, "dbm", "DBM timers", "Adds a 'Tempus' skin to DBM's bar skins.")
     p:Newline()
     p:Add(W.Button("Use Tempus skin in DBM", function() T.Skins:ApplyDBM() end, "Switches DBM's timer bars to the Tempus skin now."))

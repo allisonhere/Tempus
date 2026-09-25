@@ -33,7 +33,7 @@ Built for the new Classic client (interface 16001), where the game hides health,
   - Built-in click-casting with starting bindings for Druid, Priest, Shaman and Paladin; Clique also works.
 - **Action Bars**: restyled bars with fading, hotkeys and range colouring.
 - **Minimap, Info Bar, XP & Reputation Bars**: a square minimap and a configurable info bar.
-- **Skins**: Blizzard windows, tooltips, chat, and Bagnon, DBM and Healium.
+- **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM.
 
 Every settings page has a live preview. Unlock the UI to drag any element into place; sample frames fill the boxes so you can arrange group frames while solo.
 

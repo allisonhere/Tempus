@@ -8,3 +8,9 @@ ignore:
   - .github
   - .gitignore
   - .pkgmeta
+  - tests
+  - tools
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown

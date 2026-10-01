@@ -77,6 +77,7 @@ T:RegisterPage("nameplates", { key = "np_combat", label = "Casts & Auras", order
     p:Dropdown(NPDB, "buffs", "Buffs on enemies", { { "PURGE", "Only purgeable" }, { "ALL", "All" }, { "NONE", "None" } })
     p:Slider(NPDB, "buffSize", "Buff size", 12, 40, 1)
     p:Slider(NPDB, "buffMax", "Max buffs", 1, 8, 1)
+    p:Check(NPDB, "buffAlert", "Purple edge on enemies with a dispellable buff", "Shows when an enemy has a buff you can dispel or steal. Works in combat: only the count of such buffs is read.")
     p:Check(NPDB, "cc", "Crowd control as a large icon", "Stuns, fears, polymorphs and the like, shown left of the bar.")
     p:Slider(NPDB, "ccSize", "Crowd control size", 16, 48, 1)
 end })

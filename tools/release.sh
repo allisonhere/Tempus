@@ -32,6 +32,10 @@ else
     echo "luac5.1 not found, skipping the syntax check"
 fi
 
+step "Changelog and tests"
+python3 tools/gen_changelog.py   # keeps Core/Changelog.lua in step with CHANGELOG.md
+tools/test.sh || die "tests failed"
+
 if [[ $DRY -eq 1 ]]; then
     echo; echo "dry run: checks passed. Would set Tempus.toc to $VERSION, regenerate Core/Changelog.lua,"
     echo "commit everything pending as 'Release $VERSION', tag $TAG and push main + $TAG."
@@ -41,7 +45,6 @@ fi
 
 step "Version and changelog"
 sed -i "s/^## Version: .*/## Version: $VERSION/" Tempus.toc
-python3 tools/gen_changelog.py
 grep -q "version = \"$VERSION\"" Core/Changelog.lua || die "Core/Changelog.lua did not pick up $VERSION"
 echo "Tempus.toc -> $VERSION"
 

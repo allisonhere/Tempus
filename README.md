@@ -25,12 +25,16 @@ Built for the new Classic client (interface 16001), where the game hides health,
 - **Nameplates**
   - Colours for threat (tank or damage role), execute range, class and reaction.
   - Con at a glance: a coloured strip, relative level (+3 / -2), elite pips or a 1-5 danger rating; grey mobs shrink and fade.
-  - Cast bars that show when a cast can be interrupted, and alerts for spells on your watch list.
+  - Cast bars that show when a cast can be interrupted, your own interrupt with its cooldown, and who stopped a cast.
+  - Alerts for spells on your watch list, and a purple edge on enemies carrying a buff you can dispel or steal.
   - Your debuffs, purgeable buffs and crowd control.
 - **Party & Raid**
   - Healer-ready frames: range fading, incoming heals and absorbs, and dispellable debuffs with a coloured tint.
   - Your HoTs with timers, role and leader icons, aggro borders, and a raid grid for up to 40.
   - Built-in click-casting with starting bindings for Druid, Priest, Shaman and Paladin; Clique also works.
+- **Cooldowns**: a row of icons with cooldown swipes for spells you pick, plus your trinkets.
+- **Vendor**: sells grey items and repairs gear when a merchant opens.
+- **Profiles**: share your settings as a text string (Export / Import on the Profiles page).
 - **Action Bars**: restyled bars with fading, hotkeys and range colouring.
 - **Minimap, Info Bar, XP & Reputation Bars**: a square minimap and a configurable info bar.
 - **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM. Includes a quest log search, and a quest tracker with zone headers that fold and a fuzzy search box. **Stock skin** keeps those features but leaves Blizzard's own look in place.

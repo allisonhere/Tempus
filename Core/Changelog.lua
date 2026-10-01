@@ -1,6 +1,14 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.3.0", sections = {
+        { title = "New", items = {
+            { 0, "|cffffffffShare profiles|r: Export turns the active profile into a text string; Import creates a new profile from one (General > Profiles). Damaged or edited strings are refused, and nothing in them is ever run." },
+            { 0, "|cffffffffCooldowns module|r: a movable row of icons with cooldown swipes for spells you list and your trinkets. \"Add my interrupt\" adds your class's interrupt." },
+            { 0, "|cffffffffVendor module|r: sells grey items and repairs gear when you open a merchant (optionally from guild funds), with a short chat summary." },
+            { 0, "|cffffffffDispellable buff alert|r on nameplates: a purple edge on enemies carrying a buff you can dispel or steal. It works in combat." },
+        } },
+    } },
     { version = "2.2.1", sections = {
         { title = "Fixed", items = {
             { 0, "The five combo point boxes above the player frame now show only for rogues and druids in cat form, not for every class." },

@@ -2,19 +2,21 @@
 ## Title: |cff3fc1ffTempus|r UI
 ## Notes: A complete interface suite: buff timers, unit frames, nameplates, party and raid frames, action bars, minimap, info bar and skins, in one clean look.
 ## Author: Allie
-## Version: 2.2.1
+## Version: 2.3.0
 ## IconTexture: Interface\AddOns\Tempus\media\icon
 ## SavedVariables: TempusDB
 ## OptionalDeps: SpellPower
 ## X-Website: https://github.com/allisonhere/Tempus
 
 Core\Core.lua
+Core\Share.lua
 Core\Changelog.lua
 Core\Style.lua
 Core\Movers.lua
 Core\Probe.lua
 Core\FPSTest.lua
 Config\Widgets.lua
+Config\Share.lua
 
 Modules\Buffs\Auras.lua
 Modules\Buffs\Display.lua
@@ -36,6 +38,12 @@ Modules\Minimap\Minimap.lua
 Modules\Minimap\DataBar.lua
 Modules\Minimap\StatusBars.lua
 Modules\Minimap\Pages.lua
+
+Modules\Cooldowns\Cooldowns.lua
+Modules\Cooldowns\Pages.lua
+
+Modules\Vendor\Vendor.lua
+Modules\Vendor\Pages.lua
 
 Modules\Skins\Skins.lua
 Modules\Skins\Quests.lua

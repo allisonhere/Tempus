@@ -25,6 +25,7 @@ NP.defaults = {
     castbar = true, castHeight = 10,
     castAlerts = true,          -- watched spells (Tempus > Nameplates > Casts & Auras list)
     kickHighlight = true,       -- bright edge on casts that can be interrupted
+    buffAlert = true,           -- purple edge on enemies that have a buff you can dispel or steal
     kickIcon = true,            -- your interrupt, with its cooldown, beside interruptible casts
     interruptedBy = true,       -- "Interrupted: Name" when a cast is stopped
     alertSound = false,
@@ -374,11 +375,31 @@ local function UpdateHighlight(f)
     if isTarget and db.targetGlow then
         f.bd:SetEdgeColor(a[1], a[2], a[3])
         f.bd.shadow:SetVertexColor(a[1], a[2], a[3], 0.55)
+    elseif f.hasPurgeable and db.buffAlert then
+        f.bd:SetEdgeColor(0.75, 0.3, 1)
+        f.bd.shadow:SetVertexColor(0.75, 0.3, 1, 0.5)
     else
         f.bd:SetEdgeColor(0, 0, 0)
         f.bd.shadow:SetVertexColor(0, 0, 0, 0.45)
     end
     f.hover:SetShown(isMouse and not isTarget)
+end
+
+-- Does this enemy carry a buff you can dispel or steal? Only the number of matching auras is
+-- read, so it works while the aura details themselves are hidden in combat.
+local function UpdateBuffAlert(f)
+    local has = false
+    if NP.db.buffAlert and f.hostile and C_UnitAuras and C_UnitAuras.GetUnitAuraInstanceIDs then
+        local ok, ids = pcall(C_UnitAuras.GetUnitAuraInstanceIDs, f.unit, "HELPFUL|RAID_PLAYER_DISPELLABLE")
+        if ok and type(ids) == "table" then
+            local okN, n = pcall(function() return #ids end)
+            has = okN and T.Num(n) and n > 0
+        end
+    end
+    if f.hasPurgeable ~= has then
+        f.hasPurgeable = has
+        UpdateHighlight(f)
+    end
 end
 
 ----------------------------------------------------------------------------------------
@@ -1013,6 +1034,8 @@ local function UpdateAll(f)
     UpdateColor(f)
     UpdateRaidIcon(f)
     UpdateQuest(f)
+    f.hasPurgeable = nil
+    UpdateBuffAlert(f)
     UpdateHighlight(f)
     RefreshCast(f)
 end
@@ -1103,6 +1126,8 @@ local function OnEvent(self, event, unit, _, _, interruptedBy)
     if not f then return end
     if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
         UpdateHealth(f)
+    elseif event == "UNIT_AURA" then
+        UpdateBuffAlert(f)
     elseif event == "UNIT_THREAT_LIST_UPDATE" or event == "UNIT_THREAT_SITUATION_UPDATE" then
         UpdateColor(f)
     elseif CAST_START[event] ~= nil then
@@ -1126,7 +1151,7 @@ local EVENTS = {
     "UPDATE_MOUSEOVER_UNIT", "RAID_TARGET_UPDATE", "QUEST_LOG_UPDATE", "PLAYER_REGEN_ENABLED",
     "PLAYER_REGEN_DISABLED", "PLAYER_ROLES_ASSIGNED", "PLAYER_LEVEL_UP", "SPELLS_CHANGED",
     "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_NAME_UPDATE", "UNIT_LEVEL", "UNIT_FACTION", "UNIT_FLAGS",
-    "UNIT_THREAT_LIST_UPDATE", "UNIT_THREAT_SITUATION_UPDATE",
+    "UNIT_THREAT_LIST_UPDATE", "UNIT_THREAT_SITUATION_UPDATE", "UNIT_AURA",
 }
 
 -- UPDATE_MOUSEOVER_UNIT has no "left" counterpart; poll only while a plate is highlighted.

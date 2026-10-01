@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3.0
+
+### New
+- **Share profiles**: Export turns the active profile into a text string; Import creates a new profile from one (General > Profiles). Damaged or edited strings are refused, and nothing in them is ever run.
+- **Cooldowns module**: a movable row of icons with cooldown swipes for spells you list and your trinkets. "Add my interrupt" adds your class's interrupt.
+- **Vendor module**: sells grey items and repairs gear when you open a merchant (optionally from guild funds), with a short chat summary.
+- **Dispellable buff alert** on nameplates: a purple edge on enemies carrying a buff you can dispel or steal. It works in combat.
+
 ## 2.2.1
 
 ### Fixed

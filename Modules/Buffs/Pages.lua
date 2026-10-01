@@ -225,6 +225,9 @@ PAGES[#PAGES + 1] = { key = "profiles", label = "Profiles", suite = true, build 
         "The active profile and Default cannot be deleted."))
     p:Newline()
     p:Add(W.Button("Reset active profile", function() T:ResetProfile() end, "Restores every setting in this profile to its default."))
+    p:Section("Share", "Turn the active profile into a text string to send to a friend, or paste one you received into a new profile.")
+    p:Add(W.Button("Export profile", function() T:ShowShare("export") end, "Shows the active profile as text you can copy."))
+    p:Add(W.Button("Import profile", function() T:ShowShare("import") end, "Creates a new profile from a pasted string and switches to it."))
 end }
 
 -- Appearance and profiles apply to the whole suite; the rest belong to the buffs section.

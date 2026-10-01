@@ -145,12 +145,12 @@ function SK:ApplyDBM()
 end
 
 function SK:InitAddOns()
-    if SK.db.bagnon then
+    if SK:On("bagnon") then
         pcall(RegisterBagnon)
         pcall(HookBagnonItems)
         pcall(ApplyBagnonSkin)
     end
-    if SK.db.dbm then pcall(RegisterDBM) end
+    if SK:On("dbm") then pcall(RegisterDBM) end
 end
 
 function SK:OnAddonLoaded()

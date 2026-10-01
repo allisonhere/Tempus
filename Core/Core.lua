@@ -174,6 +174,7 @@ function T:SetProfile(name)
     TempusDB.chars[CharKey()] = name
     Merge(TempusDB.profiles[name], T.defaults)
     T.db = TempusDB.profiles[name]
+    if T.Options then T.Options.needsReload = true end
     T:ApplySettings()
 end
 
@@ -377,6 +378,7 @@ T.pageSections = {
     { key = "actionbars", label = "Action Bars" },
     { key = "minimap", label = "Minimap & Info Bar" },
     { key = "skins", label = "Skins" },
+    { key = "spellpower", label = "SpellPower" },
 }
 T.pages = {}
 function T:RegisterPage(section, def)
@@ -412,7 +414,9 @@ end
 local function EachModule(method)
     for _, key in ipairs(T.moduleOrder) do
         local m = T.modules[key]
-        if m[method] and T:ModuleEnabled(key) and (method == "OnEnable" or m.enabled) then
+        local active = m.enabled
+        if method == "OnEnable" then active = T:ModuleEnabled(key) end
+        if m[method] and active then
             local ok, err = pcall(m[method], m)
             if not ok then T:ReportError(key .. ": " .. tostring(err)) end
             if method == "OnEnable" then m.enabled = ok end
@@ -423,6 +427,7 @@ end
 function T:ApplySettings()
     if not T.db then return end
     T:ApplyAccent()
+    if T.Style and T.Style.ApplyTheme then T.Style.ApplyTheme() end
     T:BuildNativeFormatters()
     EachModule("OnSettings")
     if T.Movers then T.Movers:Refresh() end
@@ -621,6 +626,119 @@ SlashCmdList.TEMPUS = function(msg)
         for _, e in ipairs(T.log) do
             T:Print("|cff888888%s|r [%s]%s %s", e.at, e.kind, e.count > 1 and (" x" .. e.count) or "", e.msg)
         end
+    elseif msg == "inkdump" then
+        -- Temporary: quest window textures and text colours, to see why text stays light.
+        local out, SK = {}, T.Skins
+        local function Name(o)
+            local k = o.GetParentKey and o:GetParentKey()
+            return k or (o.GetName and o:GetName()) or o:GetObjectType()
+        end
+        local function Walk(f, path, depth)
+            if depth > 10 or (f.IsForbidden and f:IsForbidden()) or not f:IsVisible() then return end
+            for _, r in ipairs({ f:GetRegions() }) do
+                if r:IsVisible() then
+                    local kind = r:GetObjectType()
+                    if kind == "Texture" then
+                        local w, h = r:GetSize()
+                        local atlas = r.GetAtlas and r:GetAtlas()
+                        out[#out + 1] = ("TEX %s.%s atlas=%s file=%s a=%.2f %dx%d stripped=%s parch=%s"):format(path, tostring(Name(r)),
+                            tostring(atlas), tostring(r:GetTexture()), r:GetAlpha(), w, h, tostring(r.tempusStripped),
+                            tostring(SK.IsParchment and SK.IsParchment(r)))
+                    elseif kind == "FontString" then
+                        local red, green, blue = r:GetTextColor()
+                        local text = r:GetText()
+                        if text and not T.issecret(text) and text ~= "" then
+                            out[#out + 1] = ("TXT %s.%s color=%.2f,%.2f,%.2f font=%s \"%s\""):format(path, tostring(Name(r)),
+                                red or -1, green or -1, blue or -1, tostring(r:GetFontObject() and r:GetFontObject():GetName()),
+                                text:sub(1, 40))
+                        end
+                    end
+                end
+            end
+            for _, c in ipairs({ f:GetChildren() }) do Walk(c, path .. "." .. tostring(Name(c)), depth + 1) end
+        end
+        for _, n in ipairs({ "QuestFrame", "GossipFrame" }) do
+            local f = _G[n]
+            if f and f:IsShown() then
+                out[#out + 1] = ("WINDOW %s parchmentWindows=%s"):format(n, tostring(SK.parchmentWindows and SK.parchmentWindows[n]))
+                Walk(f, n, 0)
+            end
+        end
+        TempusDB.inkdump = out
+        T:Print("%d lines recorded. /reload so they are saved to disk.", #out)
+    elseif msg == "trackerdump" then
+        -- Records the live objective tracker's structure so scrolling, zone folding and
+        -- search can be built against what this client actually has.
+        local out = {}
+        local function Add(fmt, ...) out[#out + 1] = fmt:format(...) end
+        local function Keys(obj, label)
+            local fns, tbls, vals = {}, {}, {}
+            for k, v in pairs(obj) do
+                local t = type(v)
+                if type(k) == "string" then
+                    if t == "function" then fns[#fns + 1] = k
+                    elseif t == "table" then tbls[#tbls + 1] = k
+                    else vals[#vals + 1] = k .. "=" .. tostring(v) end
+                end
+            end
+            table.sort(fns); table.sort(tbls); table.sort(vals)
+            Add("%s functions: %s", label, table.concat(fns, " "))
+            Add("%s tables: %s", label, table.concat(tbls, " "))
+            Add("%s values: %s", label, table.concat(vals, " "))
+        end
+        local function Frame(f, depth, label)
+            if depth > 4 or type(f) ~= "table" or not f.GetObjectType then return end
+            local ok, w, h = pcall(function() return f:GetWidth(), f:GetHeight() end)
+            Add("%s%s <%s> name=%s shown=%s w=%s h=%s strata=%s", ("  "):rep(depth), label, f:GetObjectType(),
+                tostring(f.GetName and f:GetName()), tostring(f.IsShown and f:IsShown()),
+                ok and ("%.0f"):format(w or 0) or "?", ok and ("%.0f"):format(h or 0) or "?",
+                tostring(f.GetFrameStrata and f:GetFrameStrata()))
+            if f.GetChildren then
+                local kids = { f:GetChildren() }
+                for i, kid in ipairs(kids) do
+                    if i > 12 then Add("%s... %d more children", ("  "):rep(depth + 1), #kids - 12) break end
+                    Frame(kid, depth + 1, "child" .. i)
+                end
+            end
+        end
+        local tr = _G.ObjectiveTrackerFrame
+        Add("build=%s tracker=%s WatchFrame=%s QuestObjectiveTracker=%s Campaign=%s", tostring(select(4, GetBuildInfo())),
+            tostring(tr ~= nil), tostring(_G.WatchFrame ~= nil), tostring(_G.QuestObjectiveTracker ~= nil),
+            tostring(_G.CampaignQuestObjectiveTracker ~= nil))
+        if tr then
+            Keys(tr, "ObjectiveTrackerFrame")
+            Frame(tr, 0, "ObjectiveTrackerFrame")
+            if tr.ForEachModule then
+                local n = 0
+                tr:ForEachModule(function(module)
+                    n = n + 1
+                    Add("MODULE %d name=%s", n, tostring(module.GetName and module:GetName()))
+                    Keys(module, "  module" .. n)
+                    if module.ContentsFrame then Frame(module.ContentsFrame, 1, "ContentsFrame") end
+                    if module.usedBlocks then
+                        local pools = {}
+                        for template, pool in pairs(module.usedBlocks) do
+                            local c = 0
+                            for _ in pairs(pool) do c = c + 1 end
+                            pools[#pools + 1] = tostring(template) .. ":" .. c
+                        end
+                        Add("  usedBlocks %s", table.concat(pools, " "))
+                    end
+                end)
+            end
+        end
+        for _, name in ipairs({ "QuestObjectiveTracker", "CampaignQuestObjectiveTracker", "WatchFrame", "WatchFrameLines" }) do
+            local f = _G[name]
+            if f then Keys(f, name) end
+        end
+        Add("C_QuestLog: %s", (function()
+            local names = {}
+            for k in pairs(C_QuestLog or {}) do names[#names + 1] = k end
+            table.sort(names)
+            return table.concat(names, " ")
+        end)())
+        TempusDB.trackerdump = out
+        T:Print("%d lines recorded. /reload so they are saved to disk.", #out)
     elseif msg == "skinreport" then
         if T.Skins and T.Skins.Report then T.Skins:Report() else T:Print("the Skins module is off.") end
     elseif msg == "install" or msg == "setup" then

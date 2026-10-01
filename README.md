@@ -33,7 +33,11 @@ Built for the new Classic client (interface 16001), where the game hides health,
   - Built-in click-casting with starting bindings for Druid, Priest, Shaman and Paladin; Clique also works.
 - **Action Bars**: restyled bars with fading, hotkeys and range colouring.
 - **Minimap, Info Bar, XP & Reputation Bars**: a square minimap and a configurable info bar.
-- **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM.
+- **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM. Includes a quest log search, and a quest tracker with zone headers that fold and a fuzzy search box. **Stock skin** keeps those features but leaves Blizzard's own look in place.
+
+## Themes
+
+The Theme setting (Appearance) restyles every Tempus panel and status bar live: **Modern** (crisp edge and soft shadow), **Gloss** (adds a glassy highlight), **Classic** (a warm Blizzard-style border; skinned windows keep Blizzard's own frames after a reload) and **Flat** (no decoration). Class, dispel and target highlight edges stay visible in every theme.
 
 Every settings page has a live preview. Unlock the UI to drag any element into place; sample frames fill the boxes so you can arrange group frames while solo.
 
@@ -52,6 +56,8 @@ Copy the `Tempus` folder into `World of Warcraft/_classic_/Interface/AddOns/` (o
 | `/tempus safe` | Turn off everything except buffs and reload (escape hatch) |
 | `/tempus debug` | Show aura status and the last error |
 | `/tempus help` | List commands |
+
+The settings window also has a **What's new** page with the changelog.
 
 ## Notes
 

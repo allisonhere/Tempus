@@ -32,6 +32,34 @@ T:RegisterPage("general", { key = "modules", label = "Modules", order = 1, build
     p:Add(UI.W.Check("Minimap button", function() return not T.db.minimap.hide end, function(v) T.db.minimap.hide = not v end))
 end })
 
+-- SpellPower (chat spell checker) is a separate addon whose settings pages are built to
+-- the same widget API, so they are listed in the sidebar and rendered in this window.
+-- An older SpellPower without the page list gets a button that opens its own window.
+local SP = _G.SpellPower
+if SP and SP.Settings and SP.Settings.pages and SP.Settings.Mixin then
+    local rank = {}
+    for i, section in ipairs(SP.Settings.sections or {}) do rank[section.key] = i end
+    for _, def in ipairs(SP.Settings.pages) do
+        T:RegisterPage("spellpower", {
+            key = "sp_" .. def.key, label = def.label,
+            order = (rank[def.section] or 9) * 10 + (def.order or 0),
+            build = function(p)
+                SP.Settings:Mixin(p)
+                def.build(p)
+            end,
+        })
+    end
+elseif C_AddOns and C_AddOns.IsAddOnLoaded("SpellPower") then
+    T:RegisterPage("spellpower", { key = "spellpower", label = "SpellPower", order = 1, build = function(p)
+        p:Section("SpellPower", "Live spell checking and grammar hints in the chat box. It has its own settings window.")
+        p:Add(UI.W.Button("Open SpellPower settings", function()
+            local handler = SlashCmdList and SlashCmdList["SPELLPOWER"]
+            if handler then handler("") end
+            if win then win:Hide() end
+        end, nil, 200))
+    end })
+end
+
 ----------------------------------------------------------------------------------------
 -- Page selection
 ----------------------------------------------------------------------------------------

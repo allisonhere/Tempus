@@ -5,10 +5,40 @@ local _, T = ...
 local S = T.Style
 local C = S.C
 
-local SK = { skinned = {} }
+local SK = { skinned = {}, extrasSkinned = {} }
 T.Skins = SK
 
+local RELOAD_SETTINGS = { "stockSkin", "windows", "parchment", "tooltips", "tooltipHealth", "chat", "bagnon", "dbm" }
+
+function SK:ReportError(name, err)
+    if TempusDB and TempusDB.debug then
+        TempusDB.debug.skinErrors = TempusDB.debug.skinErrors or {}
+        TempusDB.debug.skinErrors[name] = tostring(err)
+    end
+    T:Log("skin", name .. ": " .. tostring(err))
+end
+
+-- A look setting is on only when "Stock skin" is off: stock skin keeps every Tempus feature
+-- (tracker search and zone folding, quest log search) but leaves Blizzard's own look alone.
+function SK:On(key)
+    if not SK.db or SK.db.stockSkin then return false end
+    -- The Classic theme is the Blizzard look: windows keep their own frames and art.
+    if (key == "windows" or key == "parchment") and T.db and T.db.theme == "CLASSIC" then return false end
+    return SK.db[key] and true or false
+end
+
+function SK:ClassicTheme()
+    return T.db and T.db.theme == "CLASSIC" or false
+end
+
+function SK:Try(name, fn, ...)
+    local ok, err = pcall(fn, ...)
+    if not ok then SK:ReportError(name, err) end
+    return ok
+end
+
 SK.defaults = {
+    stockSkin = false,          -- master switch: Blizzard's stock look everywhere, Tempus features kept
     windows = true,
     tooltips = true, tooltipCursor = false, tooltipHealth = true,
     chat = true, chatAlpha = 0.55,
@@ -54,7 +84,7 @@ end
 -- Inside reading windows, parchment survives when the option is on.
 function SK:Strip(frame, keep)
     if not frame or not frame.GetRegions or (frame.IsForbidden and frame:IsForbidden()) then return end
-    local keepParchment = SK.db and SK.db.parchment and SK.inReading
+    local keepParchment = SK.db and SK:On("parchment") and SK.inReading
     for _, r in ipairs({ frame:GetRegions() }) do
         if IsTex(r) and not r.tempus and not (keep and keep[r]) then
             if keepParchment and IsParchment(r) then
@@ -307,7 +337,6 @@ end
 -- SK.inReading is set only for the duration of that window's skinning pass.
 function SK:Window(frame)
     if not frame or SK.skinned[frame] or (frame.IsForbidden and frame:IsForbidden()) then return end
-    SK.skinned[frame] = true
     local name = frame.GetName and frame:GetName()
     local reading = name and SK.readingWindows[name] or nil
     SK.parchmentWindows = SK.parchmentWindows or {}
@@ -324,7 +353,7 @@ function SK:Window(frame)
         SK:Strip(frame)
         for _, key in ipairs({ "NineSlice", "Bg", "TopTileStreaks", "PortraitContainer", "portrait", "Background" }) do
             local r = frame[key]
-            if not (reading and SK.db.parchment and type(r) == "table" and r.GetObjectType
+            if not (reading and SK:On("parchment") and type(r) == "table" and r.GetObjectType
                 and r:GetObjectType() == "Texture" and IsParchment(r)) then
                 HideKey(frame, key)
             end
@@ -341,19 +370,21 @@ function SK:Window(frame)
     frame:HookScript("OnShow", function(self)
         SK.inReading, SK.inReadingName = reading, reading and name or nil
         SK.foundParchment = SK.parchmentWindows[name]
-        pcall(SK.Walk, SK, self)
+        local ok, err = pcall(SK.Walk, SK, self)
         if reading then SK.parchmentWindows[name] = SK.foundParchment end
         SK.inReading, SK.inReadingName = nil, nil
+        if not ok then SK:ReportError(name, err) end
         if reading then
             SK:RestoreParchment(name)
             C_Timer.After(0, function() SK:RestoreParchment(name) end)
         end
     end)
+    SK.skinned[frame] = true
 end
 
 -- Bring back hidden textures of a reading window that have since become parchment.
 function SK:RestoreParchment(name)
-    if not (SK.db.parchment and SK.readingStripped) then return end
+    if not (SK:On("parchment") and SK.readingStripped) then return end
     for r, owner in pairs(SK.readingStripped) do
         if owner == name and IsParchment(r) then
             r:SetAlpha(1)
@@ -697,7 +728,8 @@ function SK:LiveSweep(frame)
         t = t + elapsed
         if t < 0.5 then return end
         t = 0
-        pcall(Sweep, frame, 0)
+        local ok, err = pcall(Sweep, frame, 0)
+        if not ok then SK:ReportError(frame:GetName() or "window sweep", err) end
     end))
 end
 
@@ -843,9 +875,14 @@ local EXTRA = {
     WorldMapFrame = function()
         SkinWorldMap()
         SK:LiveSweep(WorldMapFrame)
-        WorldMapFrame:HookScript("OnShow", function() pcall(SkinNavButtons) end)
-        if WorldMapFrame.NavBar and WorldMapFrame.NavBar.Refresh then
-            hooksecurefunc(WorldMapFrame.NavBar, "Refresh", function() pcall(SkinNavButtons) end)
+        if not WorldMapFrame.tempusNavOnShow then
+            WorldMapFrame:HookScript("OnShow", function() pcall(SkinNavButtons) end)
+            WorldMapFrame.tempusNavOnShow = true
+        end
+        local nav = WorldMapFrame.NavBar
+        if nav and nav.Refresh and not nav.tempusRefreshHooked then
+            hooksecurefunc(nav, "Refresh", function() pcall(SkinNavButtons) end)
+            nav.tempusRefreshHooked = true
         end
         pcall(SkinNavButtons)
     end,
@@ -861,20 +898,25 @@ local EXTRA = {
 }
 
 function SK:SkinWindows()
-    if not SK.db.windows then return end
+    if not SK:On("windows") then return end
     for _, name in ipairs(SK.windows) do
         local f = _G[name]
-        if f and not SK.skinned[f] and f.GetObjectType then
+        if f and f.GetObjectType and (not SK.skinned[f] or EXTRA[name] and not SK.extrasSkinned[f]) then
             local ok, err = true, nil
-            if name == "WorldMapFrame" then
-                SK.skinned[f] = true
-            else
+            if not SK.skinned[f] and name ~= "WorldMapFrame" then
                 ok, err = pcall(SK.Window, SK, f)
             end
-            if ok and EXTRA[name] then ok, err = pcall(EXTRA[name]) end
-            if not ok and TempusDB and TempusDB.debug then
-                TempusDB.debug.skinErrors = TempusDB.debug.skinErrors or {}
-                TempusDB.debug.skinErrors[name] = tostring(err)
+            if ok and EXTRA[name] and not SK.extrasSkinned[f] then
+                ok, err = pcall(EXTRA[name])
+                if ok then SK.extrasSkinned[f] = true end
+            end
+            if ok then
+                SK.skinned[f] = true
+                if TempusDB and TempusDB.debug and TempusDB.debug.skinErrors then
+                    TempusDB.debug.skinErrors[name] = nil
+                end
+            else
+                SK:ReportError(name, err)
             end
         end
     end
@@ -1018,34 +1060,61 @@ local function SkinTrackerHeader(h)
 end
 
 -- Lowest visible point of the tracker's content, so the panel ends with the last quest.
+-- Only leaf frames count: a container (module, ContentsFrame) keeps its old height after
+-- a zone is folded or a section is minimized, and would hold the panel open.
 local function ContentBottom(tr)
     local lowest
     local function Scan(f, depth)
-        if depth > 3 then return end
-        for _, child in ipairs({ f:GetChildren() }) do
-            if child:IsVisible() and child ~= tr.tempusPanel then
-                local b = child:GetBottom()
-                local h = child:GetHeight() or 0
-                if b and h > 1 and (not lowest or b < lowest) then lowest = b end
-                Scan(child, depth + 1)
+        local counted = false
+        if depth <= 3 then
+            for _, child in ipairs({ f:GetChildren() }) do
+                if child:IsVisible() and child ~= tr.tempusPanel then
+                    counted = true
+                    local leaf = Scan(child, depth + 1)
+                    local b = child:GetBottom()
+                    local h = child:GetHeight() or 0
+                    if leaf and b and h > 1 and (not lowest or b < lowest) then lowest = b end
+                end
             end
         end
+        return not counted
     end
     Scan(tr, 0)
     return lowest
+end
+
+-- The lowest visible tracker section. The panel is anchored to it, so the game's own
+-- layout keeps the panel's edge in step with the content; nothing is measured at a
+-- moment when positions may be stale.
+local function LastModule(tr)
+    if not tr.ForEachModule then return nil end
+    local last, lowest
+    tr:ForEachModule(function(module)
+        if module ~= tr.tempusPanel and module.IsVisible and module:IsVisible() then
+            local bottom, height = module:GetBottom(), module:GetHeight() or 0
+            if bottom and height > 1 and (not lowest or bottom < lowest) then last, lowest = module, bottom end
+        end
+    end)
+    return last, lowest
 end
 
 function SK:UpdateTrackerPanel()
     local tr = _G.ObjectiveTrackerFrame
     local panel = tr and tr.tempusPanel
     if not panel then return end
-    local show = SK.db.trackerPanel and tr:IsVisible()
-    local top, bottom = tr:GetTop(), show and ContentBottom(tr)
+    local show = SK:On("trackerPanel") and tr:IsVisible() and not (tr.isCollapsed or tr.collapsed)
+    local top = tr:GetTop()
+    local last, bottom = LastModule(tr)
+    if show and not last and not tr.ForEachModule then bottom = ContentBottom(tr) end
     if not (show and top and bottom) or top - bottom < 20 then panel:Hide() return end
     panel:ClearAllPoints()
     panel:SetPoint("TOPLEFT", tr, "TOPLEFT", -8, 6)
     panel:SetPoint("TOPRIGHT", tr, "TOPRIGHT", 6, 6)
-    panel:SetHeight(top - bottom + 14)
+    if last then
+        panel:SetPoint("BOTTOM", last, "BOTTOM", 0, -8)
+    else
+        panel:SetHeight(top - bottom + 14)
+    end
     panel.bd:SetFillColor(0.035, 0.04, 0.052, SK.db.trackerAlpha)
     panel.bd:SetEdgeColor(0, 0, 0, math.min(1, SK.db.trackerAlpha + 0.35))
     panel:Show()
@@ -1063,6 +1132,19 @@ function SK:SkinTracker()
         tr.tempusPanel = panel
     end
     SkinTrackerHeader(tr.Header)
+    -- Refit the panel the moment any section finishes laying out (quests, achievements,
+    -- scenarios, ...), not on the next timer tick.
+    if tr.ForEachModule then
+        tr:ForEachModule(function(module)
+            if module and not module.tempusFit and type(module.EndLayout) == "function" then
+                module.tempusFit = true
+                hooksecurefunc(module, "EndLayout", function()
+                    SK:UpdateTrackerPanel()
+                    C_Timer.After(0, function() SK:UpdateTrackerPanel() end)
+                end)
+            end
+        end)
+    end
     for _, child in ipairs({ tr:GetChildren() }) do
         if type(child.Header) == "table" then pcall(SkinTrackerHeader, child.Header) end
     end
@@ -1073,6 +1155,10 @@ function SK:InitTracker()
     local tr = _G.ObjectiveTrackerFrame
     if not tr then return end
     SK:SkinTracker()
+    if SK.InitTrackerQuestFilters then SK:Try("tracker quest filters", SK.InitTrackerQuestFilters, SK) end
+    if type(tr.SetCollapsed) == "function" then
+        hooksecurefunc(tr, "SetCollapsed", function() SK:UpdateTrackerPanel() end)
+    end
     -- Sections are created as quests and achievements get tracked.
     if type(tr.Update) == "function" then hooksecurefunc(tr, "Update", function() pcall(SK.SkinTracker, SK) end) end
     local ev = CreateFrame("Frame")
@@ -1088,7 +1174,7 @@ function SK:InitTracker()
     local sizer = CreateFrame("Frame", nil, tr)
     sizer:SetScript("OnUpdate", T:Wrap("skins.trackerpanel", function(_, elapsed)
         t = t + elapsed
-        if t < 1 then return end
+        if t < 0.25 then return end
         t = 0
         pcall(SK.UpdateTrackerPanel, SK)
     end))
@@ -1166,6 +1252,20 @@ local function Light(r, g, b)
 end
 
 local inkFonts, inkCount = {}, 0
+local function ClearInkEffects(font)
+    font:SetShadowColor(0, 0, 0, 0)
+    local path, size, flags = font:GetFont()
+    local kept, outlined = {}, false
+    for flag in (flags or ""):gmatch("[^,%s]+") do
+        if flag == "OUTLINE" or flag == "THICKOUTLINE" then
+            outlined = true
+        else
+            kept[#kept + 1] = flag
+        end
+    end
+    if outlined then font:SetFont(path, size, table.concat(kept, ",")) end
+end
+
 local function InkClone(fo)
     if not fo or not fo.GetTextColor then return fo end
     -- A font Tempus lightened goes back to Blizzard's original, which is made for parchment.
@@ -1173,12 +1273,11 @@ local function InkClone(fo)
         if clone == fo and orig ~= fo then fo = orig break end
     end
     if inkFonts[fo] then return inkFonts[fo] end
-    if not Light(fo:GetTextColor()) then inkFonts[fo] = fo return fo end
     inkCount = inkCount + 1
     local clone = CreateFont("TempusInkFont" .. inkCount)
     clone:CopyFontObject(fo)
-    clone:SetTextColor(INK[1], INK[2], INK[3])
-    clone:SetShadowColor(0, 0, 0, 0)
+    if Light(fo:GetTextColor()) then clone:SetTextColor(INK[1], INK[2], INK[3]) end
+    ClearInkEffects(clone)
     inkFonts[fo] = clone
     inkFonts[clone] = clone
     return clone
@@ -1195,24 +1294,58 @@ local function InkButton(b)
     end
 end
 
+-- Text on its own box (reward slots, the XP line, Complete/Accept buttons) keeps its
+-- colours: only text sitting directly on the page is inked. A frame has its own box when
+-- it shows a stock texture bigger than an icon but smaller than the page itself.
+local function HasOwnBox(frame)
+    -- Buttons and panels Tempus restyled sit on a dark Tempus panel.
+    if frame.tempusSkinned or frame.tempusSkinPanel or frame.tempusBackdrop then return true end
+    for _, r in ipairs({ frame:GetRegions() }) do
+        if IsTex(r) and not r.tempus and r:IsVisible() and r:GetAlpha() > 0.5 and r:GetDrawLayer() ~= "HIGHLIGHT" then
+            local w, h = r:GetSize()
+            if T.Num(w) and T.Num(h) and w >= 30 and h >= 20 and not (w >= 150 and h >= 150) then return true end
+        end
+    end
+    return false
+end
+
 local function InkRegions(frame, depth)
     if depth > 9 or (frame.IsForbidden and frame:IsForbidden()) then return end
+    if depth > 0 and HasOwnBox(frame) then return end
     if frame.GetObjectType and frame:GetObjectType() == "Button" then pcall(InkButton, frame) end
     for _, r in ipairs({ frame:GetRegions() }) do
-        if r.GetObjectType and r:GetObjectType() == "FontString" and Light(r:GetTextColor()) then
-            r:SetTextColor(INK[1], INK[2], INK[3])
-            r:SetShadowColor(0, 0, 0, 0)
+        if r.GetObjectType and r:GetObjectType() == "FontString" then
+            if Light(r:GetTextColor()) then r:SetTextColor(INK[1], INK[2], INK[3]) end
+            ClearInkEffects(r)
         end
     end
     for _, child in ipairs({ frame:GetChildren() }) do InkRegions(child, depth + 1) end
 end
 
+-- A page is showing when the window still has a large stock texture Tempus did not hide.
+-- Parchment is often set by file ID with no readable name, so size is the reliable sign.
+local function HasVisiblePage(frame, depth)
+    depth = depth or 0
+    if depth > 6 or (frame.IsForbidden and frame:IsForbidden()) or not frame:IsVisible() then return false end
+    for _, r in ipairs({ frame:GetRegions() }) do
+        if IsTex(r) and not r.tempus and not r.tempusStripped and r:IsVisible() and r:GetAlpha() > 0.5 then
+            local w, h = r:GetSize()
+            if T.Num(w) and T.Num(h) and w >= 150 and h >= 150 then return true end
+        end
+    end
+    for _, child in ipairs({ frame:GetChildren() }) do
+        if HasVisiblePage(child, depth + 1) then return true end
+    end
+    return false
+end
+
 function SK:BrightenText()
-    if not SK.db.windows then return end
+    if not SK:On("windows") then return end
     for _, name in ipairs(TEXT_WINDOWS) do
         local f = _G[name]
-        if SK.db.parchment then SK:RestoreParchment(name) end
-        local onParchment = SK.db.parchment and SK.parchmentWindows and SK.parchmentWindows[name]
+        if SK:On("parchment") then SK:RestoreParchment(name) end
+        local onParchment = SK:On("parchment") and ((SK.parchmentWindows and SK.parchmentWindows[name])
+            or (f and f:IsShown() and HasVisiblePage(f)))
         if f and f:IsShown() then
             if onParchment then pcall(InkRegions, f, 0) else pcall(BrightenRegions, f, 0) end
         end
@@ -1360,25 +1493,34 @@ T:NewModule("skins", {
     defaults = SK.defaults,
     OnEnable = function()
         SK.db = T.db.skins
+        SK.loadedSettings = {}
+        for _, key in ipairs(RELOAD_SETTINGS) do SK.loadedSettings[key] = SK.db[key] end
+        SK.loadedSettings.classicTheme = SK:ClassicTheme()
         SK:SkinWindows()
-        if SK.db.windows then
-            pcall(SK.InitReadableText, SK)
-            pcall(SK.SkinBarButtons, SK)
-            pcall(SK.InitTracker, SK)
+        if SK.InitTrackerQuestFilters then SK:Try("tracker quest filters", SK.InitTrackerQuestFilters, SK) end
+        if SK:On("windows") then
+            SK:Try("readable text", SK.InitReadableText, SK)
+            SK:Try("bar buttons", SK.SkinBarButtons, SK)
+            SK:Try("quest tracker", SK.InitTracker, SK)
         end
-        if SK.InitTooltips and SK.db.tooltips then pcall(SK.InitTooltips, SK) end
-        if SK.InitChat and SK.db.chat then pcall(SK.InitChat, SK) end
-        if SK.InitAddOns then pcall(SK.InitAddOns, SK) end
+        if SK.InitTooltips and SK:On("tooltips") then SK:Try("tooltips", SK.InitTooltips, SK) end
+        if SK.InitChat and SK:On("chat") then SK:Try("chat", SK.InitChat, SK) end
+        if SK.InitAddOns then SK:Try("addon skins", SK.InitAddOns, SK) end
         local ev = CreateFrame("Frame")
         ev:RegisterEvent("ADDON_LOADED")
         ev:SetScript("OnEvent", function(_, _, addon)
             SK:SkinWindows()
-            if SK.OnAddonLoaded then pcall(SK.OnAddonLoaded, SK, addon) end
+            if SK.InitTrackerQuestFilters then SK:Try("tracker quest filters", SK.InitTrackerQuestFilters, SK) end
+            if SK.OnAddonLoaded then SK:Try("addon " .. addon, SK.OnAddonLoaded, SK, addon) end
         end)
     end,
     OnSettings = function()
         SK.db = T.db.skins
-        if SK.UpdateChatAlpha then pcall(SK.UpdateChatAlpha, SK) end
-        pcall(SK.UpdateTrackerPanel, SK)
+        for _, key in ipairs(RELOAD_SETTINGS) do
+            if SK.db[key] ~= SK.loadedSettings[key] and T.Options then T.Options.needsReload = true end
+        end
+        if SK:ClassicTheme() ~= SK.loadedSettings.classicTheme and T.Options then T.Options.needsReload = true end
+        if SK.UpdateChatAlpha then SK:Try("chat opacity", SK.UpdateChatAlpha, SK) end
+        SK:Try("quest tracker panel", SK.UpdateTrackerPanel, SK)
     end,
 })

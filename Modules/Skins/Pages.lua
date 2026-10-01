@@ -5,6 +5,8 @@ local W = UI.W
 
 T:RegisterPage("skins", { key = "skins", label = "Skins", order = 1, build = function(p)
     local cfg = function() return T.db.skins end
+    p:Section("Look")
+    p:Check(cfg, "stockSkin", "Stock skin (keep Tempus features)", "Leaves Blizzard's windows, tooltips, chat and quest tracker in their stock look, and Bagnon/DBM alone, while the tracker search, zone folding and quest log search keep working. Overrides the options below. Applies after a reload.")
     p:Section("Blizzard", "Re-themes the game's windows in the Tempus look. Most changes apply after a reload.")
     p:Check(cfg, "windows", "Windows", "Character sheet, spellbook, talents, merchant, mail, bank, loot, menus, friends and more.")
     p:Check(cfg, "parchment", "Parchment reading panels", "Quest dialogs, quest details, gossip, books and mail keep their parchment inside a Tempus frame. Off makes them fully dark with brightened text. Applies after a reload.")

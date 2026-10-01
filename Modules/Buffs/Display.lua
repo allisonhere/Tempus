@@ -1132,13 +1132,11 @@ end
 function D:HideBlizzard()
     if not T.db.hideBlizzard or D.blizzHidden then return end
     D.blizzHidden = true
-    local hider = T.Style.HiddenParent
+    -- Only fade them out. Reparenting or unregistering events on these Edit Mode managed
+    -- frames taints their aura updates, which then fail on secret auras.
     for _, name in ipairs({ "BuffFrame", "TemporaryEnchantFrame", "DebuffFrame" }) do
         local f = _G[name]
-        if f then
-            pcall(f.UnregisterAllEvents, f)
-            pcall(f.SetParent, f, hider)
-        end
+        if f then pcall(f.SetAlpha, f, 0) end
     end
 end
 

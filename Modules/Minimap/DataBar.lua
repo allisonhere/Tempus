@@ -14,7 +14,6 @@ DB.defaults = {
     point = { "BOTTOM", "UIParent", "BOTTOM", 0, 10 },
 }
 
-local ACC = T.accentHex
 local function Hex(r, g, b) return ("%02x%02x%02x"):format(r * 255, g * 255, b * 255) end
 local function Grade(p)     -- 0..1, green when high
     if p > 0.5 then return Hex(1 - (p - 0.5) * 2 * 0.8, 0.9, 0.3) end
@@ -83,7 +82,7 @@ Add("time", "Time", {
     text = function()
         local h, m = tonumber(date("%H")), tonumber(date("%M"))
         if DB.db.time24 then return ("%02d:%02d"):format(h, m) end
-        return ("%d:%02d |cff%s%s|r"):format((h % 12 == 0) and 12 or h % 12, m, ACC, h < 12 and "am" or "pm")
+        return ("%d:%02d |cff%s%s|r"):format((h % 12 == 0) and 12 or h % 12, m, T.accentHex, h < 12 and "am" or "pm")
     end,
     tooltip = function(tt)
         tt:AddLine("Time", 1, 1, 1)
@@ -231,7 +230,7 @@ Add("xp", "Experience", {
         if not (T.Num(cur) and T.Num(max)) or max == 0 then return "XP --" end
         local rest = GetXPExhaustion()
         local r = T.Num(rest) and rest > 0 and (" |cff4fa3ff+%d%%|r"):format(math.floor(rest / max * 100)) or ""
-        return ("XP |cff%s%.1f%%|r%s"):format(ACC, cur / max * 100, r)
+        return ("XP |cff%s%.1f%%|r%s"):format(T.accentHex, cur / max * 100, r)
     end,
     tooltip = function(tt)
         local cur, max = UnitXP("player"), UnitXPMax("player")
@@ -250,7 +249,7 @@ Add("friends", "Friends", {
     text = function()
         local n = C_FriendList and C_FriendList.GetNumOnlineFriends and C_FriendList.GetNumOnlineFriends() or 0
         local bn = BNGetNumFriends and select(2, BNGetNumFriends()) or 0
-        return ("Friends |cff%s%d|r"):format(ACC, (T.Num(n) and n or 0) + (T.Num(bn) and bn or 0))
+        return ("Friends |cff%s%d|r"):format(T.accentHex, (T.Num(n) and n or 0) + (T.Num(bn) and bn or 0))
     end,
     click = function() if ToggleFriendsFrame then ToggleFriendsFrame(1) end end,
 })
@@ -260,7 +259,7 @@ Add("guild", "Guild", {
     text = function()
         if not IsInGuild() then return "No guild" end
         local _, online = GetNumGuildMembers()
-        return ("Guild |cff%s%d|r"):format(ACC, T.Num(online) and online or 0)
+        return ("Guild |cff%s%d|r"):format(T.accentHex, T.Num(online) and online or 0)
     end,
     click = function() if ToggleGuildFrame then ToggleGuildFrame() elseif ToggleFriendsFrame then ToggleFriendsFrame(3) end end,
 })

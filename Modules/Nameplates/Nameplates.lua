@@ -25,6 +25,8 @@ NP.defaults = {
     castbar = true, castHeight = 10,
     castAlerts = true,          -- watched spells (Tempus > Nameplates > Casts & Auras list)
     kickHighlight = true,       -- bright edge on casts that can be interrupted
+    kickIcon = true,            -- your interrupt, with its cooldown, beside interruptible casts
+    interruptedBy = true,       -- "Interrupted: Name" when a cast is stopped
     alertSound = false,
     debuffs = "MINE",           -- MINE | ALL | NONE
     debuffSize = 22, debuffMax = 6,
@@ -416,16 +418,82 @@ local function SetKick(cb, notInterruptible)
     end
 end
 
-local function CastStop(cb, failed)
+-- Your own interrupt: the first known spell for your class (several entries cover talent and
+-- era variants). The cooldown swipe is driven by a duration object, so it works when the
+-- numbers are hidden in combat.
+local INTERRUPTS = {
+    WARRIOR = { 6552, 6554 }, ROGUE = { 1766, 1769 }, MAGE = { 2139 }, SHAMAN = { 57994, 8042, 8044 },
+    PALADIN = { 96231 }, DRUID = { 106839, 80964, 80965, 16979 }, HUNTER = { 147362, 187707, 34490 },
+    DEATHKNIGHT = { 47528, 47476 }, WARLOCK = { 19647, 119910, 132409 }, PRIEST = { 15487 },
+    MONK = { 116705 }, DEMONHUNTER = { 183752 }, EVOKER = { 351338 },
+}
+local kickSpell, kickChecked
+
+local function FindKick()
+    if kickChecked then return kickSpell end
+    kickChecked = true
+    local _, class = UnitClass("player")
+    for _, id in ipairs(INTERRUPTS[class] or {}) do
+        local ok, known = pcall(IsPlayerSpell or IsSpellKnown, id)
+        if ok and known then kickSpell = id break end
+    end
+    return kickSpell
+end
+NP.FindKick = FindKick
+
+local function KickTexture(id)
+    if C_Spell and C_Spell.GetSpellTexture then
+        local ok, tex = pcall(C_Spell.GetSpellTexture, id)
+        if ok and tex then return tex end
+    end
+    return "Interface\\Icons\\Ability_Kick"
+end
+
+-- Shows the interrupt beside an interruptible cast; the secret flag drives its alpha.
+local function SetKickIcon(cb, notInterruptible)
+    local ki = cb.kickIcon
+    local id = NP.db.kickIcon and FindKick()
+    if not id then ki:Hide() return end
+    ki.icon:SetTexture(KickTexture(id))
+    local desat = false
+    if C_Spell and C_Spell.GetSpellCooldownDuration and ki.cd.SetCooldownFromDurationObject then
+        local ok, dur = pcall(C_Spell.GetSpellCooldownDuration, id)
+        if ok and dur then pcall(ki.cd.SetCooldownFromDurationObject, ki.cd, dur) else ki.cd:Clear() end
+    end
+    if C_Spell and C_Spell.GetSpellCooldown then
+        local ok, info = pcall(C_Spell.GetSpellCooldown, id)
+        if ok and type(info) == "table" and T.Num(info.duration) and T.Num(info.startTime) then
+            desat = info.duration > 1.6 and (info.startTime + info.duration) > GetTime()
+        end
+    end
+    ki.icon:SetDesaturated(desat)
+    ki:Show()
+    if issecret(notInterruptible) then
+        if ki.SetAlphaFromBoolean then pcall(ki.SetAlphaFromBoolean, ki, notInterruptible, 0, 1) else ki:SetAlpha(0) end
+    else
+        ki:SetAlpha(notInterruptible and 0 or 1)
+    end
+end
+
+local function CastStop(cb, failed, by)
     cb.casting, cb.dur, cb.endT = nil, nil, nil
     SetAlert(cb, false)
     if failed and cb:IsShown() then
         cb.bar:SetStatusBarColor(0.85, 0.2, 0.2)
         cb.text:SetText(failed)
+        if by and NP.db.interruptedBy then
+            -- The interrupter's GUID may be hidden in combat; format it straight into the label.
+            local ok, name = pcall(function() return select(6, GetPlayerInfoByGUID(by)) end)
+            if ok and name ~= nil then
+                if not pcall(cb.text.SetFormattedText, cb.text, "%s: %s", failed, name) then cb.text:SetText(failed) end
+            end
+        end
+        cb.kickIcon:Hide()
         cb.shield:SetAlpha(0)
         cb.fadeAt = GetTime() + 0.4
     else
         cb.fadeAt = nil
+        cb.kickIcon:Hide()
         cb:Hide()
     end
 end
@@ -452,6 +520,7 @@ local function CastStart(cb, unit, channel)
         cb.shield:SetAlpha(notInterruptible and 1 or 0)
     end
     SetKick(cb, notInterruptible)
+    SetKickIcon(cb, notInterruptible)
     -- Watched spells are matched by ID or name, when the client lets addons read them.
     local db = NP.db
     local alert = db.castAlerts and T:ListHas("casts", (not issecret(name)) and name or nil,
@@ -489,7 +558,7 @@ end
 
 local function CastOnUpdate(cb)
     if cb.fadeAt then
-        if GetTime() >= cb.fadeAt then cb.fadeAt = nil; cb:Hide() end
+        if GetTime() >= cb.fadeAt then cb.fadeAt = nil; cb.kickIcon:Hide(); cb:Hide() end
         return
     end
     if not cb.casting then return end
@@ -778,6 +847,17 @@ local function Build(plate, preview)
     cb.kick:SetThickness(1, cb)
     cb.kick:SetColor(1, 1, 1, 1)
     for _, t in ipairs({ cb.kick.top, cb.kick.bottom, cb.kick.left, cb.kick.right }) do t:SetAlpha(0) end
+    -- Your interrupt and its cooldown, to the right of the bar.
+    cb.kickIcon = CreateFrame("Frame", nil, cb)
+    S.Backdrop(cb.kickIcon, { inner = false, shadow = false })
+    cb.kickIcon.icon = cb.kickIcon:CreateTexture(nil, "ARTWORK")
+    cb.kickIcon.icon:SetAllPoints()
+    cb.kickIcon.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    cb.kickIcon.cd = CreateFrame("Cooldown", nil, cb.kickIcon, "CooldownFrameTemplate")
+    cb.kickIcon.cd:SetAllPoints()
+    cb.kickIcon.cd:SetDrawEdge(false)
+    if cb.kickIcon.cd.SetHideCountdownNumbers then cb.kickIcon.cd:SetHideCountdownNumbers(true) end
+    cb.kickIcon:Hide()
     -- Pulsing glow behind watched casts.
     cb.glow = CreateFrame("Frame", nil, cb)
     cb.glow:SetPoint("TOPLEFT", cb.iconFrame, "TOPLEFT", -4, 4)
@@ -866,6 +946,9 @@ function NP:Layout(f)
     cb.iconFrame:ClearAllPoints()
     cb.iconFrame:SetPoint("RIGHT", cb, "LEFT", -3, 0)
     cb.iconFrame:SetSize(ch, ch)
+    cb.kickIcon:ClearAllPoints()
+    cb.kickIcon:SetPoint("LEFT", cb, "RIGHT", 3, 0)
+    cb.kickIcon:SetSize(ch, ch)
     local cfs = math.max(8, math.min(ch, db.fontSize))
     S.ApplyFont(cb.text, cfs)
     S.ApplyFont(cb.time, cfs)
@@ -981,7 +1064,7 @@ local CAST_STOP = { UNIT_SPELLCAST_STOP = false, UNIT_SPELLCAST_CHANNEL_STOP = f
     UNIT_SPELLCAST_FAILED = "Failed", UNIT_SPELLCAST_INTERRUPTED = "Interrupted" }
 local CAST_FLAGS = { UNIT_SPELLCAST_INTERRUPTIBLE = true, UNIT_SPELLCAST_NOT_INTERRUPTIBLE = true }
 
-local function OnEvent(self, event, unit)
+local function OnEvent(self, event, unit, _, _, interruptedBy)
     if event == "NAME_PLATE_UNIT_ADDED" then
         Attach(unit)
         if NP.hasTarget and not NP.targetPlate then RefreshTargets() end
@@ -1008,6 +1091,9 @@ local function OnEvent(self, event, unit)
             for _, f in pairs(NP.byUnit) do UpdateName(f); UpdateHighlight(f) end
         end)
         return
+    elseif event == "SPELLS_CHANGED" then
+        kickChecked = false     -- a new spell or talent may change your interrupt
+        return
     elseif event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_ROLES_ASSIGNED" then
         for _, f in pairs(NP.byUnit) do UpdateColor(f) end
         return
@@ -1022,7 +1108,7 @@ local function OnEvent(self, event, unit)
     elseif CAST_START[event] ~= nil then
         if NP.db.castbar and not f.nameOnly then pcall(CastStart, f.castbar, unit, CAST_START[event]) end
     elseif CAST_STOP[event] ~= nil then
-        if f.castbar.casting then CastStop(f.castbar, CAST_STOP[event] or nil) end
+        if f.castbar.casting then CastStop(f.castbar, CAST_STOP[event] or nil, interruptedBy) end
     elseif CAST_FLAGS[event] then
         RefreshCast(f)
     elseif event == "UNIT_FACTION" or event == "UNIT_FLAGS" then
@@ -1038,7 +1124,7 @@ end
 local EVENTS = {
     "NAME_PLATE_UNIT_ADDED", "NAME_PLATE_UNIT_REMOVED", "PLAYER_TARGET_CHANGED", "PLAYER_FOCUS_CHANGED",
     "UPDATE_MOUSEOVER_UNIT", "RAID_TARGET_UPDATE", "QUEST_LOG_UPDATE", "PLAYER_REGEN_ENABLED",
-    "PLAYER_REGEN_DISABLED", "PLAYER_ROLES_ASSIGNED", "PLAYER_LEVEL_UP",
+    "PLAYER_REGEN_DISABLED", "PLAYER_ROLES_ASSIGNED", "PLAYER_LEVEL_UP", "SPELLS_CHANGED",
     "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_NAME_UPDATE", "UNIT_LEVEL", "UNIT_FACTION", "UNIT_FLAGS",
     "UNIT_THREAT_LIST_UPDATE", "UNIT_THREAT_SITUATION_UPDATE",
 }
@@ -1202,6 +1288,7 @@ local function FillSample(f, kind)
         cb.text:SetText("Fear")
         cb.time:SetText("1.2")
         SetKick(cb, false)
+        SetKickIcon(cb, false)
         SetAlert(cb, db.castAlerts)
         cb:Show()
     elseif kind == "other" and db.castbar then
@@ -1209,6 +1296,7 @@ local function FillSample(f, kind)
         cb.bar:SetValue(0.3)
         cb.shield:SetAlpha(1)
         SetKick(cb, true)
+        cb.kickIcon:Hide()
         SetAlert(cb, false)
         cb.icon:SetTexture("Interface\\Icons\\Spell_Nature_HealingTouch")
         cb.text:SetText("Healing Wave")

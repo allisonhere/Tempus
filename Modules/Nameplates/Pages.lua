@@ -57,6 +57,8 @@ T:RegisterPage("nameplates", { key = "np_combat", label = "Casts & Auras", order
     p:Check(NPDB, "castbar", "Show cast bars")
     p:Slider(NPDB, "castHeight", "Cast bar height", 6, 24, 1)
     p:Check(NPDB, "kickHighlight", "White edge on interruptible casts", "Works in combat too: the game drives it directly.")
+    p:Check(NPDB, "kickIcon", "Show my interrupt", "Your interrupt, with its cooldown swipe, beside casts you can stop. Hidden for classes with no interrupt.")
+    p:Check(NPDB, "interruptedBy", "Show who interrupted", "A stopped cast reads \"Interrupted: Name\" when the game tells addons who did it.")
 
     p:Section("Cast alerts", "Casts from the list below get the alert colour and a pulsing glow. Spells are matched by name or spell ID; inside instances the game may hide which spell is being cast, and then no alert shows.")
     p:Check(NPDB, "castAlerts", "Alert on watched casts")

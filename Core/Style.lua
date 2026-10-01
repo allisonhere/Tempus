@@ -124,19 +124,54 @@ function S.ApplyFont(fs, size, font, outline)
     fs:SetShadowOffset(1, -1)
 end
 
+----------------------------------------------------------------------------------------
+-- Themes. T.db.theme (MODERN | GLOSS | CLASSIC | FLAT) restyles every Backdrop and
+-- StatusBar through one registry, live, with no reload:
+--   MODERN  crisp 1px edge, soft shadow, faint inner line
+--   GLOSS   Modern plus a glassy highlight over the top half
+--   CLASSIC thicker warm Blizzard-style border, no shadow or inner line
+--   FLAT    no shadow, inner line or decorative edge
+-- An edge a module has coloured on purpose (class, dispel, target highlight) always stays
+-- visible, so a functional highlight never disappears with the theme.
+----------------------------------------------------------------------------------------
+function S.Theme()
+    local theme = T.db and T.db.theme
+    if theme == "GLOSS" or theme == "CLASSIC" or theme == "FLAT" then return theme end
+    return "MODERN"
+end
+
+S.backdrops = setmetatable({}, { __mode = "k" })
+S.statusBars = setmetatable({}, { __mode = "k" })
+
+local CLASSIC_EDGE = { 0.62, 0.52, 0.32 }
+
+local function IsNeutral(c)
+    return c[1] <= 0.05 and c[2] <= 0.05 and c[3] <= 0.05
+end
+
+function S.ApplyTheme()
+    for frame in pairs(S.backdrops) do
+        if frame.tempusBackdrop then frame.tempusBackdrop:Refresh() end
+    end
+    for bar in pairs(S.statusBars) do
+        if bar.tempusGloss then bar:RefreshTheme() end
+    end
+end
+
 -- The signature panel: dark fill, 1px black edge, soft outer shadow, optional inner line.
 -- Returns a handle so callers can recolour the edge (e.g. class or dispel colours).
 function S.Backdrop(frame, opts)
     opts = opts or {}
     if frame.tempusBackdrop then return frame.tempusBackdrop end
-    local h = {}
+    local h = { frame = frame, edgeColor = { 0, 0, 0, 1 }, hidden = false,
+        wantShadow = opts.shadow ~= false, wantInner = opts.inner ~= false }
     local fill = opts.fill or S.C.panel
     h.shadow = frame:CreateTexture(nil, "BACKGROUND", nil, -8)
     h.shadow:SetTexture(S.WHITE)
     h.shadow.tempus = true
     h.shadow:SetPoint("TOPLEFT", -3, 3)
     h.shadow:SetPoint("BOTTOMRIGHT", 3, -3)
-    h.shadow:SetVertexColor(0, 0, 0, opts.shadow == false and 0 or 0.45)
+    h.shadow:SetVertexColor(0, 0, 0, 0.45)
     h.fill = frame:CreateTexture(nil, "BACKGROUND", nil, -7)
     h.fill:SetTexture(S.WHITE)
     h.fill.tempus = true
@@ -144,19 +179,60 @@ function S.Backdrop(frame, opts)
     h.fill:SetVertexColor(fill[1], fill[2], fill[3], fill[4] or 1)
     h.edge = S.CreateBorder(frame, "BACKGROUND", -6)
     h.edge:SetThickness(1, frame)
+    h.thickness = 1
     h.edge:SetColor(0, 0, 0, 1)
-    if opts.inner ~= false then
+    if h.wantInner then
         h.inner = S.CreateBorder(frame, "BORDER", -8)
         h.inner:SetInside(frame)
         h.inner:SetColor(1, 1, 1, 0.06)
     end
-    function h:SetEdgeColor(r, g, b, a) self.edge:SetColor(r, g, b, a or 1) end
+    h.gloss = frame:CreateTexture(nil, "BACKGROUND", nil, -6)
+    h.gloss:SetTexture(S.WHITE)
+    h.gloss.tempus = true
+    h.gloss:SetPoint("TOPLEFT", frame)
+    h.gloss:SetPoint("TOPRIGHT", frame)
+    h.gloss:SetPoint("BOTTOM", frame, "CENTER")
+    S.SetGradient(h.gloss, "VERTICAL", 1, 1, 1, 0, 1, 1, 1, 0.12)
+    h.gloss:Hide()
+
+    function h:Refresh()
+        local theme = S.Theme()
+        local c = self.edgeColor
+        local functional = not IsNeutral(c)
+        local shown = not self.hidden
+        self.fill:SetShown(shown)
+        self.shadow:SetShown(shown and self.wantShadow and (theme == "MODERN" or theme == "GLOSS"))
+        if self.inner then self.inner:SetShown(shown and (theme == "MODERN" or theme == "GLOSS")) end
+        self.gloss:SetShown(shown and theme == "GLOSS")
+        local edgeShown = shown and (theme ~= "FLAT" or functional)
+        self.edge:SetShown(edgeShown)
+        local thickness = theme == "CLASSIC" and 2 or 1
+        if self.thickness ~= thickness then
+            self.thickness = thickness
+            self.edge:SetThickness(thickness, self.frame)
+        end
+        if theme == "CLASSIC" then
+            if functional then
+                self.edge:SetColor(c[1], c[2], c[3], c[4])
+            else
+                self.edge:SetColor(CLASSIC_EDGE[1], CLASSIC_EDGE[2], CLASSIC_EDGE[3], 1)
+            end
+        else
+            self.edge:SetColor(c[1], c[2], c[3], c[4])
+        end
+    end
+    function h:SetEdgeColor(r, g, b, a)
+        self.edgeColor[1], self.edgeColor[2], self.edgeColor[3], self.edgeColor[4] = r, g, b, a or 1
+        self:Refresh()
+    end
     function h:SetFillColor(r, g, b, a) self.fill:SetVertexColor(r, g, b, a or 1) end
     function h:SetShown(shown)
-        self.shadow:SetShown(shown); self.fill:SetShown(shown); self.edge:SetShown(shown)
-        if self.inner then self.inner:SetShown(shown) end
+        self.hidden = not shown
+        self:Refresh()
     end
     frame.tempusBackdrop = h
+    S.backdrops[frame] = true
+    h:Refresh()
     return h
 end
 
@@ -168,6 +244,17 @@ function S.StatusBar(parent, texture)
     bar.bg:SetAllPoints()
     bar.bg:SetTexture(S.BarTexture(texture or (T.db and T.db.barTexture)))
     bar.bg:SetVertexColor(0.08, 0.09, 0.11, 0.9)
+    -- Glassy highlight for the Gloss theme, over the top half of the bar.
+    bar.tempusGloss = bar:CreateTexture(nil, "OVERLAY", nil, 6)
+    bar.tempusGloss:SetTexture(S.WHITE)
+    bar.tempusGloss.tempus = true
+    bar.tempusGloss:SetPoint("TOPLEFT", bar)
+    bar.tempusGloss:SetPoint("TOPRIGHT", bar)
+    bar.tempusGloss:SetPoint("BOTTOM", bar, "CENTER")
+    S.SetGradient(bar.tempusGloss, "VERTICAL", 1, 1, 1, 0, 1, 1, 1, 0.16)
+    function bar:RefreshTheme() self.tempusGloss:SetShown(S.Theme() == "GLOSS") end
+    S.statusBars[bar] = true
+    bar:RefreshTheme()
     return bar
 end
 

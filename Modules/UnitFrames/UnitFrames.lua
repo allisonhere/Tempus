@@ -280,6 +280,8 @@ local function UpdateClassPower(f)
     if not cp then return end
     local show = UF.db.classPower
     local _, class = Plain(UnitClass, "player")
+    -- Only rogues and druids use combo points; for everyone else the bar stayed empty above the frame.
+    if class ~= "ROGUE" and class ~= "DRUID" then show = false end
     if class == "DRUID" then
         local ptype = Plain(UnitPowerType, "player")
         show = show and Enum and Enum.PowerType and ptype == Enum.PowerType.Energy

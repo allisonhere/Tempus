@@ -508,6 +508,19 @@ function Page:Section(title, desc)
     self.y = self.y - 4
 end
 
+-- A wrapped line of text at full page width, indented by `indent` pixels.
+function Page:Paragraph(text, indent, color, size, gap)
+    self:Newline()
+    indent = indent or 0
+    local t = Text(self.frame, size or 12, color or C.text)
+    t:SetPoint("TOPLEFT", MARGIN + indent, self.y)
+    t:SetWidth(COL_W * 2 + COL_GAP - indent)
+    t:SetText(text)
+    t:SetSpacing(2)
+    self.y = self.y - t:GetStringHeight() - (gap or 6)
+    return t
+end
+
 function Page:Finish()
     self:Newline()
     self.frame:SetHeight(-self.y + 20)

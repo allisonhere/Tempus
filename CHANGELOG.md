@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.4.1
+
+### Changed
+- Releases are now published on CurseForge. No other changes from 2.4.0.
+
 ## 2.4.0
 
 ### New

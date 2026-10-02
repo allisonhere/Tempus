@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.4.1", sections = {
+        { title = "Changed", items = {
+            { 0, "Releases are now published on CurseForge. No other changes from 2.4.0." },
+        } },
+    } },
     { version = "2.4.0", sections = {
         { title = "New", items = {
             { 0, "|cffffffffSwing timer module|r: bars for your main hand, off hand and ranged weapon that refill on every auto attack and turn red while your target is out of range, using WoW Forever's new range check. Unlock the UI to move it; settings are under General > Swing timer." },

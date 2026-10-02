@@ -2,7 +2,7 @@
 ## Title: |cff3fc1ffTempus|r UI
 ## Notes: A complete interface suite: buff timers, unit frames, nameplates, party and raid frames, action bars, minimap, info bar and skins, in one clean look.
 ## Author: Allie
-## Version: 2.3.0
+## Version: 2.3.1
 ## IconTexture: Interface\AddOns\Tempus\media\icon
 ## SavedVariables: TempusDB
 ## OptionalDeps: SpellPower

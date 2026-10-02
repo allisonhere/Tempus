@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.3.1", sections = {
+        { title = "Fixed", items = {
+            { 0, "The Modules step of the first-run setup lays its checkboxes out in two columns, so the list no longer runs off the bottom of the window." },
+        } },
+    } },
     { version = "2.3.0", sections = {
         { title = "New", items = {
             { 0, "|cffffffffShare profiles|r: Export turns the active profile into a text string; Import creates a new profile from one (General > Profiles). Damaged or edited strings are refused, and nothing in them is ever run." },

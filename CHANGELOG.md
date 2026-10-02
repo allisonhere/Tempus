@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.3.1
+
+### Fixed
+- The Modules step of the first-run setup lays its checkboxes out in two columns, so the list no longer runs off the bottom of the window.
+
 ## 2.3.0
 
 ### New

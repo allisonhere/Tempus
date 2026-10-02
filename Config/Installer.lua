@@ -126,20 +126,27 @@ steps[2] = { title = "Modules", build = function(f)
     intro:SetPoint("TOPLEFT", 24, y)
     intro:SetText("Turn off anything another addon already does for you.")
     y = y - 26
-    for _, key in ipairs(T.moduleOrder) do
+    -- Two columns so every module fits inside the body without scrolling.
+    local colW = (W_ - 48 - 16) / 2
+    local rows = math.ceil(#T.moduleOrder / 2)
+    for i, key in ipairs(T.moduleOrder) do
         local m = T.modules[key]
+        local col, row = (i <= rows) and 0 or 1, (i - 1) % rows
         local cb = UI.W.Check(m.label or key, function() return T:ModuleEnabled(key) end, function(v)
             T.db.modules[key] = v and true or false
         end)
         cb:SetParent(f)
-        cb:SetPoint("TOPLEFT", 24, y)
-        cb:SetWidth(W_ - 48)
+        -- Created without a parent, so pin it above the window that takes drag clicks.
+        cb:SetFrameLevel(f:GetFrameLevel() + 2)
+        cb:EnableMouse(true)
+        cb:RegisterForClicks("LeftButtonUp")
+        cb:SetPoint("TOPLEFT", 24 + col * (colW + 16), y - row * 28)
+        cb:SetWidth(colW)
         cb:SetScript("OnClick", function(self)
             T.db.modules[key] = not T:ModuleEnabled(key)
             self:Refresh()
         end)
         cb:Refresh()
-        y = y - 28
     end
 end }
 

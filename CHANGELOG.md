@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.4.0
+
+### New
+- **Swing timer module**: bars for your main hand, off hand and ranged weapon that refill on every auto attack and turn red while your target is out of range, using WoW Forever's new range check. Unlock the UI to move it; settings are under General > Swing timer.
+- **Quest tracker skin**: quest titles and objectives use the Tempus font and outline, and quest item buttons get square Tempus icons.
+
+### Changed
+- The quest tracker's zone folding and search box are gone. They rearranged Blizzard's tracker, and that caused "Auras cannot be accessed when secret while tainted by 'Tempus'" errors. Quest log search is unchanged.
+
+### Fixed
+- No more Lua error from the quest tracker when you level up in combat.
+
 ## 2.3.1
 
 ### Fixed

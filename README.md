@@ -37,7 +37,7 @@ Built for the new Classic client (interface 16001), where the game hides health,
 - **Profiles**: share your settings as a text string (Export / Import on the Profiles page).
 - **Action Bars**: restyled bars with fading, hotkeys and range colouring.
 - **Minimap, Info Bar, XP & Reputation Bars**: a square minimap and a configurable info bar.
-- **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM. Includes a quest log search, and a quest tracker with zone headers that fold and a fuzzy search box. **Stock skin** keeps those features but leaves Blizzard's own look in place.
+- **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM. Includes a quest log search and a fully skinned quest tracker. **Stock skin** keeps the search but leaves Blizzard's own look in place.
 
 ## Themes
 

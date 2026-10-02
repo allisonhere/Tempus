@@ -755,6 +755,12 @@ SlashCmdList.TEMPUS = function(msg)
         else
             T:Print("group probe: join a party or raid first, then run it again.")
         end
+    elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+auras") then
+        T:RunAuraProbe()
+        T:Print("aura probe armed. Just play: 4 seconds into each fight it checks your target for debuffs, until it finds some.")
+    elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+api") then
+        local namespaces, globals = T:RunAPIProbe()
+        T:Print(("API dump recorded: %d C_ namespaces, %d global functions. /reload so it is saved to disk."):format(namespaces, globals))
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+off") then
         if TempusDB.probe then TempusDB.probe = nil end
         T:Print("probe data cleared and login probing off.")

@@ -1,6 +1,18 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.4.0", sections = {
+        { title = "New", items = {
+            { 0, "|cffffffffSwing timer module|r: bars for your main hand, off hand and ranged weapon that refill on every auto attack and turn red while your target is out of range, using WoW Forever's new range check. Unlock the UI to move it; settings are under General > Swing timer." },
+            { 0, "|cffffffffQuest tracker skin|r: quest titles and objectives use the Tempus font and outline, and quest item buttons get square Tempus icons." },
+        } },
+        { title = "Changed", items = {
+            { 0, "The quest tracker's zone folding and search box are gone. They rearranged Blizzard's tracker, and that caused \"Auras cannot be accessed when secret while tainted by 'Tempus'\" errors. Quest log search is unchanged." },
+        } },
+        { title = "Fixed", items = {
+            { 0, "No more Lua error from the quest tracker when you level up in combat." },
+        } },
+    } },
     { version = "2.3.1", sections = {
         { title = "Fixed", items = {
             { 0, "The Modules step of the first-run setup lays its checkboxes out in two columns, so the list no longer runs off the bottom of the window." },

@@ -213,6 +213,58 @@ end
 -- Runs only on demand now (/tempus probe); the first-run data is already collected.
 
 ----------------------------------------------------------------------------------------
+-- API dump (/tempus probe api): every C_* namespace with its function names, every
+-- global function and every Enum, for diffing this client against Retail's API docs.
+-- Names only; nothing is called. Results land in TempusDB.probe.api.
+----------------------------------------------------------------------------------------
+local function SortedKeys(t, want)
+    local out = {}
+    for k, v in pairs(t) do
+        if type(k) == "string" and (not want or type(v) == want) then out[#out + 1] = k end
+    end
+    table.sort(out)
+    return out
+end
+
+function T.CollectAPI(env)
+    local api = { namespaces = {}, globals = {}, enums = {} }
+    for name, v in pairs(env) do
+        if type(name) == "string" then
+            if type(v) == "function" then
+                api.globals[#api.globals + 1] = name
+            elseif type(v) == "table" and name:find("^C_") then
+                local ok, fns = pcall(SortedKeys, v, "function")
+                if ok then api.namespaces[name] = fns end
+            end
+        end
+    end
+    table.sort(api.globals)
+    if type(env.Enum) == "table" then
+        for name, values in pairs(env.Enum) do
+            if type(name) == "string" and type(values) == "table" then
+                local ok, keys = pcall(SortedKeys, values)
+                if ok then api.enums[name] = keys end
+            end
+        end
+    end
+    return api
+end
+
+function T:RunAPIProbe()
+    TempusDB.probe = TempusDB.probe or {}
+    local api = T.CollectAPI(_G)
+    if GetBuildInfo then
+        local version, build, _, interface = GetBuildInfo()
+        api.build = ("%s.%s %s"):format(tostring(version), tostring(build), tostring(interface))
+    end
+    api.at = date("%Y-%m-%d %H:%M:%S")
+    TempusDB.probe.api = api
+    local n = 0
+    for _ in pairs(api.namespaces) do n = n + 1 end
+    return n, #api.globals
+end
+
+----------------------------------------------------------------------------------------
 -- Group probe (/tempus probe group): what party/raid frames can read on this client.
 -- Samples the first group member out of combat now, and again a few seconds into the
 -- next fight. Results land in TempusDB.probe.group.
@@ -312,6 +364,102 @@ function T:RunGroupProbe()
     end)
     return true
 end
+
+----------------------------------------------------------------------------------------
+-- Aura probe (/tempus probe auras): can addons read who cast an aura and how much time a
+-- recast would carry over (C_UnitAuras.GetAuraCasterGUID / GetRefreshCarryOverDuration,
+-- new in WoW Forever)? Samples the target and the player now, and again a few seconds
+-- into the next fight. Results land in TempusDB.probe.auras.
+----------------------------------------------------------------------------------------
+local AURA_FILTERS = { "HARMFUL|PLAYER", "HARMFUL", "HELPFUL|PLAYER" }
+
+-- Aura IDs come from GetUnitAuraInstanceIDs: GetAuraDataByIndex refuses tainted callers
+-- outright while auras are secret, which is most of combat.
+local function AuraSample(unit)
+    local s = { unit = unit, at = date("%H:%M:%S"), combat = InCombatLockdown(), exists = Sample(UnitExists, unit) }
+    local U = C_UnitAuras
+    if not (U and U.GetUnitAuraInstanceIDs) then s.error = "no GetUnitAuraInstanceIDs" return s end
+    local okMe, me = pcall(UnitGUID, "player")
+    for _, filter in ipairs(AURA_FILTERS) do
+        local ok, ids = pcall(U.GetUnitAuraInstanceIDs, unit, filter)
+        if not ok then
+            s[filter] = "ERR " .. tostring(ids):sub(1, 80)
+        elseif type(ids) ~= "table" then
+            s[filter] = Read(true, ids)
+        elseif #ids == 0 then
+            s[filter] = "none"
+        else
+            local list = { count = #ids }
+            for i = 1, math.min(#ids, 4) do
+                local id = ids[i]
+                local e = { auraInstanceID = Read(true, id) }
+                local okD, a = pcall(U.GetAuraDataByAuraInstanceID, unit, id)
+                if not okD then e.data = "ERR " .. tostring(a):sub(1, 80)
+                elseif issecret(a) then e.data = "SECRET table"
+                elseif type(a) == "table" then
+                    e.spellId, e.sourceUnit = Read(true, a.spellId), Read(true, a.sourceUnit)
+                    e.isFromPlayer, e.duration = Read(true, a.isFromPlayerOrPlayerPet), Read(true, a.duration)
+                else e.data = Read(true, a) end
+                e.casterGUID = Sample(U.GetAuraCasterGUID, unit, id)
+                e.carryOver = Sample(U.GetRefreshCarryOverDuration, unit, id)
+                e.extended = Sample(U.GetRefreshExtendedDuration, unit, id)
+                if okMe and not issecret(me) and U.GetAuraCasterGUID then
+                    local okC, guid = pcall(U.GetAuraCasterGUID, unit, id)
+                    e.mine = not okC and "ERR" or issecret(guid) and "SECRET" or tostring(guid == me)
+                end
+                list[i] = e
+            end
+            s[filter] = list
+        end
+    end
+    if C_Secrets then s.aurasSecret = Sample(C_Secrets.ShouldAurasBeSecret) end
+    return s
+end
+
+-- Samples 4 seconds into every fight until one finds a debuff on the target. Stays armed
+-- across /reload (TempusDB.probe.auras.armed), so nothing has to be typed mid-fight.
+local auraWatcher
+local function ArmAuraProbe()
+    if auraWatcher then return end
+    auraWatcher = CreateFrame("Frame")
+    auraWatcher:RegisterEvent("PLAYER_REGEN_DISABLED")
+    auraWatcher:SetScript("OnEvent", function(self)
+        C_Timer.After(4, function()
+            local a = TempusDB.probe and TempusDB.probe.auras
+            if not (a and a.armed) then self:UnregisterAllEvents() return end
+            local sample = { target = AuraSample("target"), player = AuraSample("player") }
+            local harmful = sample.target["HARMFUL"]
+            -- A refused call is an answer too: auras cannot be read in combat at all.
+            if type(harmful) == "table" or (type(harmful) == "string" and harmful:find("^ERR")) then
+                a.combat, a.armed = sample, nil
+                self:UnregisterAllEvents()
+                T:Print("aura probe: combat sample recorded. /reload any time to save it.")
+            else
+                a.lastTry = sample
+                T:Print("aura probe: no debuffs on your target 4s into this fight; trying again next fight.")
+            end
+        end)
+    end)
+end
+
+function T:RunAuraProbe()
+    TempusDB.probe = TempusDB.probe or {}
+    local a = { client = select(4, GetBuildInfo()), apis = {}, armed = true }
+    for _, api in ipairs({ "C_UnitAuras.GetAuraCasterGUID", "C_UnitAuras.GetRefreshCarryOverDuration",
+        "C_UnitAuras.GetRefreshExtendedDuration", "C_SwingTimer.IsTargetWithinSwingRange" }) do
+        local v = Lookup(api)
+        a.apis[api] = v == nil and "missing" or type(v)
+    end
+    a.idle = { target = AuraSample("target"), player = AuraSample("player") }
+    TempusDB.probe.auras = a
+    ArmAuraProbe()
+end
+
+local auraLogin = CreateFrame("Frame")
+auraLogin:RegisterEvent("PLAYER_LOGIN")
+auraLogin:SetScript("OnEvent", function()
+    if TempusDB and TempusDB.probe and TempusDB.probe.auras and TempusDB.probe.auras.armed then ArmAuraProbe() end
+end)
 
 ----------------------------------------------------------------------------------------
 -- Action bar paging and restricted-snippet facts. The "before" snapshot is taken as

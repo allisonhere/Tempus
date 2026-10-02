@@ -19,7 +19,7 @@ function SK:ReportError(name, err)
 end
 
 -- A look setting is on only when "Stock skin" is off: stock skin keeps every Tempus feature
--- (tracker search and zone folding, quest log search) but leaves Blizzard's own look alone.
+-- (quest log search) but leaves Blizzard's own look alone.
 function SK:On(key)
     if not SK.db or SK.db.stockSkin then return false end
     -- The Classic theme is the Blizzard look: windows keep their own frames and art.
@@ -693,6 +693,24 @@ local function SkinSliceButton(b)
     b:HookScript("OnLeave", function() bd:SetEdgeColor(0, 0, 0) end)
 end
 
+-- Quest item buttons beside tracked quests: square icon in a Tempus slot. They may be
+-- protected, so a protected one is left for a sweep outside combat.
+local function SkinItemButton(b)
+    if b.tempusSkinned or (InCombatLockdown() and b.IsProtected and b:IsProtected()) then return end
+    b.tempusSkinned = true
+    b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    b.icon:ClearAllPoints()
+    b.icon:SetPoint("TOPLEFT", 1, -1)
+    b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+    local normal = b.GetNormalTexture and b:GetNormalTexture()
+    if normal then normal:SetAlpha(0) end
+    local pushed = b.GetPushedTexture and b:GetPushedTexture()
+    if pushed then pushed:SetTexCoord(0.08, 0.92, 0.08, 0.92); pushed:SetAllPoints(b.icon) end
+    local hl = b.GetHighlightTexture and b:GetHighlightTexture()
+    if hl then hl:SetAllPoints(b.icon); hl:SetColorTexture(1, 1, 1, 0.15) end
+    S.Backdrop(b, { inner = false, shadow = false })
+end
+
 local function Sweep(frame, depth)
     if depth > 12 or (frame.IsForbidden and frame:IsForbidden()) or not frame:IsVisible() then return end
     for _, r in ipairs({ frame:GetRegions() }) do SweepRegion(r, frame) end
@@ -700,6 +718,8 @@ local function Sweep(frame, depth)
         local kind = child.GetObjectType and child:GetObjectType()
         if kind == "StatusBar" then
             pcall(SkinProgressBar, child)
+        elseif kind == "Button" and type(child.icon) == "table" and child.HotKey and child.Count and child.buttonContext then
+            pcall(SkinItemButton, child)
         elseif kind == "Button" and type(child.NineSlice) == "table" and child.GetFontString and child:GetFontString()
             and (child:GetWidth() or 0) > 60 and not child.tempusSkinned then
             pcall(SkinSliceButton, child)
@@ -1034,6 +1054,22 @@ function SK:MicroButton(b)
     State()
 end
 
+-- Tracker text uses two shared font objects; restyling them reaches every quest title and
+-- objective line without touching a single tracker frame.
+local function SkinTrackerFonts()
+    for _, name in ipairs({ "ObjectiveTrackerHeaderFont", "ObjectiveTrackerLineFont" }) do
+        local fo = _G[name]
+        if type(fo) == "table" and fo.GetFont and fo.SetFont then
+            local _, size = fo:GetFont()
+            local outline = T.db.fontOutline or "OUTLINE"
+            if outline == "NONE" then outline = "" end
+            if not (size and fo:SetFont(T.db.font or S.FONT, size, outline)) then fo:SetFont(S.FONT, size or 12, outline) end
+            fo:SetShadowColor(0, 0, 0, 0.9)
+            fo:SetShadowOffset(1, -1)
+        end
+    end
+end
+
 -- Quest/objective tracker: no background panel, flat headers with an accent underline.
 local function SkinTrackerHeader(h)
     if type(h) ~= "table" or h.tempusSkinned then return end
@@ -1124,6 +1160,7 @@ function SK:SkinTracker()
     local tr = _G.ObjectiveTrackerFrame
     if not tr then return end
     if type(tr.NineSlice) == "table" then tr.NineSlice:SetAlpha(0) end
+    if not SK.trackerFonts then SK.trackerFonts = true; pcall(SkinTrackerFonts) end
     if not tr.tempusPanel then
         local panel = CreateFrame("Frame", nil, tr)
         panel:SetFrameLevel(math.max(tr:GetFrameLevel() - 1, 0))
@@ -1155,7 +1192,6 @@ function SK:InitTracker()
     local tr = _G.ObjectiveTrackerFrame
     if not tr then return end
     SK:SkinTracker()
-    if SK.InitTrackerQuestFilters then SK:Try("tracker quest filters", SK.InitTrackerQuestFilters, SK) end
     if type(tr.SetCollapsed) == "function" then
         hooksecurefunc(tr, "SetCollapsed", function() SK:UpdateTrackerPanel() end)
     end
@@ -1497,7 +1533,6 @@ T:NewModule("skins", {
         for _, key in ipairs(RELOAD_SETTINGS) do SK.loadedSettings[key] = SK.db[key] end
         SK.loadedSettings.classicTheme = SK:ClassicTheme()
         SK:SkinWindows()
-        if SK.InitTrackerQuestFilters then SK:Try("tracker quest filters", SK.InitTrackerQuestFilters, SK) end
         if SK:On("windows") then
             SK:Try("readable text", SK.InitReadableText, SK)
             SK:Try("bar buttons", SK.SkinBarButtons, SK)
@@ -1510,7 +1545,6 @@ T:NewModule("skins", {
         ev:RegisterEvent("ADDON_LOADED")
         ev:SetScript("OnEvent", function(_, _, addon)
             SK:SkinWindows()
-            if SK.InitTrackerQuestFilters then SK:Try("tracker quest filters", SK.InitTrackerQuestFilters, SK) end
             if SK.OnAddonLoaded then SK:Try("addon " .. addon, SK.OnAddonLoaded, SK, addon) end
         end)
     end,

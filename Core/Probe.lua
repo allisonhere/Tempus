@@ -60,6 +60,7 @@ local APIS = {
     "C_Container.GetContainerNumFreeSlots", "C_CurveUtil.CreateColorCurve", "C_DurationUtil.CreateDuration",
     "C_StringUtil.TruncateWhenZero", "C_StringUtil.WrapString", "C_EditMode.GetLayouts",
     "CurveConstants.ScaleTo100", "Enum.StatusBarInterpolation", "Enum.StatusBarTimerDirection",
+    "C_DamageMeter.GetCombatSessionFromType", "Enum.DamageMeterType", "Enum.DamageMeterSessionType",
 }
 
 local function Lookup(path)
@@ -205,6 +206,26 @@ function T:RunProbe(label)
     end
     if C_Spell and C_Spell.GetSpellCooldownDuration then
         s.GetSpellCooldownDuration_6603 = Sample(C_Spell.GetSpellCooldownDuration, 6603)
+    end
+    -- Damage meter: the current session's fields and its first source's, with secrecy.
+    if C_DamageMeter and C_DamageMeter.GetCombatSessionFromType then
+        local E = Enum or {}
+        local kind = E.DamageMeterType and (E.DamageMeterType.Dps or E.DamageMeterType.DamageDone) or 1
+        local cur = E.DamageMeterSessionType and E.DamageMeterSessionType.Current or 1
+        local ok, session = pcall(C_DamageMeter.GetCombatSessionFromType, cur, kind)
+        if ok and type(session) == "table" and not issecret(session) then
+            local fields = {}
+            for k, v in pairs(session) do fields[tostring(k)] = tostring(Read(true, v)) end
+            s.DamageMeterSession = fields
+            local first = type(session.combatSources) == "table" and session.combatSources[1]
+            if type(first) == "table" then
+                local src = {}
+                for k, v in pairs(first) do src[tostring(k)] = tostring(Read(true, v)) end
+                s.DamageMeterSource = src
+            end
+        else
+            s.DamageMeterSession = Read(ok, session)
+        end
     end
     p[label] = s
     p[label].at = date("%H:%M:%S")

@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "New", items = {
+            { 0, "|cffffffffLayered DPS track|r: one bar from Blizzard's damage meter. Purple runs to your live DPS, gold on to your peak this fight, and red on to the group's top DPS, with a small marker at each edge. Scale modes, colours, size and a test mode with animated values are under General > DPS track. Unlock the UI to move it." },
+        } },
+    } },
     { version = "2.4.1", sections = {
         { title = "Changed", items = {
             { 0, "Releases are now published on CurseForge. No other changes from 2.4.0." },

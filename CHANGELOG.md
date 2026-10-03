@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Layered DPS track**: one bar from Blizzard's damage meter. Purple runs to your live DPS, gold on to your peak this fight, and red on to the group's top DPS, with a small marker at each edge. Scale modes, colours, size and a test mode with animated values are under General > DPS track. Unlock the UI to move it.
+
 ## 2.4.1
 
 ### Changed

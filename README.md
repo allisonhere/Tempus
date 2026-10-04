@@ -70,7 +70,7 @@ The settings window also has a **What's new** page with the changelog.
 - Settings are stored per profile in `TempusDB`.
 - Combat Pulse and the hidden combat values on WoW Forever:
   - Combat DPS and group top can arrive as hidden values that can be drawn but not compared. Your peak and the bar's saved scale only update from readable readings, usually just after a fight ends. Until the scale is known, the bar is drawn against the group top.
-  - Whether the target's cast can be interrupted, and its health for the execute cue, are also hidden in combat. The game decides those cues' visibility, so the execute skull has no idle state, and the kick icon rests dim (Full mode) only when the target is not casting.
+  - Whether the target's cast can be interrupted, and its health for the execute cue, are also hidden in combat. The game decides those cues' visibility, so the execute notch has no idle state, and the kick cue rests dim (Full mode) only when the target is not casting.
   - Kick readiness is shown only when your interrupt's cooldown is readable. Purge looks only for buffs your class can dispel or steal. Threat is not shown against players.
   - Fight history is per character and stores only readable final DPS / group-top values plus a readable in-combat peak when one was available. It is not included in profile exports. Tempus does not reconstruct hidden combat data or keep per-spell breakdowns.
 

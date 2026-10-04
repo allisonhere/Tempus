@@ -574,7 +574,8 @@ function CP:Layout()
         widget:SetPoint("BOTTOMLEFT", f, "TOPLEFT", x, 4)
         x = x + width + 4
     end
-    for _, key in ipairs(Rules.SignalOrder(self.ctx.role)) do
+    local role = self.db.roleAware ~= false and self.ctx.role or "DAMAGER"
+    for _, key in ipairs(Rules.SignalOrder(role)) do
         local cue = widgets[key]
         if cue and cue:IsShown() then
             S.ApplyFont(cue.text, math.max(8, math.min(size - 4, 11)))

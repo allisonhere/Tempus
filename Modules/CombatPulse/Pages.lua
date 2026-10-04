@@ -43,8 +43,7 @@ T:RegisterPage("general", { key = "combatpulse", label = "Combat Pulse", order =
         if T.CombatPulse and T.CombatPulse.ToggleHistory then T.CombatPulse:ToggleHistory(true) end
     end))
     p:Add(W.Button("Clear fight history", function()
-        T.db.combatpulse.history = {}
-        if T.CombatPulse and T.CombatPulse.ToggleHistory then T.CombatPulse:ToggleHistory(false) end
+        if T.CombatPulse and T.CombatPulse.ClearHistory then T.CombatPulse:ClearHistory() end
         Changed()
     end))
 

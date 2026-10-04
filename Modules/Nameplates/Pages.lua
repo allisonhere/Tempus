@@ -62,7 +62,7 @@ T:RegisterPage("nameplates", { key = "np_combat", label = "Casts & Auras", order
 
     p:Section("Cast priorities", "Normal casts use the regular cast bar. Important, Dangerous and Must Interrupt share these lists with Combat Pulse. Spells are matched by name or spell ID; if the client hides both in combat, priority falls back to Normal.")
     p:Check(NPDB, "castAlerts", "Use cast priorities")
-    p:Check(NPDB, "alertSound", "Sound for Dangerous / Must Interrupt", "At most once every two seconds.")
+    p:Check(NPDB, "alertSound", "Play a sound for priority casts", "At most once every two seconds.")
     p:Color(Colors, "castAlert", "Priority alert colour")
     p:Add(W.List("casts", "Important: spell name or ID"), 154, true)
     p:Add(W.List("castsDanger", "Dangerous: spell name or ID"), 154, true)

@@ -204,7 +204,13 @@ local function Build()
     f.summary.title = f.summary:CreateFontString(nil, "OVERLAY")
     S.ApplyFont(f.summary.title, 10)
     f.summary.title:SetPoint("TOPLEFT", 8, -7)
-    f.summary.title:SetText("COMBAT PULSE")
+    f.summary.title:SetText("COMBAT PULSE  •  click for history")
+    if f.summary.EnableMouse then f.summary:EnableMouse(true) end
+    if f.summary.SetScript then
+        f.summary:SetScript("OnMouseUp", function(_, button)
+            if button == "LeftButton" and CP.db and CP.db.historyOnClick then CP:ToggleHistory(true) end
+        end)
+    end
     f.summary.main = f.summary:CreateFontString(nil, "OVERLAY")
     S.ApplyFont(f.summary.main, 12)
     f.summary.main:SetPoint("TOPLEFT", 8, -22)

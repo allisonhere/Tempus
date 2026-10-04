@@ -168,6 +168,7 @@ local function Build()
     f.cues = CreateFrame("Frame", nil, f)
     f.cues:SetAllPoints(f)
     f.cues:SetFrameLevel(over:GetFrameLevel() + 4)
+    f.cast = NewCue(f.cues, "CAST")
     f.threat = NewCue(f.cues)
     f.purge = NewCue(f.cues, "PURGE")
 
@@ -259,7 +260,7 @@ function CP:Gather()
     local ctx = self.ctx
     if self.db.test then
         ctx.dpsReady, ctx.swingReady, ctx.swinging = true, true, true
-        ctx.kickKnown, ctx.cast, ctx.hostile, ctx.purge = true, true, true, true
+        ctx.kickKnown, ctx.cast, ctx.castActive, ctx.hostile, ctx.purge = true, true, true, true, true
         ctx.executeOn, ctx.threat, ctx.tank, ctx.notInterruptible = true, "warn", false, false
         ctx.role, ctx.castPriority, ctx.castName = "DAMAGER", "MUST", "Test Cast"
         return ctx
@@ -271,16 +272,17 @@ function CP:Gather()
     ctx.hostile = Bool(UnitExists, "target") and Bool(UnitCanAttack, "player", "target") and not Bool(UnitIsDead, "target")
     ctx.executeOn = (T.db.nameplates.execute or 0) > 0
     ctx.role = Plain(UnitGroupRolesAssigned, "player") or "DAMAGER"
-    ctx.cast, ctx.notInterruptible, ctx.purge, ctx.threat, ctx.tank = false, nil, false, nil, false
+    ctx.cast, ctx.castActive, ctx.notInterruptible, ctx.purge, ctx.threat, ctx.tank = false, false, nil, false, nil, false
     ctx.castName, ctx.castPriority = nil, "NORMAL"
     if ctx.hostile then
         local name, spellID
-        ctx.cast, ctx.notInterruptible, name, spellID = TargetCast()
+        ctx.castActive, ctx.notInterruptible, name, spellID = TargetCast()
+        ctx.cast = ctx.castActive
         if ctx.cast and not T.issecret(ctx.notInterruptible) and ctx.notInterruptible then ctx.cast = false end
         local plainName = name and not T.issecret(name) and name or nil
         local plainID = spellID and not T.issecret(spellID) and spellID or nil
         ctx.castName = plainName
-        ctx.castPriority = NP.CastPriority(plainName, plainID)
+        ctx.castPriority = T.db.nameplates.castAlerts ~= false and NP.CastPriority(plainName, plainID) or "NORMAL"
         ctx.purge = NP.HasPurgeable("target")
         ctx.threat, ctx.tank = ThreatLevel()
     end
@@ -452,15 +454,6 @@ function CP:DrawKick()
     end
     k:Show()
 
-    local edge = self.frame.castEdge
-    if ctx.cast and priority ~= "NORMAL" and self.frame.strip:IsShown() then
-        local alpha = priority == "IMPORTANT" and 0.55 or priority == "DANGEROUS" and 0.8 or 1
-        edge:SetColor(color[1], color[2], color[3], alpha)
-        edge:SetShown(true)
-    else
-        edge:SetShown(false)
-    end
-
     -- One arrival pulse only when a cast becomes actionable. No continuous flashing.
     local token = ctx.cast and ready == true and ((ctx.castName or "?") .. ":" .. priority) or nil
     if token and token ~= self.kickToken and k.flashAnim then
@@ -468,6 +461,29 @@ function CP:DrawKick()
         k.flashAnim:Play()
     end
     self.kickToken = token
+end
+
+function CP:DrawCastPriority()
+    local cue, plan = self.frame.cast, self.plan
+    local edge = self.frame.castEdge
+    if not (plan and plan.castAlert) then
+        cue:Hide()
+        edge:SetShown(false)
+        return
+    end
+    local priority = plan.priority
+    local color = PRIORITY_COLOR[priority] or PRIORITY_COLOR.NORMAL
+    cue.text:SetText(priority == "MUST" and "MUST" or priority == "DANGEROUS" and "DANGER" or "IMPORTANT")
+    ApplyCueColor(cue, color, 1)
+    cue:SetAlpha(1)
+    cue:Show()
+    if self.frame.strip:IsShown() then
+        local alpha = priority == "IMPORTANT" and 0.55 or priority == "DANGEROUS" and 0.8 or 1
+        edge:SetColor(color[1], color[2], color[3], alpha)
+        edge:SetShown(true)
+    else
+        edge:SetShown(false)
+    end
 end
 
 function CP:DrawThreat()
@@ -521,7 +537,7 @@ function CP:Layout()
     local f, h = self.frame, self.db.height
     local size = math.max(14, h + 2)
     local x = 0
-    local widgets = { threat = f.threat, purge = f.purge, kick = f.kick }
+    local widgets = { cast = f.cast, threat = f.threat, purge = f.purge, kick = f.kick }
     local function Place(widget, width)
         widget:ClearAllPoints()
         widget:SetSize(width, size)
@@ -625,6 +641,7 @@ function CP:Apply()
         f.previous:Hide(); f.previousTick:Hide()
     end
     self:DrawSwing()
+    self:DrawCastPriority()
     self:DrawThreat()
     self:DrawPurge()
     self:DrawKick()

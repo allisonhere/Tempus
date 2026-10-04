@@ -429,6 +429,15 @@ NP.commonCasts = { "Healing Wave", "Lesser Healing Wave", "Chain Heal", "Heal", 
     "Holy Light", "Healing Touch", "Regrowth", "Fear", "Polymorph", "Hex", "Mind Control", "Sleep",
     "Chain Lightning", "Shadow Bolt Volley", "Frostbolt Volley", "Dominate Mind", "Banish" }
 
+-- Cast priority shared with Combat Pulse. The old watched-cast list is the Important tier;
+-- Dangerous and Must Interrupt are opt-in lists above it. Hidden spell names/IDs stay Normal.
+function NP.CastPriority(name, spellID)
+    if T:ListHas("castsMust", name, spellID) then return "MUST" end
+    if T:ListHas("castsDanger", name, spellID) then return "DANGEROUS" end
+    if T:ListHas("casts", name, spellID) then return "IMPORTANT" end
+    return "NORMAL"
+end
+
 local lastAlertSound = 0
 local function SetAlert(cb, on)
     cb.alert = on
@@ -561,19 +570,22 @@ local function CastStart(cb, unit, channel)
     end
     SetKick(cb, notInterruptible)
     SetKickIcon(cb, notInterruptible)
-    -- Watched spells are matched by ID or name, when the client lets addons read them.
+    -- Priority is matched by ID or name when the client lets addons read either one.
     local db = NP.db
-    local alert = db.castAlerts and T:ListHas("casts", (not issecret(name)) and name or nil,
-        (not issecret(spellID)) and spellID or nil)
+    local plainName = (not issecret(name)) and name or nil
+    local plainID = (not issecret(spellID)) and spellID or nil
+    local priority = db.castAlerts and NP.CastPriority(plainName, plainID) or "NORMAL"
+    cb.castPriority = priority
+    local alert = priority ~= "NORMAL"
     if alert then
         local ac = db.colors.castAlert
         cb.bar:SetStatusBarColor(ac[1], ac[2], ac[3])
-        if db.alertSound and GetTime() - lastAlertSound > 2 then
+        if db.alertSound and priority ~= "IMPORTANT" and GetTime() - lastAlertSound > 2 then
             lastAlertSound = GetTime()
             pcall(PlaySound, SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959, "Master")
         end
     end
-    SetAlert(cb, alert and true or false)
+    SetAlert(cb, alert)
 
     local durFn = channel and UnitChannelDuration or UnitCastingDuration
     local dur

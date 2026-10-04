@@ -152,19 +152,17 @@ local function Build()
     f.swingTick:Hide()
 
     -- Execute is a Tempus notch on the strip itself, not WoW's raid-target skull.
-    f.exec = over:CreateTexture(nil, "OVERLAY", nil, 5)
+    f.exec = f:CreateTexture(nil, "OVERLAY", nil, 5)
     f.exec:SetTexture(S.WHITE)
     f.exec:SetSize(8, 8)
-    f.exec:SetPoint("RIGHT", f.strip, "RIGHT", -2, 0)
+    f.exec:SetPoint("RIGHT", f, "RIGHT", -2, 0)
     if f.exec.SetRotation then f.exec:SetRotation(math.rad(45)) end
     f.exec:Hide()
 
-    -- Cast priority can light the strip edge without turning it into a flashing warning box.
-    f.castEdge = CreateFrame("Frame", nil, f.strip)
-    f.castEdge:SetAllPoints(f.strip)
-    f.castEdge:SetFrameLevel(over:GetFrameLevel() + 1)
-    S.Backdrop(f.castEdge, { inner = false, shadow = false })
-    f.castEdge:Hide()
+    -- Functional border only: no panel fill over the DPS layers.
+    f.castEdge = S.CreateBorder(f.strip, "OVERLAY", 6)
+    f.castEdge:SetInside(f.strip)
+    f.castEdge:SetShown(false)
 
     -- All contextual cues share the same chip + notch language.
     f.cues = CreateFrame("Frame", nil, f)
@@ -455,12 +453,12 @@ function CP:DrawKick()
     k:Show()
 
     local edge = self.frame.castEdge
-    if ctx.cast and priority ~= "NORMAL" then
-        edge.tempusBackdrop:SetEdgeColor(color[1], color[2], color[3])
-        edge:SetAlpha(priority == "IMPORTANT" and 0.55 or priority == "DANGEROUS" and 0.8 or 1)
-        edge:Show()
+    if ctx.cast and priority ~= "NORMAL" and self.frame.strip:IsShown() then
+        local alpha = priority == "IMPORTANT" and 0.55 or priority == "DANGEROUS" and 0.8 or 1
+        edge:SetColor(color[1], color[2], color[3], alpha)
+        edge:SetShown(true)
     else
-        edge:Hide()
+        edge:SetShown(false)
     end
 
     -- One arrival pulse only when a cast becomes actionable. No continuous flashing.
@@ -616,7 +614,7 @@ function CP:Apply()
     local ctx = self:Gather()
     self.plan = Rules.Plan(db, ctx)
     local plan = self.plan
-    f.strip:SetShown(plan.strip or plan.execute or (unlocked and true) or false)
+    f.strip:SetShown(plan.strip or (unlocked and true) or false)
     f.bars.top:SetShown(plan.dps)
     f.bars.peak:SetShown(plan.dps)
     f.bars.live:SetShown(plan.dps)

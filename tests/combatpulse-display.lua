@@ -24,6 +24,7 @@ local function stub()
     end })
 end
 CreateFrame = function() return stub() end
+TempusDB = {}
 UIParent = stub()
 GetTime = function() return 100 end
 unpack = unpack or table.unpack
@@ -57,6 +58,8 @@ local CP, NP = T.CombatPulse, T.Nameplates
 
 -- A world with a hostile, casting, purgeable target and a damage meter.
 local world = { combat = true, secret = false, cast = true, notInt = false }
+UnitName = function() return "Tester" end
+GetRealmName = function() return "Realm" end
 UnitAffectingCombat = function(unit) return world.combat end
 UnitExists = function() return true end
 UnitCanAttack = function() return true end
@@ -219,12 +222,14 @@ print("combatpulse busy-event ok")
 
 -- A readable finished fight is saved, bounded, and can feed the previous-fight marker/summary.
 CP.fightActive, CP.fightPeak = true, 650
-db.history, db.historySize, db.showSummary = {}, 5, true
+CP:ClearHistory()
+db.historySize, db.showSummary = 5, true
 C_DamageMeter = { GetCombatSessionFromType = function()
     return { combatSources = { { amountPerSecond = 600, isLocalPlayer = true }, { amountPerSecond = 750 } } }
 end }
 CP:FinishFight()
-assert(#db.history == 1 and db.history[1].dps == 600 and math.floor(db.history[1].pct + 0.5) == 80,
+local history = CP:History()
+assert(#history == 1 and history[1].dps == 600 and math.floor(history[1].pct + 0.5) == 80,
     "finished fight is stored with relative performance")
 assert(f.summary.shown, "post-fight summary is shown")
 

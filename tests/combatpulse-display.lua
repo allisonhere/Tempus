@@ -101,6 +101,8 @@ assert(f.bars.live.value == 500 and f.bars.top.value == 900 and db.peak == 500, 
 world.secret = true
 CP:Poll()
 assert(CP.secret and f.bars.live.value == SECRET and db.peak == 500, "secret DPS goes straight into the bar")
+assert(f.bars.live.calls.SetMinMaxValues[2] == SECRET, "secret group top drives the range so live cannot clamp purple to full width")
+assert(f.bars.peak.value == 0 and not f.ticks.peak.shown, "stale readable peak is hidden while DPS is secret")
 world.secret = false
 
 -- A plainly uninterruptible cast drops the kick cue.

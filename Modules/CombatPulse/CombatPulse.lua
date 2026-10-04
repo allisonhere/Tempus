@@ -476,11 +476,23 @@ function CP:ClearBars()
 end
 
 function CP:OnEvent(event)
+    -- Busy events do the least possible: nothing is redrawn unless what the strip shows changed.
+    local shown = self.plan and self.frame:IsShown() and not self.db.test
     if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
-        if self.plan and self.plan.execute then self:DrawExecute() end
+        if shown and self.plan.execute then self:DrawExecute() end
         return
     elseif event == "SPELL_UPDATE_COOLDOWN" then
-        if self.plan and self.plan.kick then self:DrawKick() end
+        local now = GetTime()
+        if shown and self.plan.kick and now - (self.kickAt or 0) > 0.1 then
+            self.kickAt = now
+            self:DrawKick()
+        end
+        return
+    elseif event == "UNIT_AURA" then
+        if shown and self.ctx.hostile and NP.HasPurgeable("target") ~= self.ctx.purge then self:Apply() end
+        return
+    elseif event == "UNIT_THREAT_LIST_UPDATE" or event == "UNIT_THREAT_SITUATION_UPDATE" then
+        if shown and self.ctx.hostile and (ThreatLevel()) ~= self.ctx.threat then self:Apply() end
         return
     elseif event == "DAMAGE_METER_RESET" then
         self.db.peak, self.db.rangeMax, self.lastTop, self.rangeMax = 0, nil, nil, nil

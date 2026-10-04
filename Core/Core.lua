@@ -161,6 +161,12 @@ local function Merge(dst, src)
     end
 end
 
+-- Settings of modules that no longer exist (the standalone DPS track became Combat Pulse).
+function T.PruneRetired(profile)
+    profile.dpstrack = nil
+    if type(profile.modules) == "table" then profile.modules.dpstrack = nil end
+end
+
 local function CharKey()
     return (UnitName("player") or "?") .. " - " .. (GetRealmName() or "?")
 end
@@ -172,6 +178,7 @@ end
 function T:SetProfile(name)
     TempusDB.profiles[name] = TempusDB.profiles[name] or {}
     TempusDB.chars[CharKey()] = name
+    T.PruneRetired(TempusDB.profiles[name])
     Merge(TempusDB.profiles[name], T.defaults)
     T.db = TempusDB.profiles[name]
     if T.Options then T.Options.needsReload = true end
@@ -572,6 +579,7 @@ loader:SetScript("OnEvent", function(self, event, arg)
         T.perfSince = GetTime()     -- the profiler's window starts at login, not client launch
         local name = T:ProfileName()
         TempusDB.profiles[name] = TempusDB.profiles[name] or {}
+        T.PruneRetired(TempusDB.profiles[name])
         Merge(TempusDB.profiles[name], T.defaults)
         T.db = TempusDB.profiles[name]
         T:ApplyAccent()             -- before any module draws
@@ -753,9 +761,6 @@ SlashCmdList.TEMPUS = function(msg)
         local s = T:RunDPSProbe()
         T:Print("DPS probe: API %s, meter %s, enabled %s, live %s, top %s. /reload to save it.",
             tostring(s.available), tostring(s.meterAvailable), tostring(s.meterEnabled), tostring(s.live), tostring(s.top))
-        T:Print("DPS drawing: mode %s, fixed max %s, value %s, range %s, updates %s, test %s.",
-            tostring(s.scaleMode), tostring(s.fixedMax), tostring(s.drawnLive), tostring(s.drawnRange),
-            tostring(s.updateCalls), tostring(s.test))
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+group") then
         if T:RunGroupProbe() then
             T:Print("group probe recorded. Now pull something with your group; a combat sample is taken automatically.")

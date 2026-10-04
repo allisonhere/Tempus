@@ -33,6 +33,12 @@ for _, accent in ipairs({'ff5757', 'b377ff'}) do
 end
 print('PASS: all info-bar accents follow current settings')
 
+local retired = {dpstrack = {peak = 5}, modules = {dpstrack = true, swing = true}, swing = {}}
+T.PruneRetired(retired)
+assert(retired.dpstrack == nil and retired.modules.dpstrack == nil and retired.modules.swing and retired.swing)
+T.PruneRetired({})
+print('PASS: settings of the retired DPS track module are dropped')
+
 local oldCfg = {width = 100}
 local activeCfg = oldCfg
 local inactiveCalls = 0

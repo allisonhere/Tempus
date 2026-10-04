@@ -275,19 +275,6 @@ function T:RunDPSProbe()
     s.meterEnabled = Sample(C_CVar and C_CVar.GetCVar, "damageMeterEnabled")
     local ok, live, top, secret = pcall(source.Read)
     s.live, s.top, s.secret = Read(ok, live), Read(ok, top), Read(ok, secret)
-    local dt = T.DPSTrack
-    s.rangeMax, s.lastReadableTop = dt.rangeMax, dt.lastReadableTop
-    if dt.db then
-        s.scaleMode, s.fixedMax = dt.db.scaleMode, dt.db.fixedMax
-        s.test = dt.db.test
-    end
-    if dt.frame then
-        s.shown = dt.frame:IsShown()
-        s.drawnLive = Sample(dt.frame.bars.live.GetValue, dt.frame.bars.live)
-        s.drawnRange = Sample(dt.frame.bars.live.GetMinMaxValues, dt.frame.bars.live)
-    end
-    local update = T.perf and T.perf["dpstrack.update"]
-    s.updateCalls = update and update.calls or 0
     s.meter = T.CollectDPSMeter(C_DamageMeter, {
         DamageMeterSessionType = Enum and Enum.DamageMeterSessionType,
         DamageMeterType = Enum and Enum.DamageMeterType,

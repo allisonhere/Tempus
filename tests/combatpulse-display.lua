@@ -178,3 +178,28 @@ db.rangeMax, CP.rangeMax = 2284067, 2284067
 CP:Poll()
 assert(db.rangeMax < 100, "a range far above the real DPS is relearned from a readable reading")
 print("combatpulse stale-range ok")
+
+-- Busy target events only redraw when what the strip shows changes.
+C_DamageMeter = { GetCombatSessionFromType = function()
+    return { combatSources = { { amountPerSecond = 500, isLocalPlayer = true }, { amountPerSecond = 900 } } }
+end }
+UnitCastingInfo = function() end
+UnitThreatSituation = function() return 2 end
+C_UnitAuras = { GetUnitAuraInstanceIDs = function() return { 1 } end }
+UnitAffectingCombat = function() return true end
+world.combat = true
+CP:Apply()
+local applies = 0
+local realApply = CP.Apply
+CP.Apply = function(self) applies = applies + 1 return realApply(self) end
+CP:OnEvent("UNIT_AURA")
+CP:OnEvent("UNIT_THREAT_LIST_UPDATE")
+assert(applies == 0, "unchanged purge and threat do not redraw")
+C_UnitAuras = { GetUnitAuraInstanceIDs = function() return {} end }
+CP:OnEvent("UNIT_AURA")
+assert(applies == 1 and not CP.ctx.purge, "a purge change redraws")
+UnitThreatSituation = function() return 0 end
+CP:OnEvent("UNIT_THREAT_LIST_UPDATE")
+assert(applies == 2, "a threat change redraws")
+CP.Apply = realApply
+print("combatpulse busy-event ok")

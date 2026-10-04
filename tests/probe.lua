@@ -37,20 +37,6 @@ T.DPSTrack.Source.Read = function() error("meter refused") end
 dps = T:RunDPSProbe()
 assert(dps.live:find("meter refused", 1, true), "DPS probe preserves failed read reason")
 assert(TempusDB.probe.dps == dps, "DPS probe is saved for inspection after reload")
-T.DPSTrack.db = { scaleMode = "DYNAMIC", fixedMax = 1000000, test = false }
-T.DPSTrack.frame = {
-    IsShown = function() return true end,
-    bars = { live = {
-        GetValue = function() return 800 end,
-        GetMinMaxValues = function() return 0, 800 end,
-    } },
-}
-T.perf = { ["dpstrack.update"] = { calls = 20 } }
-dps = T:RunDPSProbe()
-assert(dps.scaleMode == "DYNAMIC" and dps.drawnLive == "800" and dps.drawnRange == "0, 800",
-    "DPS probe exposes self-normalized full bar")
-assert(dps.shown and dps.updateCalls == 20 and not dps.test,
-    "DPS probe records visibility, update activity and test mode")
 local meterEnums = { DamageMeterSessionType = { Current = 1, Overall = 0 },
     DamageMeterType = { Dps = 1, DamageDone = 0 } }
 local census = T.CollectDPSMeter({ GetCombatSessionFromType = function(sessionType, meterType)

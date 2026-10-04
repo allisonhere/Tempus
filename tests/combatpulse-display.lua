@@ -36,7 +36,12 @@ function T.Num(v) return type(v) == "number" and v == v and v > -math.huge and v
 function T:Wrap(_, fn) return fn end
 function T:NewModule(key, def) self.modules[key] = def end
 function T.CopyTable(t) return t end
-T.db = { locked = true, nameplates = { execute = 20, threatRole = "AUTO", colors = {
+function T:ListHas(list, name, spellID)
+    local l = self.db.lists[list] or {}
+    return (spellID and l[tostring(spellID)] ~= nil)
+        or (type(name) == "string" and l[name:lower()] ~= nil)
+end
+T.db = { locked = true, lists = { casts = {}, castsDanger = {}, castsMust = {} }, nameplates = { execute = 20, threatRole = "AUTO", colors = {
     threatSafe = { 0.25, 0.6, 1 }, threatWarn = { 1, 0.6, 0.1 }, threatAggro = { 1, 0.1, 0.1 }, execute = { 1, 0.45, 0.9 } } } }
 T.Style = { WHITE = "w", Backdrop = function(f) f.tempusBackdrop = stub() return f.tempusBackdrop end,
     StatusBar = function() local b = stub() b.bg = stub() return b end, ApplyFont = function() end,
@@ -104,6 +109,13 @@ f.kick.SetAlphaFromBoolean = nil
 CP:Apply()
 assert(plan().kick and f.kick.shown, "secret flag: kick chip stays, alpha handed to the client")
 world.notInt = false
+
+-- Priority changes the kick treatment without a second cast database.
+T.db.lists.castsMust["5"] = "5"
+world.cast, world.notInt = true, false
+CP:Apply()
+assert(plan().priority == "MUST" and f.kick.shown, "must-interrupt priority reaches Combat Pulse")
+T.db.lists.castsMust["5"] = nil
 
 -- Minimal: no DPS, no strip until a cue needs you.
 db.mode = "MINIMAL"
@@ -203,3 +215,15 @@ CP:OnEvent("UNIT_THREAT_LIST_UPDATE")
 assert(applies == 2, "a threat change redraws")
 CP.Apply = realApply
 print("combatpulse busy-event ok")
+
+-- A readable finished fight is saved, bounded, and can feed the previous-fight marker/summary.
+CP.fightActive, CP.fightPeak = true, 650
+db.history, db.historySize, db.showSummary = {}, 5, true
+C_DamageMeter = { GetCombatSessionFromType = function()
+    return { combatSources = { { amountPerSecond = 600, isLocalPlayer = true }, { amountPerSecond = 750 } } }
+end }
+CP:FinishFight()
+assert(#db.history == 1 and db.history[1].dps == 600 and math.floor(db.history[1].pct + 0.5) == 80,
+    "finished fight is stored with relative performance")
+assert(f.summary.shown, "post-fight summary is shown")
+

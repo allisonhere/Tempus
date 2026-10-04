@@ -54,6 +54,27 @@ assert(not (p.purge or p.threat or p.execute), "target cues need an attackable t
 p = Rules.Plan(db(), ctx({ executeOn = false }))
 assert(not p.execute, "execute threshold 0 turns the cue off")
 
+-- Role-aware order and emphasis.
+local order = Rules.SignalOrder("TANK")
+assert(order[1] == "threat" and order[2] == "kick", "tank sees threat first")
+order = Rules.SignalOrder("HEALER")
+assert(order[1] == "purge" and order[2] == "kick", "healer sees utility first")
+order = Rules.SignalOrder("DAMAGER")
+assert(order[1] == "kick" and order[3] == "threat", "damage sees kick first")
+p = Rules.Plan(db({ roleAware = true }), ctx({ role = "TANK", threat = "safe" }))
+assert(p.threat, "tank keeps holding-threat state visible in Standard")
+p = Rules.Plan(db({ roleAware = false }), ctx({ role = "TANK", threat = "safe" }))
+assert(not p.threat, "role-aware emphasis can be disabled")
+
+-- Cast priorities and tiny fight history.
+assert(Rules.CastPriority("MUST") == "MUST" and Rules.CastPriority("bogus") == "NORMAL")
+assert(math.floor(Rules.PercentOfTop(800, 1000) + 0.5) == 80 and Rules.PercentOfTop(1, 0) == nil)
+local hist = {}
+hist = Rules.PushHistory(hist, { dps = 100, top = 200 }, 2)
+hist = Rules.PushHistory(hist, { dps = 150, top = 200 }, 2)
+hist = Rules.PushHistory(hist, { dps = 175, top = 200 }, 2)
+assert(#hist == 2 and hist[1].dps == 175 and hist[2].dps == 150, "history is newest-first and bounded")
+
 -- Out-of-combat visibility.
 assert(not Rules.Visible(db({ enabled = false }), true, true), "disabled")
 assert(Rules.Visible(db(), true, false) and not Rules.Visible(db(), false, false), "hide out of combat")
@@ -74,6 +95,15 @@ local NT = { Style = {}, issecret = T.issecret, Num = T.Num, defaults = {}, db =
 function NT:NewModule() end
 load("Modules/Nameplates/Nameplates.lua", NT)
 local NP = NT.Nameplates
+NT.db.lists = { casts = { heal = "Heal" }, castsDanger = { fear = "Fear" }, castsMust = { ["123"] = "123" } }
+function NT:ListHas(list, name, spellID)
+    local l = self.db.lists[list] or {}
+    return (spellID and l[tostring(spellID)] ~= nil) or (type(name) == "string" and l[name:lower()] ~= nil)
+end
+assert(NP.CastPriority("Heal") == "IMPORTANT")
+assert(NP.CastPriority("Fear") == "DANGEROUS")
+assert(NP.CastPriority(nil, 123) == "MUST")
+assert(NP.CastPriority("Nothing") == "NORMAL")
 assert(NP.ThreatLevel(3, true) == "safe" and NP.ThreatLevel(2, true) == "warn" and NP.ThreatLevel(1, true) == "warn"
     and NP.ThreatLevel(0, true) == "lost", "tank: holding, slipping, lost")
 assert(NP.ThreatLevel(3, false) == "aggro" and NP.ThreatLevel(2, false) == "aggro"

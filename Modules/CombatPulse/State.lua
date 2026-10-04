@@ -67,7 +67,7 @@ function State.Plan(db, ctx)
     plan.dps = db.showDPS and ctx.dpsReady and not minimal or false
     plan.swing = db.showSwing and ctx.swingReady and not minimal and (full or ctx.swinging) or false
     plan.priority = State.CastPriority(ctx.castPriority)
-    plan.castAlert = db.showKick and ctx.hostile and ctx.castActive and plan.priority ~= "NORMAL" or false
+    plan.castAlert = db.showCastPriority ~= false and ctx.hostile and ctx.castActive and plan.priority ~= "NORMAL" or false
     plan.kick = db.showKick and ctx.kickKnown and (full or ctx.cast) or false
     plan.purge = db.showPurge and ctx.hostile and (full or ctx.purge) or false
     local tankHold = db.roleAware ~= false and role == "TANK" and ctx.hostile and not minimal

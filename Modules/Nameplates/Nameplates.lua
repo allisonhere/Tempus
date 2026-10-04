@@ -63,6 +63,8 @@ local function Plain(fn, ...)
     return v, (not issecret(v2)) and v2 or nil
 end
 
+NP.Bool, NP.Plain = Bool, Plain     -- shared with Combat Pulse
+
 local CURVE100 = CurveConstants and CurveConstants.ScaleTo100
 local SMOOTH = Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.ExponentialEaseOut
 local INTERP = Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.Immediate
@@ -81,19 +83,22 @@ end
 -- Execute range: a step curve over the health fraction (0-1) whose alpha is 1 below the
 -- threshold and 0 above it, applied to an overlay on the bar fill. No secret is compared.
 ----------------------------------------------------------------------------------------
-local function BuildExecuteCurve()
-    NP.executeCurve = nil
-    local db = NP.db
-    if db.execute <= 0 or not (C_CurveUtil and C_CurveUtil.CreateColorCurve and Enum and Enum.LuaCurveType) then return end
+function NP.MakeExecuteCurve(threshold, c)
+    if not T.Num(threshold) or threshold <= 0
+        or not (C_CurveUtil and C_CurveUtil.CreateColorCurve and Enum and Enum.LuaCurveType) then return end
     local ok, curve = pcall(function()
-        local c = db.colors.execute
         local curve = C_CurveUtil.CreateColorCurve()
         curve:SetType(Enum.LuaCurveType.Step)
         curve:AddPoint(0, CreateColor(c[1], c[2], c[3], 1))
-        curve:AddPoint(db.execute / 100, CreateColor(c[1], c[2], c[3], 0))
+        curve:AddPoint(threshold / 100, CreateColor(c[1], c[2], c[3], 0))
         return curve
     end)
-    if ok then NP.executeCurve = curve end
+    return ok and curve or nil
+end
+
+local function BuildExecuteCurve()
+    local db = NP.db
+    NP.executeCurve = NP.MakeExecuteCurve(db.execute, db.colors.execute)
 end
 
 ----------------------------------------------------------------------------------------
@@ -104,10 +109,25 @@ local function IsHostile(unit)
 end
 
 local function IsTankRole()
-    local role = NP.db.threatRole
+    local role = (NP.db or T.db.nameplates).threatRole
     if role == "TANK" then return true end
     if role == "DPS" then return false end
     return Plain(UnitGroupRolesAssigned, "player") == "TANK"
+end
+NP.IsTankRole = IsTankRole
+
+-- What a threat status (0-3) means for you: "safe" (a tank holding it), "warn" (gaining or
+-- losing it), "lost" (a tank without it) or "aggro" (a non-tank pulling it); nil when fine.
+function NP.ThreatLevel(status, tank)
+    if not T.Num(status) then return nil end
+    if tank then
+        if status == 3 then return "safe" end
+        if status >= 1 then return "warn" end
+        return "lost"
+    end
+    if status >= 2 then return "aggro" end
+    if status == 1 then return "warn" end
+    return nil
 end
 
 -- Threat status 0-3 mapped to a colour, or nil to fall back to reaction colours.
@@ -116,14 +136,11 @@ local function ThreatColor(unit)
     if not db.threat or Bool(UnitIsPlayer, unit) or not Bool(UnitAffectingCombat, unit) then return nil end
     local status = Plain(UnitThreatSituation, "player", unit)
     if not T.Num(status) then return nil end
+    local level = NP.ThreatLevel(status, IsTankRole())
     local c = db.colors
-    if IsTankRole() then
-        if status == 3 then return c.threatSafe end
-        if status >= 1 then return c.threatWarn end
-        return c.threatAggro
-    end
-    if status >= 2 then return c.threatAggro end
-    if status == 1 then return c.threatWarn end
+    if level == "safe" then return c.threatSafe end
+    if level == "warn" then return c.threatWarn end
+    if level == "lost" or level == "aggro" then return c.threatAggro end
     return nil
 end
 
@@ -387,15 +404,16 @@ end
 
 -- Does this enemy carry a buff you can dispel or steal? Only the number of matching auras is
 -- read, so it works while the aura details themselves are hidden in combat.
+function NP.HasPurgeable(unit)
+    if not (C_UnitAuras and C_UnitAuras.GetUnitAuraInstanceIDs) then return false end
+    local ok, ids = pcall(C_UnitAuras.GetUnitAuraInstanceIDs, unit, "HELPFUL|RAID_PLAYER_DISPELLABLE")
+    if not (ok and type(ids) == "table") then return false end
+    local okN, n = pcall(function() return #ids end)
+    return okN and T.Num(n) and n > 0 or false
+end
+
 local function UpdateBuffAlert(f)
-    local has = false
-    if NP.db.buffAlert and f.hostile and C_UnitAuras and C_UnitAuras.GetUnitAuraInstanceIDs then
-        local ok, ids = pcall(C_UnitAuras.GetUnitAuraInstanceIDs, f.unit, "HELPFUL|RAID_PLAYER_DISPELLABLE")
-        if ok and type(ids) == "table" then
-            local okN, n = pcall(function() return #ids end)
-            has = okN and T.Num(n) and n > 0
-        end
-    end
+    local has = NP.db.buffAlert and f.hostile and NP.HasPurgeable(f.unit)
     if f.hasPurgeable ~= has then
         f.hasPurgeable = has
         UpdateHighlight(f)
@@ -461,6 +479,7 @@ local function FindKick()
     return kickSpell
 end
 NP.FindKick = FindKick
+function NP.ResetKick() kickChecked = false end
 
 local function KickTexture(id)
     if C_Spell and C_Spell.GetSpellTexture then
@@ -1115,7 +1134,7 @@ local function OnEvent(self, event, unit, _, _, interruptedBy)
         end)
         return
     elseif event == "SPELLS_CHANGED" then
-        kickChecked = false     -- a new spell or talent may change your interrupt
+        NP.ResetKick()          -- a new spell or talent may change your interrupt
         return
     elseif event == "PLAYER_REGEN_ENABLED" or event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_ROLES_ASSIGNED" then
         for _, f in pairs(NP.byUnit) do UpdateColor(f) end

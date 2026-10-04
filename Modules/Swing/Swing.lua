@@ -43,6 +43,23 @@ function SW.OutOfRange(isInRange, checksRange)
     return isInRange == false
 end
 
+-- The swing to show on a single strip: the first running one, main hand first. Returns nil
+-- while nothing is swinging, otherwise a table with endT, duration and outOfRange.
+function SW.Status()
+    if not (SW.db and SW.db.enabled) then return nil end
+    for _, kind in ipairs(TYPES) do
+        local row = SW.rows[kind.key]
+        if row and row.wanted and row.endT then
+            return { endT = row.endT, duration = row.duration, outOfRange = row.outOfRange and true or false }
+        end
+    end
+end
+
+-- Other modules (Combat Pulse) set listener to hear when a swing starts, ends or changes range.
+local function Notify()
+    if SW.listener then SW.listener() end
+end
+
 local function AttackSpeeds()
     if not UnitAttackSpeed then return end
     local ok, main, off, ranged = pcall(UnitAttackSpeed, "player")
@@ -73,6 +90,7 @@ local function RowOnUpdate(row)
         row.time:SetText("")
         row.spark:Hide()
         SW:UpdateShown()
+        Notify()
         return
     end
     row.bar:SetValue(row.duration - left)
@@ -117,6 +135,7 @@ function SW:Start(swingType, duration)
             row.bar:SetValue(0)
             row.spark:Show()
             self:UpdateShown()
+            Notify()
             return
         end
     end
@@ -127,6 +146,7 @@ function SW:SetRange(swingType, outOfRange)
         if row.type.id == swingType and row.outOfRange ~= outOfRange then
             row.outOfRange = outOfRange
             ColorRow(row)
+            Notify()
         end
     end
 end
@@ -143,6 +163,7 @@ function SW:PollRange()
         if row.outOfRange ~= out then
             row.outOfRange = out
             ColorRow(row)
+            Notify()
         end
     end
 end
@@ -204,6 +225,7 @@ function SW:Refresh()
     self:UpdateRangeChecks()
     self:PollRange()
     self:UpdateShown()
+    Notify()
 end
 
 T:NewModule("swing", {

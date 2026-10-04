@@ -1,4 +1,4 @@
--- Tempus UI: Layered DPS track, data source. Reads Blizzard's built-in damage meter
+-- Tempus UI: damage meter helpers shared with Combat Pulse, data source. Reads Blizzard's built-in damage meter
 -- (C_DamageMeter) rather than parsing the combat log. In combat the client may hand the
 -- numbers back as secret values, which can be drawn but not compared; Read reports that.
 local _, T = ...
@@ -53,7 +53,11 @@ function Source.Read()
         EnumValue("DamageMeterSessionType", "Current", 1), EnumValue("DamageMeterType", "Dps", damageDone))
     if not ok or T.issecret(session) or type(session) ~= "table" then return nil end
     local live, top, secret = Source.Pick(session.combatSources, UnitGUID and UnitGUID("player"))
-    if secret then top = session.maxAmount end   -- drawable even when secret
+    if secret then
+        -- The DPS session is ranked by Blizzard; maxAmount measures total damage.
+        local first = session.combatSources[1]
+        top = first and first.amountPerSecond or 0
+    end
     return live, top, secret
 end
 

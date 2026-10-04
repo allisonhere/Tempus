@@ -1,5 +1,6 @@
--- Tempus UI: Layered DPS track, fight state. Turns a stream of (live, group top) readings
--- into the three milestones the track draws: live, your peak this fight, and the group top.
+-- Tempus UI: damage meter helpers shared with Combat Pulse, fight state. Turns a stream of
+-- (live, group top) readings into the three milestones the DPS bar draws: live, your high
+-- since reset, and the group top.
 local _, T = ...
 local DT = T.DPSTrack or {}
 T.DPSTrack = DT
@@ -11,8 +12,13 @@ local function Clean(v)
     return (type(v) == "number" and v == v and v > 0 and v < math.huge) and v or 0
 end
 
-function State.New()
-    return { live = 0, peak = 0, top = 0, groupTop = 0 }
+function State.New(peak)
+    peak = Clean(peak)
+    return { live = 0, peak = peak, top = peak, groupTop = 0 }
+end
+
+function State.BeginFight(s)
+    s.live, s.top, s.groupTop = 0, s.peak, 0
 end
 
 function State.Reset(s)

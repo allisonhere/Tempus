@@ -749,6 +749,13 @@ SlashCmdList.TEMPUS = function(msg)
             if key ~= "buffs" then T.db.modules[key] = false end
         end
         ReloadUI()
+    elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+dps") then
+        local s = T:RunDPSProbe()
+        T:Print("DPS probe: API %s, meter %s, enabled %s, live %s, top %s. /reload to save it.",
+            tostring(s.available), tostring(s.meterAvailable), tostring(s.meterEnabled), tostring(s.live), tostring(s.top))
+        T:Print("DPS drawing: mode %s, fixed max %s, value %s, range %s, updates %s, test %s.",
+            tostring(s.scaleMode), tostring(s.fixedMax), tostring(s.drawnLive), tostring(s.drawnRange),
+            tostring(s.updateCalls), tostring(s.test))
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+group") then
         if T:RunGroupProbe() then
             T:Print("group probe recorded. Now pull something with your group; a combat sample is taken automatically.")
@@ -761,6 +768,9 @@ SlashCmdList.TEMPUS = function(msg)
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+api") then
         local namespaces, globals = T:RunAPIProbe()
         T:Print(("API dump recorded: %d C_ namespaces, %d global functions. /reload so it is saved to disk."):format(namespaces, globals))
+    elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+new") then
+        T:RunNewProbe()
+        T:Print("probe of newer client features recorded. /reload so it is saved to disk.")
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+off") then
         if TempusDB.probe then TempusDB.probe = nil end
         T:Print("probe data cleared and login probing off.")

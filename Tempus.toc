@@ -1,8 +1,8 @@
 ## Interface: 16001, 11508
 ## Title: |cff3fc1ffTempus|r UI
-## Notes: A complete interface suite: buff timers, unit frames, nameplates, party and raid frames, action bars, minimap, info bar and skins, in one clean look.
+## Notes: A complete interface suite: buff timers, unit frames, nameplates, party and raid frames, action bars, minimap, info bar, a combat strip and skins, in one clean look.
 ## Author: Allie
-## Version: 2.4.1
+## Version: 2.5.0
 ## IconTexture: Interface\AddOns\Tempus\media\icon
 ## SavedVariables: TempusDB
 ## OptionalDeps: SpellPower
@@ -47,8 +47,9 @@ Modules\Swing\Pages.lua
 Modules\DPSTrack\State.lua
 Modules\DPSTrack\Scale.lua
 Modules\DPSTrack\Source.lua
-Modules\DPSTrack\DPSTrack.lua
-Modules\DPSTrack\Pages.lua
+Modules\CombatPulse\State.lua
+Modules\CombatPulse\CombatPulse.lua
+Modules\CombatPulse\Pages.lua
 
 Modules\Vendor\Vendor.lua
 Modules\Vendor\Pages.lua

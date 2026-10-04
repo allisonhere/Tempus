@@ -22,6 +22,15 @@ State.Update(s, -5, 0 / 0)
 assert(s.live == 0 and s.peak == 1000, "bad readings count as 0")
 State.Reset(s)
 assert(s.live == 0 and s.peak == 0 and s.top == 0, "reset")
+State.Update(s, 800, 900)
+State.BeginFight(s)
+assert(s.live == 0 and s.peak == 800 and s.top == 800, "new fight keeps past high")
+State.Update(s, 300, 500)
+assert(s.peak == 800, "lower DPS in a later fight keeps past high")
+s = State.New(s.peak)
+assert(s.peak == 800, "saved high survives reload")
+State.Reset(s)
+assert(s.peak == 0, "meter reset clears past high")
 
 -- Segment widths are the differences between edges and are never negative.
 State.Update(s, 782e3, 1.24e6)
@@ -37,7 +46,7 @@ assert(math.abs(t - 1000) < 1e-6, "dynamic puts the top at 88%")
 assert(Scale.Target(t, "DYNAMIC", 900) == t, "small rise: no rescale")
 assert(Scale.Target(t, "DYNAMIC", 700) == t, "small fall: no rescale")
 assert(Scale.Target(t, "DYNAMIC", 960) > t, "near the end: grows")
-assert(Scale.Target(t, "DYNAMIC", 500) < t, "far below: shrinks")
+assert(Scale.Target(t, "DYNAMIC", 500) == t, "falling DPS never shrinks the saved range")
 assert(Scale.Target(nil, "DYNAMIC", 0) == 1, "no data: never 0")
 assert(Scale.Approach(0, 100, 0, 0.016) == 100, "speed 0 snaps")
 local a = Scale.Approach(0, 100, 8, 0.016)
@@ -63,6 +72,19 @@ live, top, secret = Source.Pick({ { amountPerSecond = SECRET, isLocalPlayer = tr
 assert(secret and live == SECRET and top == nil, "secret values are passed through, top unknown")
 live, top, secret = Source.Pick(nil)
 assert(live == 0 and top == 0 and not secret, "no sources")
+
+-- The DPS session is ranked by the meter. maxAmount is total damage, not DPS.
+Enum = { DamageMeterType = { DamageDone = 0, Dps = 1 }, DamageMeterSessionType = { Current = 1 } }
+UnitGUID = function() return "me" end
+C_DamageMeter = { GetCombatSessionFromType = function(sessionType, meterType)
+    assert(sessionType == 1 and meterType == 1, "read current DPS session")
+    return { maxAmount = 90000, combatSources = {
+        { amountPerSecond = SECRET },
+        { amountPerSecond = 400, isLocalPlayer = true },
+    } }
+end }
+live, top, secret = Source.Read()
+assert(live == 400 and top == SECRET and secret, "secret top uses ranked DPS, not total damage")
 
 -- Test source keeps live within the group top.
 for i = 0, 100 do

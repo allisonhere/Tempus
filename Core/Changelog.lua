@@ -1,9 +1,9 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
-    { version = "Unreleased", sections = {
+    { version = "2.5.0", sections = {
         { title = "New", items = {
-            { 0, "|cffffffffLayered DPS track|r: one bar from Blizzard's damage meter. Purple runs to your live DPS, gold on to your peak this fight, and red on to the group's top DPS, with a small marker at each edge. Scale modes, colours, size and a test mode with animated values are under General > DPS track. Unlock the UI to move it." },
+            { 0, "|cffffffffCombat Pulse|r: one compact combat strip. It combines a layered DPS bar from Blizzard's damage meter (purple to your live DPS, gold to your peak, red to the group's top), a thin swing line, and small cues for an interruptible target cast, a buff you can purge, threat trouble and the execute range. Choose Minimal (urgent cues only), Standard or Full; every signal can be switched off, and threat and execute follow your Nameplates settings. Settings, a test mode and reset position are under General > Combat Pulse. Unlock the UI to move it." },
         } },
     } },
     { version = "2.4.1", sections = {

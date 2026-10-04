@@ -233,6 +233,84 @@ end
 
 -- Runs only on demand now (/tempus probe); the first-run data is already collected.
 
+local function MeterFields(value, depth)
+    if issecret(value) or type(value) ~= "table" then return Read(true, value) end
+    if depth == 0 then return "<table>" end
+    local fields, count = {}, 0
+    for key, v in pairs(value) do
+        if not issecret(key) and (type(key) == "string" or type(key) == "number") then
+            fields[key] = MeterFields(v, depth - 1)
+            count = count + 1
+            if count >= 30 then break end
+        end
+    end
+    return fields
+end
+
+function T.CollectDPSMeter(meter, enums)
+    local result = { enums = MeterFields(enums, 2), sessions = {} }
+    if not (meter and meter.GetCombatSessionFromType) then return result end
+    local sessions = enums and enums.DamageMeterSessionType or { Current = 1, Overall = 0 }
+    local types = enums and enums.DamageMeterType or { Dps = 1, DamageDone = 0 }
+    for _, sessionName in ipairs({ "Current", "Overall" }) do
+        for _, typeName in ipairs({ "Dps", "DamageDone" }) do
+            local key = sessionName .. "." .. typeName
+            if sessions[sessionName] ~= nil and types[typeName] ~= nil then
+                local ok, session = pcall(meter.GetCombatSessionFromType, sessions[sessionName], types[typeName])
+                result.sessions[key] = ok and MeterFields(session, 3) or Read(false, session)
+            else
+                result.sessions[key] = "missing enum"
+            end
+        end
+    end
+    return result
+end
+
+function T:RunDPSProbe()
+    TempusDB.probe = TempusDB.probe or {}
+    local source = T.DPSTrack.Source
+    local s = { at = date("%H:%M:%S"), available = source.Available() }
+    s.combat = Sample(UnitAffectingCombat, "player")
+    s.meterAvailable = Sample(C_DamageMeter and C_DamageMeter.IsDamageMeterAvailable)
+    s.meterEnabled = Sample(C_CVar and C_CVar.GetCVar, "damageMeterEnabled")
+    local ok, live, top, secret = pcall(source.Read)
+    s.live, s.top, s.secret = Read(ok, live), Read(ok, top), Read(ok, secret)
+    local dt = T.DPSTrack
+    s.rangeMax, s.lastReadableTop = dt.rangeMax, dt.lastReadableTop
+    if dt.db then
+        s.scaleMode, s.fixedMax = dt.db.scaleMode, dt.db.fixedMax
+        s.test = dt.db.test
+    end
+    if dt.frame then
+        s.shown = dt.frame:IsShown()
+        s.drawnLive = Sample(dt.frame.bars.live.GetValue, dt.frame.bars.live)
+        s.drawnRange = Sample(dt.frame.bars.live.GetMinMaxValues, dt.frame.bars.live)
+    end
+    local update = T.perf and T.perf["dpstrack.update"]
+    s.updateCalls = update and update.calls or 0
+    s.meter = T.CollectDPSMeter(C_DamageMeter, {
+        DamageMeterSessionType = Enum and Enum.DamageMeterSessionType,
+        DamageMeterType = Enum and Enum.DamageMeterType,
+    })
+    TempusDB.probe.dps = s
+    return s
+end
+
+local dpsWatcher = CreateFrame("Frame")
+dpsWatcher:RegisterEvent("PLAYER_REGEN_DISABLED")
+dpsWatcher:SetScript("OnEvent", function()
+    if not (TempusDB and TempusDB.probe and TempusDB.probe.dps) then return end
+    local samples = {}
+    TempusDB.probe.dpsSamples = samples
+    for _, delay in ipairs({ 2, 5, 10 }) do
+        C_Timer.After(delay, function()
+            if TempusDB.probe.dpsSamples ~= samples then return end
+            local ok, sample = pcall(T.RunDPSProbe, T)
+            samples[#samples + 1] = ok and sample or Read(false, sample)
+        end)
+    end
+end)
+
 ----------------------------------------------------------------------------------------
 -- API dump (/tempus probe api): every C_* namespace with its function names, every
 -- global function and every Enum, for diffing this client against Retail's API docs.
@@ -567,3 +645,69 @@ watcher:SetScript("OnEvent", function(_, event)
     end
 end)
 
+
+----------------------------------------------------------------------------------------
+-- /tempus probe new: what this client offers beyond classic (cooldown viewer, damage meter,
+-- swing timer). Written to TempusDB.probe.new for reading from SavedVariables.
+----------------------------------------------------------------------------------------
+local NEW_PATTERNS = { "CooldownViewer", "CooldownManager", "DamageMeter", "Swing", "SwingTimer", "Meter" }
+
+local function Keys(tbl, wantFunctions, limit)
+    local out = {}
+    for k, v in pairs(tbl) do
+        if type(k) == "string" and ((type(v) == "function") == wantFunctions) then out[#out + 1] = k end
+    end
+    table.sort(out)
+    while #out > (limit or 80) do table.remove(out) end
+    return table.concat(out, ",")
+end
+
+local function Describe(f)
+    local d = {}
+    local ok, kind = pcall(f.GetObjectType, f)
+    d.type = ok and kind or "?"
+    if f.IsShown then d.shown = tostring(f:IsShown()) end
+    if f.GetSize then
+        local okS, w, h = pcall(f.GetSize, f)
+        if okS then d.size = tostring(w) .. "x" .. tostring(h) end
+    end
+    if f.GetNumChildren then
+        d.numChildren = f:GetNumChildren()
+        local first = (f:GetChildren())
+        if first then
+            d.firstChildName = first.GetName and first:GetName() or "<anon>"
+            d.firstChildKeys = Keys(first, false, 60)
+            d.firstChildMethods = Keys(first, true, 40)
+        end
+    end
+    d.keys = Keys(f, false, 80)
+    d.methods = Keys(f, true, 60)
+    return d
+end
+
+function T:RunNewProbe()
+    TempusDB.probe = TempusDB.probe or {}
+    local r = { frames = {}, apis = {}, namespaces = {} }
+    TempusDB.probe.new = r
+    for name, v in pairs(_G) do
+        if type(name) == "string" and #name < 60 then
+            for _, pat in ipairs(NEW_PATTERNS) do
+                if name:find(pat) then
+                    if type(v) == "table" and type(v.GetObjectType) == "function" then
+                        r.frames[name] = Describe(v)
+                    elseif type(v) == "table" then
+                        r.apis[name] = Keys(v, true, 80)
+                    elseif type(v) == "function" then
+                        r.apis[name] = "function"
+                    end
+                    break
+                end
+            end
+            if name:find("^C_") and type(v) == "table" then r.namespaces[#r.namespaces + 1] = name end
+        end
+    end
+    table.sort(r.namespaces)
+    r.build = select(4, GetBuildInfo())
+    r.at = date("%H:%M:%S")
+    return r
+end

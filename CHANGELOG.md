@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Combat Pulse priorities**: watched casts now have Important, Dangerous and Must Interrupt tiers shared by nameplates and Combat Pulse. Actionable interrupts get a one-shot ready pulse; higher-priority casts light the strip edge without continuous flashing.
+- **Combat Pulse fight feedback**: a previous-fight DPS marker, a short post-fight summary, and a bounded recent-fight history (up to five fights) show readable DPS, relative performance and readable peak data without becoming a full damage meter.
+- **Role-aware Combat Pulse**: tank, healer and damage roles get different cue ordering, with tank threat kept visible in Standard mode.
+
+### Changed
+- Execute uses a Tempus edge notch instead of the raid-target skull.
+- Swing timing uses a moving edge marker on the bottom of the strip.
+- Threat, purge and interrupt cues now share one visual language.
+
 ## 2.5.0
 
 ### New

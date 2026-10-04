@@ -581,7 +581,7 @@ local function CastStart(cb, unit, channel)
     if alert then
         local ac = db.colors.castAlert
         cb.bar:SetStatusBarColor(ac[1], ac[2], ac[3])
-        if db.alertSound and priority ~= "IMPORTANT" and GetTime() - lastAlertSound > 2 then
+        if db.alertSound and GetTime() - lastAlertSound > 2 then
             lastAlertSound = GetTime()
             pcall(PlaySound, SOUNDKIT and SOUNDKIT.RAID_WARNING or 8959, "Master")
         end

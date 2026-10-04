@@ -23,7 +23,6 @@ CP.defaults = {
     topColor = { 0.92, 0.3, 0.3 },
     purgeColor = { 0.75, 0.3, 1 },
     peak = 0, rangeMax = nil,
-    history = {},
     point = { "CENTER", "UIParent", "CENTER", 0, -250 },
 }
 
@@ -295,6 +294,31 @@ function CP:Gather()
     return ctx
 end
 
+function CP:History()
+    TempusDB.combatPulseHistory = TempusDB.combatPulseHistory or {}
+    local key = (UnitName("player") or "?") .. " - " .. (GetRealmName() or "?")
+    local history = TempusDB.combatPulseHistory[key]
+    if type(history) ~= "table" then
+        history = {}
+        TempusDB.combatPulseHistory[key] = history
+    end
+    return history, key
+end
+
+function CP:SetHistory(history)
+    local _, key = self:History()
+    TempusDB.combatPulseHistory[key] = history
+end
+
+function CP:ClearHistory()
+    self:SetHistory({})
+    if self.frame then
+        self.frame.history:Hide()
+        self.frame.previous:Hide()
+        self.frame.previousTick:Hide()
+    end
+end
+
 function CP:DynamicMax(top)
     local db = self.db
     if not self.rangeMax and not db.test then
@@ -317,7 +341,8 @@ end
 
 function CP:DrawPrevious(max)
     local f, db = self.frame, self.db
-    local previous = type(db.history) == "table" and db.history[1]
+    local history = self:History()
+    local previous = history[1]
     local dps = previous and previous.dps
     local show = self.plan and self.plan.dps and db.showPrevious and T.Num(dps) and dps > 0 and not db.test
     f.previous:SetShown(show and true or false)
@@ -561,7 +586,7 @@ function CP:Layout()
 end
 
 function CP:RenderHistory()
-    local panel, history = self.frame.history, self.db.history or {}
+    local panel, history = self.frame.history, self:History()
     local limit = math.min(5, self.db.historySize or 5)
     for i, row in ipairs(panel.rows) do
         local e = i <= limit and history[i]
@@ -619,7 +644,8 @@ function CP:FinishFight()
         peak = T.Num(self.fightPeak) and self.fightPeak > 0 and self.fightPeak or nil,
         at = time and time() or nil,
     }
-    self.db.history = Rules.PushHistory(self.db.history, entry, self.db.historySize)
+    local history = self:History()
+    self:SetHistory(Rules.PushHistory(history, entry, self.db.historySize))
     self:ShowSummary(entry)
 end
 
@@ -760,7 +786,6 @@ T:NewModule("combatpulse", {
     OnEnable = function()
         CP.db = T.db.combatpulse
         CP.db.test = false
-        CP.db.history = type(CP.db.history) == "table" and CP.db.history or {}
         CP.state = Fight.New(CP.db.peak)
         local f = Build()
         CP.frame = f

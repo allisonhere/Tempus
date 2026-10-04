@@ -611,6 +611,7 @@ function CP:Apply()
     local inCombat = UnitAffectingCombat and UnitAffectingCombat("player")
     local visible = Rules.Visible(db, inCombat, unlocked)
     f:SetShown(visible)
+    if f.EnableMouse then f:EnableMouse(unlocked or (not inCombat and db.historyOnClick)) end
     if not visible then self:StopPoll() return end
     local ctx = self:Gather()
     self.plan = Rules.Plan(db, ctx)
@@ -756,7 +757,6 @@ T:NewModule("combatpulse", {
                 if button == "LeftButton" and CP.db.historyOnClick and T.db.locked then CP:ToggleHistory() end
             end)
         end
-        if f.EnableMouse then f:EnableMouse(true) end
         local ev = CreateFrame("Frame")
         for _, e in ipairs(EVENTS) do pcall(ev.RegisterEvent, ev, e) end
         for _, e in ipairs(TARGET_EVENTS) do pcall(ev.RegisterUnitEvent, ev, e, "target") end

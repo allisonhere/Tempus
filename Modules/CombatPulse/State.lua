@@ -35,9 +35,9 @@ end
 
 function State.SignalOrder(role)
     role = State.Role(role)
-    if role == "TANK" then return { "threat", "kick", "purge" } end
-    if role == "HEALER" then return { "purge", "kick", "threat" } end
-    return { "kick", "purge", "threat" }
+    if role == "TANK" then return { "cast", "threat", "kick", "purge" } end
+    if role == "HEALER" then return { "cast", "purge", "kick", "threat" } end
+    return { "cast", "kick", "purge", "threat" }
 end
 
 -- Readable relative performance. nil means the client did not expose comparable numbers.
@@ -66,12 +66,13 @@ function State.Plan(db, ctx)
     local role = State.Role(ctx.role)
     plan.dps = db.showDPS and ctx.dpsReady and not minimal or false
     plan.swing = db.showSwing and ctx.swingReady and not minimal and (full or ctx.swinging) or false
+    plan.priority = State.CastPriority(ctx.castPriority)
+    plan.castAlert = db.showKick and ctx.hostile and ctx.castActive and plan.priority ~= "NORMAL" or false
     plan.kick = db.showKick and ctx.kickKnown and (full or ctx.cast) or false
     plan.purge = db.showPurge and ctx.hostile and (full or ctx.purge) or false
     local tankHold = db.roleAware ~= false and role == "TANK" and ctx.hostile and not minimal
     plan.threat = db.showThreat and ctx.hostile and (full or tankHold or State.ThreatUrgent(ctx.threat)) or false
     plan.execute = db.showExecute and ctx.hostile and ctx.executeOn or false
-    plan.priority = State.CastPriority(ctx.castPriority)
     plan.peakLabels = full and plan.dps
     plan.strip = plan.dps or plan.swing
     return plan

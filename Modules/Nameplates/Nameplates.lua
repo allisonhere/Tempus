@@ -432,6 +432,7 @@ NP.commonCasts = { "Healing Wave", "Lesser Healing Wave", "Chain Heal", "Heal", 
 -- Cast priority shared with Combat Pulse. The old watched-cast list is the Important tier;
 -- Dangerous and Must Interrupt are opt-in lists above it. Hidden spell names/IDs stay Normal.
 function NP.CastPriority(name, spellID)
+    if not T.ListHas then return "NORMAL" end
     if T:ListHas("castsMust", name, spellID) then return "MUST" end
     if T:ListHas("castsDanger", name, spellID) then return "DANGEROUS" end
     if T:ListHas("casts", name, spellID) then return "IMPORTANT" end

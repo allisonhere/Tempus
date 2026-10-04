@@ -357,7 +357,11 @@ function CP:DrawDPS(live, top, secret)
     local f, s = self.frame, self.state
     local max
     if secret then
-        max = self:DynamicMax() or top or 1
+        -- Match the original layered DPS track: if the ranked group top is hidden but drawable,
+        -- use it directly as the range. Reusing an older readable range can clamp live DPS to
+        -- 100% when the current hidden values are higher, which makes the purple layer fill
+        -- the whole strip. Only fall back to the saved range when no top value is available.
+        max = top or self:DynamicMax() or 1
     else
         s = Fight.Update(s, live, top)
         if self.fightActive and T.Num(live) then self.fightPeak = math.max(self.fightPeak or 0, live) end
@@ -375,8 +379,10 @@ function CP:DrawDPS(live, top, secret)
     for _, key in ipairs(LAYERS) do f.bars[key]:SetMinMaxValues(0, max) end
     SetBar(f.bars.live, live)
     SetBar(f.bars.top, top or 0)
-    SetBar(f.bars.peak, s.peak)
-    f.ticks.peak:SetShown(s.peak > 0)
+    -- Peak cannot be updated safely while the meter values are secret. The original track
+    -- deliberately hid it in this state rather than drawing a stale gold layer.
+    SetBar(f.bars.peak, secret and 0 or s.peak)
+    f.ticks.peak:SetShown(not secret and s.peak > 0)
     f.ticks.top:SetShown(top ~= nil)
     self:SetLiveText(live)
     self:DrawPrevious(max)

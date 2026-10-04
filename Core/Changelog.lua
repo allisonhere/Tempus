@@ -1,6 +1,18 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "New", items = {
+            { 0, "|cffffffffCombat Pulse priorities|r: watched casts now have Important, Dangerous and Must Interrupt tiers shared by nameplates and Combat Pulse. Actionable interrupts get a one-shot ready pulse; higher-priority casts light the strip edge without continuous flashing." },
+            { 0, "|cffffffffCombat Pulse fight feedback|r: a previous-fight DPS marker, a short post-fight summary, and a bounded recent-fight history (up to five fights) show readable DPS, relative performance and readable peak data without becoming a full damage meter." },
+            { 0, "|cffffffffRole-aware Combat Pulse|r: tank, healer and damage roles get different cue ordering, with tank threat kept visible in Standard mode." },
+        } },
+        { title = "Changed", items = {
+            { 0, "Execute uses a Tempus edge notch instead of the raid-target skull." },
+            { 0, "Swing timing uses a moving edge marker on the bottom of the strip." },
+            { 0, "Threat, purge and interrupt cues now share one visual language." },
+        } },
+    } },
     { version = "2.5.0", sections = {
         { title = "New", items = {
             { 0, "|cffffffffCombat Pulse|r: one compact combat strip. It combines a layered DPS bar from Blizzard's damage meter (purple to your live DPS, gold to your peak, red to the group's top), a thin swing line, and small cues for an interruptible target cast, a buff you can purge, threat trouble and the execute range. Choose Minimal (urgent cues only), Standard or Full; every signal can be switched off, and threat and execute follow your Nameplates settings. Settings, a test mode and reset position are under General > Combat Pulse. Unlock the UI to move it." },

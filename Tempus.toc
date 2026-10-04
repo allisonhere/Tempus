@@ -56,6 +56,7 @@ Modules\Vendor\Pages.lua
 
 Modules\Skins\Skins.lua
 Modules\Skins\Quests.lua
+Modules\Skins\TrackerQuests.lua
 Modules\Skins\Tooltip.lua
 Modules\Skins\Chat.lua
 Modules\Skins\AddOns.lua

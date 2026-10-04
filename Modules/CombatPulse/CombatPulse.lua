@@ -455,11 +455,14 @@ function CP:Refresh()
     S.ApplyFont(f.extra, math.max(8, math.min(db.height - 2, 11)))
     f.swing:SetHeight(math.max(2, math.floor(db.height * 0.25)))
     if db.test ~= self.testing then
+        local leavingTest = self.testing == true and not db.test
         self.testing = db.test
         self.testStart = GetTime()
         self.state = Fight.New(not db.test and db.peak or 0)
         self.rangeMax, self.lastTop = nil, nil
-        if not db.test then db.rangeMax = nil end   -- test samples must not outlive test mode
+        -- Test samples are never written to db.rangeMax, so preserve the last real learned
+        -- range across reloads and when leaving test mode.
+        if leavingTest then self.rangeMax = nil end
         self:StopPoll()
     end
     self:Apply()

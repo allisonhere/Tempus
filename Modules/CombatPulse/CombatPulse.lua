@@ -1,17 +1,12 @@
--- Tempus UI: Combat Pulse. One compact strip that gathers what matters in a fight: the layered
--- DPS bar (live, your peak, group top), a thin swing line, and small chips for an interruptible
--- target cast, a buff you can purge, threat trouble and the execute range. Signals come from
--- the shared damage meter helpers (Modules/DPSTrack), the swing timer and the nameplate
--- helpers; nothing is recomputed here. Everything is event driven, apart from a 4 Hz meter
--- read while fighting and a frame update on the swing line only while a swing is running.
--- Values the client hides in combat are only ever drawn (bar fills, texture alpha), never
--- compared.
+-- Tempus UI: Combat Pulse. One compact, secret-safe combat strip that combines damage
+-- pace, swing timing, interrupt priority/readiness, purge, threat and execute cues. It also
+-- keeps a deliberately tiny readable post-fight history; it is not a combat meter.
 local _, T = ...
 local S = T.Style
 local DT = T.DPSTrack
 local NP = T.Nameplates
 local CP = T.CombatPulse
-local Fight, Rules = DT.State, CP.State     -- the meter's fight state; this module's signal rules
+local Fight, Rules = DT.State, CP.State
 local Scale, Source = DT.Scale, DT.Source
 local Bool, Plain = NP.Bool, NP.Plain
 
@@ -21,19 +16,26 @@ CP.defaults = {
     width = 260, height = 12, scale = 1, opacity = 1,
     hideOOC = true,
     showDPS = true, showSwing = true, showKick = true, showPurge = true, showThreat = true, showExecute = true,
+    showPrevious = true, showSummary = true, summarySeconds = 5, historySize = 5,
+    roleAware = true, historyOnClick = true,
     liveColor = { 0.62, 0.32, 1 },
     peakColor = { 1, 0.78, 0.18 },
     topColor = { 0.92, 0.3, 0.3 },
     purgeColor = { 0.75, 0.3, 1 },
-    peak = 0, rangeMax = nil,   -- saved so the bar keeps its scale across fights and reloads
+    peak = 0, rangeMax = nil,
+    history = {},
     point = { "CENTER", "UIParent", "CENTER", 0, -250 },
 }
 
-local POLL = 0.25               -- seconds between damage meter reads
+local POLL = 0.25
 local LAYERS = { "top", "peak", "live" }
 local SMOOTH = Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.ExponentialEaseOut
-local SKULL = { 0.75, 1, 0.25, 0.5 }    -- skull in the raid target icon sheet
-
+local PRIORITY_COLOR = {
+    NORMAL = { 0.65, 0.72, 0.82 },
+    IMPORTANT = { 1, 0.78, 0.18 },
+    DANGEROUS = { 1, 0.42, 0.12 },
+    MUST = { 1, 0.15, 0.45 },
+}
 local THREAT_TEXT = {
     tank = { safe = "HOLD", warn = "SLIPPING", lost = "LOST" },
     dps = { warn = "PULLING", aggro = "AGGRO" },
@@ -42,23 +44,33 @@ local THREAT_TEXT = {
 CP.state = Fight.New()
 CP.ctx = {}
 
-local function Lighter(c) return c[1] + (1 - c[1]) * 0.35, c[2] + (1 - c[2]) * 0.35, c[3] + (1 - c[3]) * 0.35 end
+local function Lighter(c)
+    return c[1] + (1 - c[1]) * 0.35, c[2] + (1 - c[2]) * 0.35, c[3] + (1 - c[3]) * 0.35
+end
 
 local function SetBar(bar, v)
     if SMOOTH and pcall(bar.SetValue, bar, v, SMOOTH) then return end
     bar:SetValue(v)
 end
 
-----------------------------------------------------------------------------------------
--- Build
-----------------------------------------------------------------------------------------
-local function NewChip(parent, text)
+local function ApplyCueColor(cue, color, alpha)
+    if cue.tempusBackdrop then cue.tempusBackdrop:SetEdgeColor(color[1], color[2], color[3]) end
+    if cue.text then cue.text:SetTextColor(Lighter(color)) end
+    if cue.notch then cue.notch:SetVertexColor(color[1], color[2], color[3], alpha or 1) end
+end
+
+local function NewCue(parent, text)
     local c = CreateFrame("Frame", nil, parent)
-    S.Backdrop(c, { inner = false })
+    S.Backdrop(c, { inner = false, shadow = false })
     c.text = c:CreateFontString(nil, "OVERLAY")
     S.ApplyFont(c.text, 10)
     c.text:SetPoint("CENTER", 0, 0)
     c.text:SetText(text or "")
+    c.notch = c:CreateTexture(nil, "OVERLAY")
+    c.notch:SetTexture(S.WHITE)
+    c.notch:SetSize(5, 5)
+    c.notch:SetPoint("BOTTOM", c, "BOTTOM", 0, -2)
+    if c.notch.SetRotation then c.notch:SetRotation(math.rad(45)) end
     c:Hide()
     return c
 end
@@ -69,6 +81,7 @@ local function Build()
     f.strip = CreateFrame("Frame", nil, f)
     f.strip:SetAllPoints(f)
     S.Backdrop(f.strip)
+
     f.bars = {}
     for i, key in ipairs(LAYERS) do
         local b = S.StatusBar(f.strip)
@@ -80,9 +93,23 @@ local function Build()
         if key ~= "top" then b.bg:Hide() end
         f.bars[key] = b
     end
+
+    -- Invisible status bar used only to position the previous-fight marker. Letting the game
+    -- position its fill also works when the active scale is a secret value.
+    f.previous = S.StatusBar(f.strip)
+    f.previous:SetPoint("TOPLEFT", 1, -1)
+    f.previous:SetPoint("BOTTOMRIGHT", -1, 1)
+    f.previous:SetFrameLevel(f.strip:GetFrameLevel() + #LAYERS + 1)
+    f.previous:SetStatusBarColor(1, 1, 1, 0)
+    f.previous.bg:Hide()
+    f.previous:SetMinMaxValues(0, 1)
+    f.previous:SetValue(0)
+
     local over = CreateFrame("Frame", nil, f.strip)
     over:SetAllPoints(f.strip)
-    over:SetFrameLevel(f.strip:GetFrameLevel() + #LAYERS + 2)
+    over:SetFrameLevel(f.strip:GetFrameLevel() + #LAYERS + 3)
+    f.over = over
+
     f.ticks = {}
     for _, key in ipairs(LAYERS) do
         local tick = over:CreateTexture(nil, "OVERLAY", nil, 2)
@@ -92,15 +119,24 @@ local function Build()
         tick:SetPoint("BOTTOM", fill, "BOTTOMRIGHT", 0, -2)
         f.ticks[key] = tick
     end
+
+    f.previousTick = over:CreateTexture(nil, "OVERLAY", nil, 3)
+    f.previousTick:SetTexture(S.WHITE)
+    f.previousTick:SetVertexColor(0.85, 0.88, 0.95, 0.9)
+    local prevFill = f.previous:GetStatusBarTexture()
+    f.previousTick:SetPoint("TOP", prevFill, "TOPRIGHT", 0, 3)
+    f.previousTick:SetPoint("BOTTOM", prevFill, "BOTTOMRIGHT", 0, -3)
+    f.previousTick:Hide()
+
     f.live = over:CreateFontString(nil, "OVERLAY")
     S.ApplyFont(f.live, 10)
     f.live:SetPoint("LEFT", f.strip, "LEFT", 4, 0)
-    f.extra = over:CreateFontString(nil, "OVERLAY")     -- "Peak 1.1M  Top 1.4M", Full only
+    f.extra = over:CreateFontString(nil, "OVERLAY")
     S.ApplyFont(f.extra, 10)
     f.extra:SetPoint("RIGHT", f.strip, "RIGHT", -4, 0)
     f.extra:SetTextColor(0.78, 0.82, 0.9)
 
-    -- Swing line along the bottom edge, drawn over the DPS fills.
+    -- Swing is a thin line with a bright moving edge, not a second full-size bar.
     f.swing = S.StatusBar(f.strip)
     f.swing:SetPoint("BOTTOMLEFT", 1, 1)
     f.swing:SetPoint("BOTTOMRIGHT", -1, 1)
@@ -108,42 +144,108 @@ local function Build()
     f.swing:SetMinMaxValues(0, 1)
     f.swing:SetValue(0)
     f.swing.bg:SetVertexColor(0, 0, 0, 0.45)
+    f.swingTick = over:CreateTexture(nil, "OVERLAY", nil, 4)
+    f.swingTick:SetTexture(S.WHITE)
+    local swingFill = f.swing:GetStatusBarTexture()
+    f.swingTick:SetPoint("TOP", swingFill, "TOPRIGHT", 0, 1)
+    f.swingTick:SetPoint("BOTTOM", swingFill, "BOTTOMRIGHT", 0, -1)
+    f.swingTick:Hide()
 
-    -- Chips sit on the strip's top edge, left to right: threat, purge, kick, execute.
-    f.chips = CreateFrame("Frame", nil, f)
-    f.chips:SetAllPoints(f)
-    f.chips:SetFrameLevel(over:GetFrameLevel() + 3)
-    f.threat = NewChip(f.chips)
-    f.purge = NewChip(f.chips, "PURGE")
-    f.kick = CreateFrame("Frame", nil, f.chips)
-    S.Backdrop(f.kick, { inner = false, shadow = false })
+    -- Execute is a Tempus notch on the strip itself, not WoW's raid-target skull.
+    f.exec = over:CreateTexture(nil, "OVERLAY", nil, 5)
+    f.exec:SetTexture(S.WHITE)
+    f.exec:SetSize(8, 8)
+    f.exec:SetPoint("RIGHT", f.strip, "RIGHT", -2, 0)
+    if f.exec.SetRotation then f.exec:SetRotation(math.rad(45)) end
+    f.exec:Hide()
+
+    -- Cast priority can light the strip edge without turning it into a flashing warning box.
+    f.castEdge = CreateFrame("Frame", nil, f.strip)
+    f.castEdge:SetAllPoints(f.strip)
+    f.castEdge:SetFrameLevel(over:GetFrameLevel() + 1)
+    S.Backdrop(f.castEdge, { inner = false, shadow = false })
+    f.castEdge:Hide()
+
+    -- All contextual cues share the same chip + notch language.
+    f.cues = CreateFrame("Frame", nil, f)
+    f.cues:SetAllPoints(f)
+    f.cues:SetFrameLevel(over:GetFrameLevel() + 4)
+    f.threat = NewCue(f.cues)
+    f.purge = NewCue(f.cues, "PURGE")
+
+    f.kick = NewCue(f.cues, "KICK")
     f.kick.icon = f.kick:CreateTexture(nil, "ARTWORK")
-    f.kick.icon:SetAllPoints()
+    f.kick.icon:SetSize(12, 12)
+    f.kick.icon:SetPoint("LEFT", f.kick, "LEFT", 3, 0)
     f.kick.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    f.kick.text:ClearAllPoints()
+    f.kick.text:SetPoint("LEFT", f.kick.icon, "RIGHT", 3, 0)
     f.kick.cd = CreateFrame("Cooldown", nil, f.kick, "CooldownFrameTemplate")
-    f.kick.cd:SetAllPoints()
+    f.kick.cd:SetAllPoints(f.kick.icon)
     f.kick.cd:SetDrawEdge(false)
     if f.kick.cd.SetHideCountdownNumbers then f.kick.cd:SetHideCountdownNumbers(true) end
-    f.kick:Hide()
-    -- The execute skull is a bare texture so its colour curve can drive the alpha directly.
-    f.exec = f.chips:CreateTexture(nil, "OVERLAY")
-    f.exec:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons")
-    f.exec:SetTexCoord(unpack(SKULL))
-    f.exec:Hide()
+    f.kick.flash = f.kick:CreateTexture(nil, "BACKGROUND")
+    f.kick.flash:SetTexture(S.WHITE)
+    f.kick.flash:SetPoint("TOPLEFT", -2, 2)
+    f.kick.flash:SetPoint("BOTTOMRIGHT", 2, -2)
+    f.kick.flash:SetAlpha(0)
+    if f.kick.flash.CreateAnimationGroup then
+        local ag = f.kick.flash:CreateAnimationGroup()
+        local a1 = ag:CreateAnimation("Alpha")
+        a1:SetFromAlpha(0.65); a1:SetToAlpha(0); a1:SetDuration(0.35); a1:SetOrder(1)
+        f.kick.flashAnim = ag
+    end
+
+    -- Post-fight summary stays visible even when the main strip hides out of combat.
+    f.summary = CreateFrame("Frame", nil, UIParent)
+    f.summary:SetFrameStrata("DIALOG")
+    f.summary:SetSize(260, 54)
+    f.summary:SetPoint("TOP", f, "BOTTOM", 0, -8)
+    S.Backdrop(f.summary)
+    f.summary.title = f.summary:CreateFontString(nil, "OVERLAY")
+    S.ApplyFont(f.summary.title, 10)
+    f.summary.title:SetPoint("TOPLEFT", 8, -7)
+    f.summary.title:SetText("COMBAT PULSE")
+    f.summary.main = f.summary:CreateFontString(nil, "OVERLAY")
+    S.ApplyFont(f.summary.main, 12)
+    f.summary.main:SetPoint("TOPLEFT", 8, -22)
+    f.summary.sub = f.summary:CreateFontString(nil, "OVERLAY")
+    S.ApplyFont(f.summary.sub, 10)
+    f.summary.sub:SetPoint("TOPLEFT", 8, -38)
+    f.summary.sub:SetTextColor(0.75, 0.8, 0.9)
+    f.summary:Hide()
+
+    -- Tiny five-fight history; no spells, breakdowns or scrolling combat-meter data.
+    f.history = CreateFrame("Frame", nil, UIParent)
+    f.history:SetFrameStrata("DIALOG")
+    f.history:SetSize(260, 126)
+    f.history:SetPoint("TOP", f, "BOTTOM", 0, -8)
+    S.Backdrop(f.history)
+    f.history.title = f.history:CreateFontString(nil, "OVERLAY")
+    S.ApplyFont(f.history.title, 11)
+    f.history.title:SetPoint("TOPLEFT", 8, -8)
+    f.history.title:SetText("Recent fights")
+    f.history.rows = {}
+    for i = 1, 5 do
+        local row = f.history:CreateFontString(nil, "OVERLAY")
+        S.ApplyFont(row, 10)
+        row:SetPoint("TOPLEFT", 8, -27 - (i - 1) * 18)
+        row:SetPoint("RIGHT", -8, 0)
+        row:SetJustifyH("LEFT")
+        f.history.rows[i] = row
+    end
+    f.history:Hide()
     return f
 end
 
-----------------------------------------------------------------------------------------
--- Readings
-----------------------------------------------------------------------------------------
 local function TargetCast()
-    -- Returns castActive, notInterruptible (true | false | secret value | nil when unknown).
-    -- UnitCastingInfo has a castID before the flag, channels do not (same indexes as the plates).
-    for _, q in ipairs({ { UnitCastingInfo, 9 }, { UnitChannelInfo, 8 } }) do
+    for _, q in ipairs({ { UnitCastingInfo, 9, 10 }, { UnitChannelInfo, 8, 9 } }) do
         if q[1] then
             local info = { pcall(q[1], "target") }
             local name = info[2]
-            if info[1] and (T.issecret(name) or name ~= nil) then return true, info[q[2]] end
+            if info[1] and (T.issecret(name) or name ~= nil) then
+                return true, info[q[2]], name, info[q[3]]
+            end
         end
     end
     return false
@@ -155,13 +257,13 @@ local function ThreatLevel()
     return NP.ThreatLevel(status, NP.IsTankRole()), NP.IsTankRole()
 end
 
--- Everything the strip depends on, in the shape State.Plan wants.
 function CP:Gather()
     local ctx = self.ctx
     if self.db.test then
         ctx.dpsReady, ctx.swingReady, ctx.swinging = true, true, true
         ctx.kickKnown, ctx.cast, ctx.hostile, ctx.purge = true, true, true, true
         ctx.executeOn, ctx.threat, ctx.tank, ctx.notInterruptible = true, "warn", false, false
+        ctx.role, ctx.castPriority, ctx.castName = "DAMAGER", "MUST", "Test Cast"
         return ctx
     end
     ctx.dpsReady = Source.Available()
@@ -170,21 +272,23 @@ function CP:Gather()
     ctx.kickKnown = NP.FindKick() ~= nil
     ctx.hostile = Bool(UnitExists, "target") and Bool(UnitCanAttack, "player", "target") and not Bool(UnitIsDead, "target")
     ctx.executeOn = (T.db.nameplates.execute or 0) > 0
+    ctx.role = Plain(UnitGroupRolesAssigned, "player") or "DAMAGER"
     ctx.cast, ctx.notInterruptible, ctx.purge, ctx.threat, ctx.tank = false, nil, false, nil, false
+    ctx.castName, ctx.castPriority = nil, "NORMAL"
     if ctx.hostile then
-        ctx.cast, ctx.notInterruptible = TargetCast()
+        local name, spellID
+        ctx.cast, ctx.notInterruptible, name, spellID = TargetCast()
         if ctx.cast and not T.issecret(ctx.notInterruptible) and ctx.notInterruptible then ctx.cast = false end
+        local plainName = name and not T.issecret(name) and name or nil
+        local plainID = spellID and not T.issecret(spellID) and spellID or nil
+        ctx.castName = plainName
+        ctx.castPriority = NP.CastPriority(plainName, plainID)
         ctx.purge = NP.HasPurgeable("target")
         ctx.threat, ctx.tank = ThreatLevel()
     end
     return ctx
 end
 
-----------------------------------------------------------------------------------------
--- Drawing
-----------------------------------------------------------------------------------------
--- The track's range: learned from readable readings and saved. nil while nothing is known; the
--- caller then scales against the group top instead.
 function CP:DynamicMax(top)
     local db = self.db
     if not self.rangeMax and not db.test then
@@ -205,15 +309,27 @@ function CP:SetLiveText(live)
     end
 end
 
+function CP:DrawPrevious(max)
+    local f, db = self.frame, self.db
+    local previous = type(db.history) == "table" and db.history[1]
+    local dps = previous and previous.dps
+    local show = self.plan and self.plan.dps and db.showPrevious and T.Num(dps) and dps > 0 and not db.test
+    f.previous:SetShown(show and true or false)
+    f.previousTick:SetShown(show and true or false)
+    if not show then return end
+    f.previous:SetMinMaxValues(0, max)
+    f.previous:SetValue(dps)
+    f.previousTick:SetWidth(S.Pixel() * 2)
+end
+
 function CP:DrawDPS(live, top, secret)
     local f, s = self.frame, self.state
     local max
     if secret then
-        -- With no known range, the group top (also hidden) fills the bar and live is drawn against it.
         max = self:DynamicMax() or top or 1
     else
         s = Fight.Update(s, live, top)
-        -- A saved range hundreds of times the real DPS (left by old test samples) is wrong: relearn.
+        if self.fightActive and T.Num(live) then self.fightPeak = math.max(self.fightPeak or 0, live) end
         if self.rangeMax and s.top > 0 and self.rangeMax > s.top * Scale.STALE then
             self.rangeMax = Scale.Target(nil, "DYNAMIC", s.top)
         end
@@ -232,6 +348,7 @@ function CP:DrawDPS(live, top, secret)
     f.ticks.peak:SetShown(s.peak > 0)
     f.ticks.top:SetShown(top ~= nil)
     self:SetLiveText(live)
+    self:DrawPrevious(max)
     if self.plan and self.plan.peakLabels then
         f.extra:SetFormattedText("Peak %s  Top %s", DT.Format(s.peak),
             (secret or top == nil) and "-" or DT.Format(s.groupTop))
@@ -239,9 +356,8 @@ function CP:DrawDPS(live, top, secret)
 end
 
 function CP:Poll()
-    local db = self.db
     local live, top, secret
-    if db.test then
+    if self.db.test then
         live, top, secret = Source.Test(GetTime() - (self.testStart or 0))
     else
         live, top, secret = Source.Read()
@@ -251,7 +367,6 @@ function CP:Poll()
     self:DrawDPS(live, top, secret)
 end
 
--- Swing line: runs a frame update only while a swing is in progress.
 local function SwingOnUpdate(bar)
     local status = bar.status
     local left = status.endT - GetTime()
@@ -259,6 +374,7 @@ local function SwingOnUpdate(bar)
     if left <= 0 then
         bar:SetScript("OnUpdate", nil)
         bar:SetValue(0)
+        if bar.tempusTick then bar.tempusTick:Hide() end
         return
     end
     bar:SetValue(status.duration - left)
@@ -276,23 +392,39 @@ function CP:DrawSwing()
     end
     local show = self.plan and self.plan.swing
     bar:SetShown(show and true or false)
+    f.swingTick:SetShown(show and status and true or false)
     if not (show and status) then
         bar:SetScript("OnUpdate", nil)
         bar:SetValue(0)
         return
     end
-    local c = status.outOfRange and { 0.85, 0.2, 0.2 } or T.accent
-    bar:SetStatusBarColor(c[1], c[2], c[3], status.outOfRange and 0.6 or 1)
+    local color = status.outOfRange and { 0.85, 0.2, 0.2 } or T.accent
+    bar:SetStatusBarColor(color[1], color[2], color[3], status.outOfRange and 0.6 or 1)
+    f.swingTick:SetVertexColor(color[1], color[2], color[3], 1)
+    f.swingTick:SetWidth(S.Pixel() * 2)
     bar:SetMinMaxValues(0, status.duration)
-    bar.status = status
+    bar.status, bar.tempusTick = status, f.swingTick
     bar:SetScript("OnUpdate", T:Wrap("combatpulse.swing", SwingOnUpdate))
     SwingOnUpdate(bar)
 end
 
+function CP:KickReady(id)
+    if not (C_Spell and C_Spell.GetSpellCooldown) then return nil end
+    local ok, info = pcall(C_Spell.GetSpellCooldown, id)
+    if not (ok and type(info) == "table") then return nil end
+    return Rules.KickReady(info.startTime, info.duration, GetTime())
+end
+
 function CP:DrawKick()
-    local f, ctx, k = self.frame, self.ctx, self.frame.kick
+    local ctx, k = self.ctx, self.frame.kick
     local id = NP.FindKick()
-    if not (self.plan.kick and id) then k:Hide() return end
+    if not (self.plan.kick and id) then
+        k:Hide()
+        self.frame.castEdge:Hide()
+        self.kickToken = nil
+        return
+    end
+
     local tex = "Interface\\Icons\\Ability_Kick"
     if C_Spell and C_Spell.GetSpellTexture then
         local ok, t = pcall(C_Spell.GetSpellTexture, id)
@@ -303,23 +435,41 @@ function CP:DrawKick()
         local ok, dur = pcall(C_Spell.GetSpellCooldownDuration, id)
         if ok and dur then pcall(k.cd.SetCooldownFromDurationObject, k.cd, dur) else k.cd:Clear() end
     end
-    local ready
-    if C_Spell and C_Spell.GetSpellCooldown then
-        local ok, info = pcall(C_Spell.GetSpellCooldown, id)
-        if ok and type(info) == "table" then ready = Rules.KickReady(info.startTime, info.duration, GetTime()) end
-    end
+
+    local ready = self:KickReady(id)
     k.icon:SetDesaturated(ready == false)
-    -- Without a cast (Full mode) the icon rests dim; an interruptible cast lights it up. The
-    -- flag may be secret, so it drives the alpha through the client.
-    local rest = self.db.mode == "FULL" and 0.35 or 0
+    local priority = Rules.CastPriority(ctx.castPriority)
+    local color = PRIORITY_COLOR[priority] or PRIORITY_COLOR.NORMAL
+    k.text:SetText(priority == "MUST" and "KICK!" or "KICK")
+    ApplyCueColor(k, color, 1)
+    k.flash:SetVertexColor(color[1], color[2], color[3], 1)
+
+    local rest = self.db.mode == "FULL" and 0.3 or 0
     if not ctx.cast then
         k:SetAlpha(rest)
     elseif T.issecret(ctx.notInterruptible) then
         if k.SetAlphaFromBoolean then pcall(k.SetAlphaFromBoolean, k, ctx.notInterruptible, rest, 1) else k:SetAlpha(1) end
     else
-        k:SetAlpha(1)   -- a plainly uninterruptible cast was already dropped in Gather
+        k:SetAlpha(ready == false and 0.55 or 1)
     end
     k:Show()
+
+    local edge = self.frame.castEdge
+    if ctx.cast and priority ~= "NORMAL" then
+        edge.tempusBackdrop:SetEdgeColor(color[1], color[2], color[3])
+        edge:SetAlpha(priority == "IMPORTANT" and 0.55 or priority == "DANGEROUS" and 0.8 or 1)
+        edge:Show()
+    else
+        edge:Hide()
+    end
+
+    -- One arrival pulse only when a cast becomes actionable. No continuous flashing.
+    local token = ctx.cast and ready == true and ((ctx.castName or "?") .. ":" .. priority) or nil
+    if token and token ~= self.kickToken and k.flashAnim then
+        k.flashAnim:Stop()
+        k.flashAnim:Play()
+    end
+    self.kickToken = token
 end
 
 function CP:DrawThreat()
@@ -327,50 +477,45 @@ function CP:DrawThreat()
     if not self.plan.threat then chip:Hide() return end
     local level = ctx.threat
     local text = THREAT_TEXT[ctx.tank and "tank" or "dps"][level]
-    local c = T.db.nameplates.colors
-    local col = (level == "safe" and c.threatSafe) or (level == "warn" and c.threatWarn) or c.threatAggro
+    local colors = T.db.nameplates.colors
+    local col = (level == "safe" and colors.threatSafe) or (level == "warn" and colors.threatWarn) or colors.threatAggro
     if not text then
-        chip:SetAlpha(0.35)
-        text, col = ctx.tank and "HOLD" or "SAFE", c.threatSafe
+        chip:SetAlpha(0.3)
+        text, col = ctx.tank and "HOLD" or "SAFE", colors.threatSafe
     else
         chip:SetAlpha(1)
     end
     chip.text:SetText(text)
-    chip.text:SetTextColor(col[1], col[2], col[3])
-    chip.tempusBackdrop:SetEdgeColor(col[1], col[2], col[3])
+    ApplyCueColor(chip, col, 1)
     chip:Show()
 end
 
 function CP:DrawPurge()
-    local chip, c = self.frame.purge, self.db.purgeColor
+    local chip, color = self.frame.purge, self.db.purgeColor
     if not self.plan.purge then chip:Hide() return end
-    chip.text:SetTextColor(Lighter(c))
-    chip.tempusBackdrop:SetEdgeColor(c[1], c[2], c[3])
+    ApplyCueColor(chip, color, 1)
     chip:SetAlpha(self.ctx.purge and 1 or 0.3)
     chip:Show()
 end
 
--- Execute: the nameplate colour curve turns the target's health into an alpha with no
--- comparison. Without the curve API, plain health values are used when readable.
 function CP:DrawExecute()
-    local tex, ctx = self.frame.exec, self.ctx
+    local tex = self.frame.exec
     if not self.plan.execute then tex:Hide() return end
-    local c = T.db.nameplates.colors.execute
-    tex:SetVertexColor(c[1], c[2], c[3], 0)
+    local color = T.db.nameplates.colors.execute
+    tex:SetVertexColor(color[1], color[2], color[3], 0)
     tex:Show()
-    if self.db.test then tex:SetVertexColor(c[1], c[2], c[3], 1) return end
-    local key = ("%s:%s:%s:%s"):format(T.db.nameplates.execute, c[1], c[2], c[3])
+    if self.db.test then tex:SetVertexColor(color[1], color[2], color[3], 1) return end
+    local key = ("%s:%s:%s:%s"):format(T.db.nameplates.execute, color[1], color[2], color[3])
     if self.curveKey ~= key then
-        self.curveKey, self.curve = key, NP.MakeExecuteCurve(T.db.nameplates.execute, c)
+        self.curveKey, self.curve = key, NP.MakeExecuteCurve(T.db.nameplates.execute, color)
     end
-    local curve = self.curve
-    if curve and UnitHealthPercent then
-        local ok, color = pcall(UnitHealthPercent, "target", true, curve)
-        if ok and color and pcall(function() tex:SetVertexColor(color:GetRGBA()) end) then return end
+    if self.curve and UnitHealthPercent then
+        local ok, curveColor = pcall(UnitHealthPercent, "target", true, self.curve)
+        if ok and curveColor and pcall(function() tex:SetVertexColor(curveColor:GetRGBA()) end) then return end
     end
     local hp, max = Plain(UnitHealth, "target"), Plain(UnitHealthMax, "target")
     if T.Num(hp) and T.Num(max) and max > 0 and hp / max * 100 <= T.db.nameplates.execute then
-        tex:SetVertexColor(c[1], c[2], c[3], 1)
+        tex:SetVertexColor(color[1], color[2], color[3], 1)
     end
 end
 
@@ -378,20 +523,85 @@ function CP:Layout()
     local f, h = self.frame, self.db.height
     local size = math.max(14, h + 2)
     local x = 0
-    local function Place(widget, w)
+    local widgets = { threat = f.threat, purge = f.purge, kick = f.kick }
+    local function Place(widget, width)
         widget:ClearAllPoints()
-        widget:SetSize(w, size)
+        widget:SetSize(width, size)
         widget:SetPoint("BOTTOMLEFT", f, "TOPLEFT", x, 4)
-        x = x + w + 4
+        x = x + width + 4
     end
-    for _, chip in ipairs({ f.threat, f.purge }) do
-        if chip:IsShown() then
-            S.ApplyFont(chip.text, math.max(8, math.min(size - 4, 11)))
-            Place(chip, math.max(size, chip.text:GetStringWidth() + 10))
+    for _, key in ipairs(Rules.SignalOrder(self.ctx.role)) do
+        local cue = widgets[key]
+        if cue and cue:IsShown() then
+            S.ApplyFont(cue.text, math.max(8, math.min(size - 4, 11)))
+            local width = key == "kick" and math.max(48, cue.text:GetStringWidth() + 25)
+                or math.max(size, cue.text:GetStringWidth() + 10)
+            Place(cue, width)
         end
     end
-    if f.kick:IsShown() then Place(f.kick, size) end
-    if f.exec:IsShown() then Place(f.exec, size) end
+end
+
+function CP:RenderHistory()
+    local panel, history = self.frame.history, self.db.history or {}
+    local limit = math.min(5, self.db.historySize or 5)
+    for i, row in ipairs(panel.rows) do
+        local e = i <= limit and history[i]
+        if e then
+            local pct = e.pct and ("  " .. math.floor(e.pct + 0.5) .. "% of top") or ""
+            local peak = e.peak and ("  peak " .. DT.Format(e.peak)) or ""
+            row:SetText(("%d.  %s DPS%s%s"):format(i, DT.Format(e.dps), pct, peak))
+            row:Show()
+        else
+            row:SetText(i == 1 and "No completed fights recorded yet." or "")
+            row:SetShown(i == 1)
+        end
+    end
+end
+
+function CP:ToggleHistory(force)
+    if not self.frame or (UnitAffectingCombat and UnitAffectingCombat("player")) then return end
+    local panel = self.frame.history
+    local show = force
+    if show == nil then show = not panel:IsShown() end
+    if show then
+        self.frame.summary:Hide()
+        self:RenderHistory()
+        panel:Show()
+    else
+        panel:Hide()
+    end
+end
+
+function CP:ShowSummary(entry)
+    if not (self.db.showSummary and entry and self.frame) then return end
+    local s = self.frame.summary
+    self.frame.history:Hide()
+    s:SetWidth(math.max(220, self.db.width))
+    local relative = entry.pct and ("   " .. math.floor(entry.pct + 0.5) .. "% of leader") or ""
+    s.main:SetText(DT.Format(entry.dps) .. " DPS" .. relative)
+    s.sub:SetText(entry.peak and ("Peak " .. DT.Format(entry.peak)) or "Peak unavailable while combat values were hidden")
+    s:Show()
+    self.summaryToken = (self.summaryToken or 0) + 1
+    local token = self.summaryToken
+    C_Timer.After(tonumber(self.db.summarySeconds) or 5, function()
+        if CP.summaryToken == token and CP.frame then CP.frame.summary:Hide() end
+    end)
+end
+
+function CP:FinishFight()
+    if not self.fightActive then return end
+    self.fightActive = false
+    local live, top, secret = Source.Read()
+    if secret or not (T.Num(live) and live > 0) then return end
+    local entry = {
+        dps = live,
+        top = T.Num(top) and top or nil,
+        pct = Rules.PercentOfTop(live, top),
+        peak = T.Num(self.fightPeak) and self.fightPeak > 0 and self.fightPeak or nil,
+        at = time and time() or nil,
+    }
+    self.db.history = Rules.PushHistory(self.db.history, entry, self.db.historySize)
+    self:ShowSummary(entry)
 end
 
 function CP:Apply()
@@ -405,14 +615,16 @@ function CP:Apply()
     local ctx = self:Gather()
     self.plan = Rules.Plan(db, ctx)
     local plan = self.plan
-    -- While placing it, keep the strip visible even in Minimal so there is something to drag.
-    f.strip:SetShown(plan.strip or (unlocked and true) or false)
+    f.strip:SetShown(plan.strip or plan.execute or (unlocked and true) or false)
     f.bars.top:SetShown(plan.dps)
     f.bars.peak:SetShown(plan.dps)
     f.bars.live:SetShown(plan.dps)
     f.live:SetShown(plan.dps)
     f.extra:SetShown(plan.peakLabels)
-    if not plan.dps then for _, t in pairs(f.ticks) do t:Hide() end end
+    if not plan.dps then
+        for _, tick in pairs(f.ticks) do tick:Hide() end
+        f.previous:Hide(); f.previousTick:Hide()
+    end
     self:DrawSwing()
     self:DrawThreat()
     self:DrawPurge()
@@ -422,9 +634,6 @@ function CP:Apply()
     if plan.dps and (inCombat or db.test) then self:StartPoll() else self:StopPoll() end
 end
 
-----------------------------------------------------------------------------------------
--- Meter polling: only while fighting (or testing), only when the DPS bar is on screen.
-----------------------------------------------------------------------------------------
 function CP:StartPoll()
     if self.ticker then return end
     local interval = self.db.test and 0.1 or POLL
@@ -433,7 +642,7 @@ function CP:StartPoll()
 end
 
 function CP:StopPoll()
-    if self.ticker then self.ticker:Cancel() self.ticker = nil end
+    if self.ticker then self.ticker:Cancel(); self.ticker = nil end
 end
 
 function CP:Refresh()
@@ -445,24 +654,22 @@ function CP:Refresh()
     local colors = { live = db.liveColor, peak = db.peakColor, top = db.topColor }
     local alphas = { live = 1, peak = 0.75, top = 0.6 }
     for _, key in ipairs(LAYERS) do
-        local c = colors[key]
-        f.bars[key]:SetStatusBarColor(c[1], c[2], c[3], alphas[key])
-        f.ticks[key]:SetVertexColor(Lighter(c))
+        local color = colors[key]
+        f.bars[key]:SetStatusBarColor(color[1], color[2], color[3], alphas[key])
+        f.ticks[key]:SetVertexColor(Lighter(color))
         f.ticks[key]:SetWidth(S.Pixel() * 2)
     end
     f.live:SetTextColor(Lighter(db.liveColor))
     S.ApplyFont(f.live, math.max(8, math.min(db.height - 2, 11)))
     S.ApplyFont(f.extra, math.max(8, math.min(db.height - 2, 11)))
     f.swing:SetHeight(math.max(2, math.floor(db.height * 0.25)))
+    f.summary:SetWidth(math.max(220, db.width))
+    f.history:SetWidth(math.max(220, db.width))
     if db.test ~= self.testing then
-        local leavingTest = self.testing == true and not db.test
         self.testing = db.test
         self.testStart = GetTime()
         self.state = Fight.New(not db.test and db.peak or 0)
         self.rangeMax, self.lastTop = nil, nil
-        -- Test samples are never written to db.rangeMax, so preserve the last real learned
-        -- range across reloads and when leaving test mode.
-        if leavingTest then self.rangeMax = nil end
         self:StopPoll()
     end
     self:Apply()
@@ -476,7 +683,6 @@ function CP:ClearBars()
 end
 
 function CP:OnEvent(event)
-    -- Busy events do the least possible: nothing is redrawn unless what the strip shows changed.
     local shown = self.plan and self.frame:IsShown() and not self.db.test
     if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" then
         if shown and self.plan.execute then self:DrawExecute() end
@@ -499,14 +705,17 @@ function CP:OnEvent(event)
         Fight.Reset(self.state)
         self:ClearBars()
     elseif event == "PLAYER_REGEN_DISABLED" or event == "ENCOUNTER_START" then
+        self.fightActive, self.fightPeak = true, 0
+        self.frame.summary:Hide()
+        self.frame.history:Hide()
         Fight.BeginFight(self.state)
         self.secret = false
         self:ClearBars()
     elseif event == "PLAYER_REGEN_ENABLED" and not self.db.test then
-        -- Values unlock once combat ends; read the finished fight once more.
         C_Timer.After(0.5, function()
-            if not UnitAffectingCombat("player") and self.plan and self.plan.dps then
-                self:Poll()
+            if not UnitAffectingCombat("player") then
+                CP:FinishFight()
+                if CP.plan and CP.plan.dps then CP:Poll() end
             end
         end)
     elseif event == "SPELLS_CHANGED" then
@@ -525,11 +734,12 @@ local TARGET_EVENTS = { "UNIT_AURA", "UNIT_HEALTH", "UNIT_MAXHEALTH", "UNIT_THRE
 
 T:NewModule("combatpulse", {
     label = "Combat Pulse",
-    desc = "One compact combat strip: DPS, swing timing, interrupt, purge, threat and execute cues.",
+    desc = "One compact combat strip: damage pace, swing, interrupt priority, purge, threat and execute.",
     defaults = CP.defaults,
     OnEnable = function()
         CP.db = T.db.combatpulse
-        CP.db.test = false      -- test mode never survives a reload
+        CP.db.test = false
+        CP.db.history = type(CP.db.history) == "table" and CP.db.history or {}
         CP.state = Fight.New(CP.db.peak)
         local f = Build()
         CP.frame = f
@@ -541,6 +751,12 @@ T:NewModule("combatpulse", {
             enabled = function() return CP.db.enabled end,
             onMoved = function() CP:Layout() end,
         })
+        if f.HookScript then
+            f:HookScript("OnMouseUp", function(_, button)
+                if button == "LeftButton" and CP.db.historyOnClick and T.db.locked then CP:ToggleHistory() end
+            end)
+        end
+        if f.EnableMouse then f:EnableMouse(true) end
         local ev = CreateFrame("Frame")
         for _, e in ipairs(EVENTS) do pcall(ev.RegisterEvent, ev, e) end
         for _, e in ipairs(TARGET_EVENTS) do pcall(ev.RegisterUnitEvent, ev, e, "target") end

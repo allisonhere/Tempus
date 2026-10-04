@@ -17,19 +17,35 @@ T:RegisterPage("general", { key = "combatpulse", label = "Combat Pulse", order =
     p:Check(function() return T.db end, "locked", "Lock position", "Untick to drag Combat Pulse (and every other Tempus element).")
     p:Check(cfg, "test", "Test mode", "Animated sample values and every cue, so you can place and style the strip out of combat.")
 
-    p:Section("Signals", "Each cue only appears when Tempus can read it safely; classes without an interrupt or purge never see those cues.")
+    p:Section("Signals", "Each cue only appears when Tempus can read it safely. Cast priority comes from Nameplates > Casts & Auras.")
     p:Check(cfg, "showDPS", "DPS bar (live, peak, group top)")
-    p:Check(cfg, "showSwing", "Swing timing")
-    p:Check(cfg, "showKick", "Interrupt (your kick, when the target casts something interruptible)")
-    p:Check(cfg, "showPurge", "Purge (a buff you can dispel or steal)")
-    p:Check(cfg, "showThreat", "Threat (uses the nameplate tank / damage role)")
-    p:Check(cfg, "showExecute", "Execute range (uses the nameplate execute threshold)")
+    p:Check(cfg, "showSwing", "Swing timing with moving edge")
+    p:Check(cfg, "showKick", "Interrupt priority / readiness")
+    p:Check(cfg, "showPurge", "Purge opportunity")
+    p:Check(cfg, "showThreat", "Threat")
+    p:Check(cfg, "showExecute", "Execute notch")
+    p:Check(cfg, "roleAware", "Role-aware emphasis", "Tank keeps threat visible in Standard; cue order changes for tank, healer and damage roles.")
+    p:Check(cfg, "showPrevious", "Previous-fight DPS marker", "A small marker on the bar shows the final DPS from your last recorded fight.")
 
     p:Section("Size")
     p:Slider(cfg, "width", "Width", 120, 600, 1)
     p:Slider(cfg, "height", "Height", 6, 30, 1)
     p:Slider(cfg, "scale", "Scale", 0.5, 2, 0.05, two)
     p:Slider(cfg, "opacity", "Opacity", 0.2, 1, 0.05, UI.pct)
+
+    p:Section("After combat", "A tiny readable history, not a full damage meter. Hidden combat values are never reconstructed.")
+    p:Check(cfg, "showSummary", "Show post-fight summary")
+    p:Slider(cfg, "summarySeconds", "Summary duration", 2, 10, 1, function(v) return v .. "s" end)
+    p:Slider(cfg, "historySize", "Fights to remember", 1, 5, 1)
+    p:Check(cfg, "historyOnClick", "Click Combat Pulse out of combat for history")
+    p:Add(W.Button("Show recent fights", function()
+        if T.CombatPulse and T.CombatPulse.ToggleHistory then T.CombatPulse:ToggleHistory(true) end
+    end))
+    p:Add(W.Button("Clear fight history", function()
+        T.db.combatpulse.history = {}
+        if T.CombatPulse and T.CombatPulse.ToggleHistory then T.CombatPulse:ToggleHistory(false) end
+        Changed()
+    end))
 
     p:Section("Colours", "Threat and execute colours follow the Nameplates settings.")
     p:Color(cfg, "liveColor", "Live DPS")

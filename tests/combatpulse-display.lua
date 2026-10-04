@@ -44,7 +44,8 @@ end
 T.db = { locked = true, lists = { casts = {}, castsDanger = {}, castsMust = {} }, nameplates = { execute = 20, threatRole = "AUTO", colors = {
     threatSafe = { 0.25, 0.6, 1 }, threatWarn = { 1, 0.6, 0.1 }, threatAggro = { 1, 0.1, 0.1 }, execute = { 1, 0.45, 0.9 } } } }
 T.Style = { WHITE = "w", Backdrop = function(f) f.tempusBackdrop = stub() return f.tempusBackdrop end,
-    StatusBar = function() local b = stub() b.bg = stub() return b end, ApplyFont = function() end,
+    StatusBar = function() local b = stub() b.bg = stub() return b end,
+    CreateBorder = function() return stub() end, ApplyFont = function() end,
     Pixel = function() return 1 end }
 local function load(file) assert(loadfile(file))("Tempus", T) end
 for _, f in ipairs({ "State", "Scale", "Source" }) do load("Modules/DPSTrack/" .. f .. ".lua") end

@@ -420,7 +420,6 @@ function CP:DrawKick()
     local id = NP.FindKick()
     if not (self.plan.kick and id) then
         k:Hide()
-        self.frame.castEdge:Hide()
         self.kickToken = nil
         return
     end

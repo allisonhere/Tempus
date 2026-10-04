@@ -33,7 +33,7 @@ Built for the new Classic client (interface 16001), where the game hides health,
   - Your HoTs with timers, role and leader icons, aggro borders, and a raid grid for up to 40.
   - Built-in click-casting with starting bindings for Druid, Priest, Shaman and Paladin; Clique also works.
 - **Cooldowns**: a row of icons with cooldown swipes for spells you pick, plus your trinkets.
-- **Combat Pulse**: one compact strip that gathers the fight. The layered DPS bar from Blizzard's damage meter (live, your peak, group top) and a thin swing line, plus small cues that appear only when they matter: an interruptible target cast (with your interrupt's cooldown), a buff you can purge, threat trouble and the execute range. Three modes: **Minimal** (urgent cues only), **Standard** (DPS, swing and cues) and **Full** (everything, including peak and group top numbers). Each signal can be switched off; the threat role and execute threshold follow the Nameplates settings. Swing timing needs the Swing timer module. A test mode shows every cue out of combat.
+- **Combat Pulse**: Tempus's combat-first strip. Layered live / peak / group-top DPS, a moving swing edge, interrupt readiness, purge, threat and an execute notch all share one visual language. Watched casts have **Important**, **Dangerous** and **Must Interrupt** priorities shared with nameplates. A previous-fight marker, short post-fight summary and five-fight history give quick feedback without becoming a full damage meter. Three modes: **Minimal**, **Standard** and **Full**; role-aware ordering emphasizes threat for tanks, utility for healers and interrupts for damage roles.
 - **Vendor**: sells grey items and repairs gear when a merchant opens.
 - **Profiles**: share your settings as a text string (Export / Import on the Profiles page).
 - **Action Bars**: restyled bars with fading, hotkeys and range colouring.
@@ -72,6 +72,7 @@ The settings window also has a **What's new** page with the changelog.
   - Combat DPS and group top can arrive as hidden values that can be drawn but not compared. Your peak and the bar's saved scale only update from readable readings, usually just after a fight ends. Until the scale is known, the bar is drawn against the group top.
   - Whether the target's cast can be interrupted, and its health for the execute cue, are also hidden in combat. The game decides those cues' visibility, so the execute skull has no idle state, and the kick icon rests dim (Full mode) only when the target is not casting.
   - Kick readiness is shown only when your interrupt's cooldown is readable. Purge looks only for buffs your class can dispel or steal. Threat is not shown against players.
+  - Fight history stores only readable final DPS / group-top values plus a readable in-combat peak when one was available. Tempus does not reconstruct hidden combat data or keep per-spell breakdowns.
 
 ## License
 

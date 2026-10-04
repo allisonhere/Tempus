@@ -15,7 +15,7 @@ CP.defaults = {
     mode = "STANDARD",          -- MINIMAL | STANDARD | FULL
     width = 260, height = 12, scale = 1, opacity = 1,
     hideOOC = true,
-    showDPS = true, showSwing = true, showKick = true, showPurge = true, showThreat = true, showExecute = true,
+    showDPS = true, showSwing = true, showCastPriority = true, showKick = true, showPurge = true, showThreat = true, showExecute = true,
     showPrevious = true, showSummary = true, summarySeconds = 5, historySize = 5,
     roleAware = true, historyOnClick = true,
     liveColor = { 0.62, 0.32, 1 },

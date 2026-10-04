@@ -56,11 +56,11 @@ assert(not p.execute, "execute threshold 0 turns the cue off")
 
 -- Role-aware order and emphasis.
 local order = Rules.SignalOrder("TANK")
-assert(order[1] == "threat" and order[2] == "kick", "tank sees threat first")
+assert(order[1] == "cast" and order[2] == "threat", "tank sees cast danger then threat")
 order = Rules.SignalOrder("HEALER")
-assert(order[1] == "purge" and order[2] == "kick", "healer sees utility first")
+assert(order[1] == "cast" and order[2] == "purge", "healer sees cast danger then utility")
 order = Rules.SignalOrder("DAMAGER")
-assert(order[1] == "kick" and order[3] == "threat", "damage sees kick first")
+assert(order[1] == "cast" and order[2] == "kick", "damage sees cast danger then kick")
 p = Rules.Plan(db({ roleAware = true }), ctx({ role = "TANK", threat = "safe" }))
 assert(p.threat, "tank keeps holding-threat state visible in Standard")
 p = Rules.Plan(db({ roleAware = false }), ctx({ role = "TANK", threat = "safe" }))
@@ -68,6 +68,8 @@ assert(not p.threat, "role-aware emphasis can be disabled")
 
 -- Cast priorities and tiny fight history.
 assert(Rules.CastPriority("MUST") == "MUST" and Rules.CastPriority("bogus") == "NORMAL")
+p = Rules.Plan(db(), ctx({ castActive = true, cast = false, castPriority = "DANGEROUS" }))
+assert(p.castAlert and not p.kick, "dangerous uninterruptible cast still surfaces")
 assert(math.floor(Rules.PercentOfTop(800, 1000) + 0.5) == 80 and Rules.PercentOfTop(1, 0) == nil)
 local hist = {}
 hist = Rules.PushHistory(hist, { dps = 100, top = 200 }, 2)

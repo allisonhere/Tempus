@@ -126,7 +126,7 @@ T.defaults = {
     },
     watchHideInCombat = false,
     watchOnlyResting = false,
-    lists = { hidden = {}, important = {}, watch = {}, casts = {}, cooldowns = {} },
+    lists = { hidden = {}, important = {}, watch = {}, casts = {}, castsDanger = {}, castsMust = {}, cooldowns = {} },
     groups = {
         buffs   = Group("TOPRIGHT", -205, -13),
         debuffs = Group("TOPRIGHT", -205, -150, { size = 40, perRow = 8, rows = 2, barColor = "TYPE" }),

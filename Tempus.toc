@@ -35,6 +35,13 @@ Modules\GroupFrames\Pages.lua
 Modules\ActionBars\ActionBars.lua
 Modules\ActionBars\Pages.lua
 
+Modules\Bags\Client.lua
+Modules\Bags\Inventory.lua
+Modules\Bags\BagBar.lua
+Modules\Bags\Window.lua
+Modules\Bags\Bags.lua
+Modules\Bags\Pages.lua
+
 Modules\Minimap\Minimap.lua
 Modules\Minimap\DataBar.lua
 Modules\Minimap\StatusBars.lua

@@ -3,7 +3,8 @@ function GetAddOnMetadata() return '2.1.0' end
 function GetTime() return 100 end
 function UnitName() return 'Reviewer' end
 function GetRealmName() return 'Realm' end
-function InCombatLockdown() return false end
+local inCombat = false
+function InCombatLockdown() return inCombat end
 function date(fmt) return fmt == '%H' and '13' or '05' end
 function UnitXP() return 25 end
 function UnitXPMax() return 100 end
@@ -13,12 +14,17 @@ function GetNumGuildMembers() return 5, 3 end
 C_FriendList = {GetNumOnlineFriends = function() return 2 end}
 SlashCmdList = {}
 local function noop() end
+local frames = {}
 function CreateFrame()
-    return {RegisterEvent = noop, SetScript = noop}
+    local frame = {RegisterEvent = noop}
+    function frame:SetScript(event, callback) self[event] = callback end
+    frames[#frames + 1] = frame
+    return frame
 end
 C_Timer = {After = noop}
 local T = {}
 assert(loadfile('Core/Core.lua'))('Tempus', T)
+local loader = assert(frames[2], 'core event frame')
 T.Style = {C = {}, Backdrop = function() return {} end}
 T.Options = {Refresh = noop}
 assert(loadfile('Modules/Minimap/DataBar.lua'))('Tempus', T)
@@ -38,6 +44,24 @@ T.PruneRetired(retired)
 assert(retired.dpstrack == nil and retired.modules.dpstrack == nil and retired.modules.swing and retired.swing)
 T.PruneRetired({})
 print('PASS: settings of the retired DPS track module are dropped')
+
+-- A keyed out-of-combat job keeps its queue position but uses the newest callback.
+local deferred = {}
+inCombat = true
+T:RunOOC(function() deferred[#deferred + 1] = 'old' end, 'layout')
+T:RunOOC(function() deferred[#deferred + 1] = 'new' end, 'layout')
+T:RunOOC(function() deferred[#deferred + 1] = 'last' end, 'last')
+inCombat = false
+loader.OnEvent(loader, 'PLAYER_REGEN_ENABLED')
+assert(table.concat(deferred, ',') == 'new,last', 'keyed out-of-combat jobs are replaced and ordered')
+
+TempusDB = {debug = {}}
+inCombat = true
+T:RunOOC(function() error('deferred failure') end, 'failure')
+inCombat = false
+loader.OnEvent(loader, 'PLAYER_REGEN_ENABLED')
+assert(TempusDB.debug.lastError.err:find('deferred failure', 1, true), 'deferred errors reach diagnostics')
+print('PASS: out-of-combat jobs replace duplicates, preserve order and report errors')
 
 local oldCfg = {width = 100}
 local activeCfg = oldCfg

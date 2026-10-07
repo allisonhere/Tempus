@@ -5,6 +5,11 @@ local S = T.Style
 local DB = { slots = {} }
 T.DataBar = DB
 
+local function ToggleBags()
+    if T.Bags and T.Bags.Toggle then T.Bags:Toggle("CARRIED")
+    elseif ToggleAllBags then ToggleAllBags() end
+end
+
 DB.defaults = {
     enabled = true,
     width = 560, height = 22, fontSize = 11,
@@ -181,7 +186,7 @@ Add("bags", "Bag Space", {
         tt:AddLine(" ")
         tt:AddLine("Click: open bags", 0.5, 0.8, 1)
     end,
-    click = function() if ToggleAllBags then ToggleAllBags() end end,
+    click = ToggleBags,
 })
 
 Add("gold", "Gold", {
@@ -207,7 +212,7 @@ Add("gold", "Gold", {
         tt:AddLine(" ")
         tt:AddLine("Click: open bags", 0.5, 0.8, 1)
     end,
-    click = function() if ToggleAllBags then ToggleAllBags() end end,
+    click = ToggleBags,
 })
 
 Add("coords", "Coordinates", {

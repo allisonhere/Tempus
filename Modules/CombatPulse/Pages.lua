@@ -25,6 +25,11 @@ T:RegisterPage("general", { key = "combatpulse", label = "Combat Pulse", order =
     p:Check(cfg, "showThreat", "Threat (uses the nameplate tank / damage role)")
     p:Check(cfg, "showExecute", "Execute range (uses the nameplate execute threshold)")
 
+    p:Dropdown(cfg, "scaleMode", "Bar scale", {
+        { "AUTO", "Auto" }, { "FIXED", "Fixed maximum" },
+    }, "In combat the game hides DPS, so Auto can only size the bar from earlier readable fights, and early-fight bursts can fill it. Fixed maximum puts the end of the bar at a DPS you choose.")
+    p:Slider(cfg, "fixedMax", "Fixed maximum", 1, 5000000, 1, T.DPSTrack.Format, "DPS at the end of the bar in Fixed maximum mode. Set it a little above your best burst, such as 1.5 to 2 times your usual DPS.")
+
     p:Section("Size")
     p:Slider(cfg, "width", "Width", 120, 600, 1)
     p:Slider(cfg, "height", "Height", 6, 30, 1)

@@ -25,6 +25,8 @@ CP.defaults = {
     peakColor = { 1, 0.78, 0.18 },
     topColor = { 0.92, 0.3, 0.3 },
     purgeColor = { 0.75, 0.3, 1 },
+    scaleMode = "AUTO",         -- AUTO | FIXED
+    fixedMax = 100,             -- DPS at the end of the bar in FIXED mode
     peak = 0, rangeMax = nil,   -- saved so the bar keeps its scale across fights and reloads
     point = { "CENTER", "UIParent", "CENTER", 0, -250 },
 }
@@ -208,16 +210,18 @@ end
 function CP:DrawDPS(live, top, secret)
     local f, s = self.frame, self.state
     local max
+    -- Fixed: the bar's end is the DPS you chose, so nothing is guessed from hidden values.
+    local fixed = self.db.scaleMode == "FIXED" and T.Num(self.db.fixedMax) and self.db.fixedMax > 0 and self.db.fixedMax
     if secret then
         -- With no known range, the group top (also hidden) fills the bar and live is drawn against it.
-        max = self:DynamicMax() or top or 1
+        max = fixed or self:DynamicMax() or top or 1
     else
         s = Fight.Update(s, live, top)
         -- A saved range hundreds of times the real DPS (left by old test samples) is wrong: relearn.
-        if self.rangeMax and s.top > 0 and self.rangeMax > s.top * Scale.STALE then
+        if not fixed and self.rangeMax and s.top > 0 and self.rangeMax > s.top * Scale.STALE then
             self.rangeMax = Scale.Target(nil, "DYNAMIC", s.top)
         end
-        max = self:DynamicMax(s.top) or 1
+        max = fixed or self:DynamicMax(s.top) or 1
         top, live = s.top, s.live
         if not self.db.test then
             self.db.peak = s.peak

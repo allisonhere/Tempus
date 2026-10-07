@@ -23,18 +23,20 @@ step "Checks"
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null && die "tag $TAG already exists"
 grep -q "^## $VERSION\$" CHANGELOG.md || die "CHANGELOG.md has no '## $VERSION' section"
 [[ "$(grep -m1 '^## ' CHANGELOG.md)" == "## $VERSION" ]] || die "'## $VERSION' must be the first entry in CHANGELOG.md"
-# WoW runs Lua 5.1, so check with that; newer luac versions reject code the game accepts.
-LUAC="$(command -v luac5.1 || command -v luac5.1.5 || true)"
-if [[ -n "$LUAC" ]]; then
-    find . -name '*.lua' -not -path './.git/*' -not -path './tests/*' -print0 | xargs -0 -n1 "$LUAC" -p
-    echo "Lua 5.1 syntax ok"
-else
-    echo "luac5.1 not found, skipping the syntax check"
-fi
-
 step "Changelog and tests"
-python3 tools/gen_changelog.py   # keeps Core/Changelog.lua in step with CHANGELOG.md
-tools/test.sh || die "tests failed"
+GENERATED="$(mktemp /tmp/tempus-changelog.XXXXXX)"
+trap 'rm -f "$GENERATED"' EXIT
+python3 tools/gen_changelog.py --output "$GENERATED"
+LUAC="$(command -v luac5.1 || command -v luac5.1.5 || true)"
+[[ -n "$LUAC" ]] || die "luac5.1 not found"
+"$LUAC" -p "$GENERATED"
+if [[ $DRY -eq 1 ]]; then
+    # Check the prospective changelog without touching the tracked generated file.
+    tools/check.sh --skip-changelog-sync || die "checks failed"
+else
+    cp "$GENERATED" Core/Changelog.lua
+    tools/check.sh || die "checks failed"
+fi
 
 if [[ $DRY -eq 1 ]]; then
     echo; echo "dry run: checks passed. Would set Tempus.toc to $VERSION, regenerate Core/Changelog.lua,"

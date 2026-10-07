@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Native Bags module**: combined carried bags and personal/reagent bank windows with instant multi-word search, native item interactions and sorting, plus grid and automatic category views. Filter chips (gear, consumables, quest, junk), a bag bar that highlights or isolates one bag, item level and bind-on-equip tags, upgrade arrows, cooldowns, durability tint, and a footer with slots, currencies and gold. Category sections fold when you click their headers, items sort by quality and item level, and Tag lets you build your own categories. New installs enable it; upgraded profiles keep it off until enabled. When another bag addon is active, Tempus asks which one should own the bags for that character.
+- **Combat Pulse bar scale**: choose Auto or a Fixed maximum DPS for the end of the bar (General > Combat Pulse). In combat the game hides DPS, so Auto can only size the bar from earlier readable fights and early-fight bursts can fill it; a fixed maximum avoids the guesswork.
+
 ## 2.5.0
 
 ### New

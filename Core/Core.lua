@@ -167,17 +167,17 @@ function T.PruneRetired(profile)
     if type(profile.modules) == "table" then profile.modules.dpstrack = nil end
 end
 
-local function CharKey()
+function T:CharacterKey()
     return (UnitName("player") or "?") .. " - " .. (GetRealmName() or "?")
 end
 
 function T:ProfileName()
-    return TempusDB.chars[CharKey()] or "Default"
+    return TempusDB.chars[T:CharacterKey()] or "Default"
 end
 
 function T:SetProfile(name)
     TempusDB.profiles[name] = TempusDB.profiles[name] or {}
-    TempusDB.chars[CharKey()] = name
+    TempusDB.chars[T:CharacterKey()] = name
     T.PruneRetired(TempusDB.profiles[name])
     Merge(TempusDB.profiles[name], T.defaults)
     T.db = TempusDB.profiles[name]
@@ -383,6 +383,7 @@ T.pageSections = {
     { key = "nameplates", label = "Nameplates" },
     { key = "groupframes", label = "Party & Raid" },
     { key = "actionbars", label = "Action Bars" },
+    { key = "bags", label = "Bags" },
     { key = "minimap", label = "Minimap & Info Bar" },
     { key = "skins", label = "Skins" },
     { key = "spellpower", label = "SpellPower" },
@@ -570,9 +571,18 @@ loader:RegisterEvent("PLAYER_LOGIN")
 loader:RegisterEvent("PLAYER_REGEN_ENABLED")
 loader:SetScript("OnEvent", function(self, event, arg)
     if event == "ADDON_LOADED" and arg == ADDON then
+        local fresh = type(TempusDB) ~= "table"
         TempusDB = TempusDB or {}
         TempusDB.profiles = TempusDB.profiles or {}
         TempusDB.chars = TempusDB.chars or {}
+        if not fresh and (tonumber(TempusDB.schemaVersion) or 0) < 1 then
+            for _, profile in pairs(TempusDB.profiles) do
+                profile.modules = profile.modules or {}
+                if profile.modules.bags == nil then profile.modules.bags = false end
+            end
+        end
+        TempusDB.schemaVersion = 1
+        TempusDB.bagOwners = TempusDB.bagOwners or {}
         TempusDB.debug = { log = T.log }       -- fresh diagnostics every session
         TempusDB.tabdump = nil                  -- one-off spellbook tab dump, no longer used
     elseif event == "PLAYER_LOGIN" then
@@ -634,6 +644,8 @@ SlashCmdList.TEMPUS = function(msg)
         for _, e in ipairs(T.log) do
             T:Print("|cff888888%s|r [%s]%s %s", e.at, e.kind, e.count > 1 and (" x" .. e.count) or "", e.msg)
         end
+    elseif msg == "bagdump" then
+        if T.Bags and T.Bags.Dump then T.Bags:Dump() else T:Print("bags module not loaded.") end
     elseif msg == "inkdump" then
         -- Temporary: quest window textures and text colours, to see why text stays light.
         local out, SK = {}, T.Skins

@@ -43,6 +43,10 @@ assert(not S.Parse(string.rep("[", 50) .. string.rep("]", 50)), "deep nesting")
 assert(S.Parse('{"a":[1,2,{"b":null}],"c":"\\u0041"}').c == "A")
 
 -- Sanitize keeps known keys of the right type.
-local clean = S.Sanitize({ width = 99, scale = "wide", bogus = 1, lists = {} }, { width = 1, scale = 1, lists = {}, other = true })
+local clean = S.Sanitize({ width = 99, scale = "wide", bogus = 1, lists = {},
+    combatpulse = { scaleMode = "FIXED", fixedMax = 1250 } },
+    { width = 1, scale = 1, lists = {}, other = true, combatpulse = {} })
 assert(clean.width == 99 and clean.scale == nil and clean.bogus == nil and clean.lists ~= nil)
+assert(clean.combatpulse.scaleMode == "FIXED" and clean.combatpulse.fixedMax == 1250,
+    "Combat Pulse scale settings survive profile import")
 print("PASS: profile strings round trip, reject damage and junk, and sanitize unknown settings")

@@ -179,6 +179,33 @@ CP:Poll()
 assert(db.rangeMax < 100, "a range far above the real DPS is relearned from a readable reading")
 print("combatpulse stale-range ok")
 
+-- Fixed maximum: hidden and readable values are drawn against the chosen DPS, nothing is learned.
+C_DamageMeter = { GetCombatSessionFromType = function()
+    return { combatSources = { { amountPerSecond = SECRET, isLocalPlayer = true }, { amountPerSecond = SECRET } } }
+end }
+db.scaleMode, db.fixedMax, db.rangeMax, CP.rangeMax = "FIXED", 60, nil, nil
+CP:Poll()
+assert(f.bars.live.calls.SetMinMaxValues[2] == 60 and db.rangeMax == nil, "fixed maximum while DPS is hidden")
+C_DamageMeter = { GetCombatSessionFromType = function()
+    return { combatSources = { { amountPerSecond = 16, isLocalPlayer = true }, { amountPerSecond = 18 } } }
+end }
+CP:Poll()
+assert(f.bars.live.calls.SetMinMaxValues[2] == 60 and f.bars.live.value == 16 and db.rangeMax == nil,
+    "fixed maximum while DPS is readable")
+db.fixedMax = 10
+CP:Poll()
+assert(f.bars.live.calls.SetMinMaxValues[2] == 10 and f.bars.live.value == 16 and f.bars.top.value == 18,
+    "values above a fixed maximum are passed to the status bars for clipping")
+db.fixedMax, db.rangeMax, CP.rangeMax = 0, 60, nil
+CP:Poll()
+assert(f.bars.live.calls.SetMinMaxValues[2] == 60, "an invalid fixed maximum falls back to the learned range")
+db.scaleMode, db.rangeMax, CP.rangeMax = "AUTO", nil, nil
+CP:Poll()
+local autoMax = f.bars.live.calls.SetMinMaxValues[2]
+assert(autoMax ~= 10 and autoMax ~= 60 and db.rangeMax == autoMax,
+    "switching back to Auto resumes range learning")
+print("combatpulse fixed-max ok")
+
 -- Busy target events only redraw when what the strip shows changes.
 C_DamageMeter = { GetCombatSessionFromType = function()
     return { combatSources = { { amountPerSecond = 500, isLocalPlayer = true }, { amountPerSecond = 900 } } }

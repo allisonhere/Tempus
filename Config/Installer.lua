@@ -113,7 +113,7 @@ steps[1] = { title = "Welcome to Tempus UI", build = function(f)
     t:SetPoint("RIGHT", f, "RIGHT", -24, 0)
     t:SetSpacing(4)
     t:SetText("A complete interface in one clean look: buff timers, unit frames, nameplates, party and raid frames, "
-        .. "action bars, a square minimap, an info bar and skins for Blizzard's windows, tooltips, chat, Bagnon and DBM.\n\n"
+        .. "action bars, searchable combined bags, a square minimap, an info bar and skins for Blizzard's windows, tooltips, chat, Bagnon and DBM.\n\n"
         .. "This short setup picks which parts to use, your UI scale and a starting layout. "
         .. "Everything can be changed later with |cff" .. T.accentHex .. "/tempus|r, and you can run this again with "
         .. "|cff" .. T.accentHex .. "/tempus install|r.\n\n"

@@ -79,6 +79,44 @@ function M:Register(frame, opts)
     m:SetScript("OnMouseUp", function(_, button)
         if button == "RightButton" and opts.page then T.Options:Open(opts.page) end
     end)
+
+    -- Optional corner grip: opts.onResize(totalWidth, totalHeight) gets the box size the cursor
+    -- asks for, in the frame's own units. The box is pinned at its top-left while sizing.
+    if opts.onResize then
+        local grip = CreateFrame("Frame", nil, m)
+        grip:SetSize(14, 14)
+        grip:SetPoint("BOTTOMRIGHT")
+        grip:EnableMouse(true)
+        grip:RegisterForDrag("LeftButton")
+        local mark = S.Tex(grip, "OVERLAY", { ac[1], ac[2], ac[3], 1 })
+        mark:SetPoint("BOTTOMRIGHT")
+        mark:SetSize(8, 8)
+        grip:SetScript("OnDragStart", function(g)
+            if opts.secure and InCombatLockdown() then return end
+            local cfg = opts.cfg()
+            M.SavePoint(frame, cfg, "TOPLEFT")
+            g.sizing, g.last = true, nil
+            hint:SetText("release to apply")
+        end)
+        grip:SetScript("OnUpdate", function(g)
+            if not g.sizing then return end
+            if InCombatLockdown() then return end
+            local scale = frame:GetEffectiveScale()
+            local x, y = GetCursorPosition()
+            local left, top = frame:GetLeft(), frame:GetTop()
+            if not (left and top) then return end
+            local w, h = x / scale - left, top - y / scale
+            local key = math.floor(w) .. "x" .. math.floor(h)
+            if key == g.last then return end
+            g.last = key
+            opts.onResize(w, h)
+        end)
+        grip:SetScript("OnDragStop", function(g)
+            g.sizing = nil
+            hint:SetText(opts.page and "drag to move  |  right-click for settings" or "drag to move")
+            if opts.onMoved then opts.onMoved() end
+        end)
+    end
     m:Hide()
     m.opts = opts
     self.list[#self.list + 1] = m

@@ -912,6 +912,24 @@ local function HolderSize(kind, cfg)
     return 8 * w + 7 * sp, 5 * h + 4 * sp
 end
 
+-- Mover grip: turn the box size under the cursor into per-frame width and height.
+local function ResizeFromBox(kind, boxW, boxH)
+    local cfg = GF.db[kind]
+    local sp = cfg.spacing
+    local cols, rows
+    if kind == "party" then
+        local n = cfg.showPlayer and 5 or 4
+        if cfg.growth == "RIGHT" then cols, rows = n, 1 else cols, rows = 1, n end
+    elseif cfg.growth == "ROWS" then cols, rows = 5, 8
+    else cols, rows = 8, 5 end
+    local w = math.floor((boxW - (cols - 1) * sp) / cols + 0.5)
+    local h = math.floor((boxH - (rows - 1) * sp) / rows + 0.5)
+    w, h = math.max(40, math.min(240, w)), math.max(20, math.min(90, h))
+    if w == cfg.width and h == cfg.height then return end
+    cfg.width, cfg.height = w, h
+    GF:Refresh()
+end
+
 local function Visibility(kind)
     if kind == "party" then
         local cfg = GF.db.party
@@ -947,6 +965,7 @@ local function CreateHeader(kind)
         cfg = function() return GF.db[kind] end,
         corner = function() return GF.db[kind].point[1] end,
         enabled = function() return GF.db[kind].enabled end,
+        onResize = function(w, h) ResizeFromBox(kind, w, h) end,
     })
     return header
 end

@@ -435,6 +435,7 @@ end
 function T:ApplySettings()
     if not T.db then return end
     T:ApplyAccent()
+    if T.Style and T.Style.RefreshAccent then T.Style.RefreshAccent() end
     if T.Style and T.Style.ApplyTheme then T.Style.ApplyTheme() end
     T:BuildNativeFormatters()
     EachModule("OnSettings")

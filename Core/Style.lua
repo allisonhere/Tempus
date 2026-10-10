@@ -94,10 +94,41 @@ function S.SetGradient(tex, orientation, r1, g1, b1, a1, r2, g2, b2, a2)
     if tex.SetGradientAlpha then tex:SetGradientAlpha(orientation, r1, g1, b1, a1, r2, g2, b2, a2) end
 end
 
+-- Accent-coloured things register here so a colour change repaints them without a reload.
+-- Textures and text made with T.accent itself register on their own; copies with an alpha
+-- or a darkening go through S.Accent. S.OnAccent runs a function now and on every change.
+local accented = setmetatable({}, { __mode = "k" })
+local accentFns = {}
+
+local function PaintAccent(obj, spec)
+    local c = T.accent
+    local m = spec.mul or 1
+    if spec.text then obj:SetTextColor(c[1] * m, c[2] * m, c[3] * m)
+    else obj:SetVertexColor(c[1] * m, c[2] * m, c[3] * m, spec.alpha or 1) end
+end
+
+function S.Accent(obj, alpha, mul)
+    local spec = { alpha = alpha, mul = mul, text = obj.SetTextColor and not obj.SetVertexColor }
+    accented[obj] = spec
+    PaintAccent(obj, spec)
+    return obj
+end
+
+function S.OnAccent(fn)
+    accentFns[#accentFns + 1] = fn
+    fn()
+end
+
+function S.RefreshAccent()
+    for obj, spec in pairs(accented) do PaintAccent(obj, spec) end
+    for _, fn in ipairs(accentFns) do pcall(fn) end
+end
+
 function S.Tex(parent, layer, color, sub)
     local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub or 0)
     t:SetTexture(S.WHITE)
     if color then t:SetVertexColor(color[1], color[2], color[3], color[4] or 1) end
+    if color == T.accent then accented[t] = { alpha = 1 } end
     return t
 end
 
@@ -109,6 +140,7 @@ function S.Text(parent, size, color, flags, font)
     color = color or S.C.text
     fs:SetTextColor(color[1], color[2], color[3])
     fs:SetJustifyH("LEFT")
+    if color == T.accent then accented[fs] = { text = true } end
     return fs
 end
 

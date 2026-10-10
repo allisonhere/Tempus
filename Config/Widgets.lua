@@ -20,6 +20,7 @@ local function Tex(parent, layer, color, sub)
     local t = parent:CreateTexture(nil, layer or "BACKGROUND", nil, sub or 0)
     t:SetTexture(WHITE)
     if color then t:SetVertexColor(color[1], color[2], color[3], color[4] or 1) end
+    if color == AC then S.Accent(t, 1) end
     return t
 end
 
@@ -31,6 +32,7 @@ local function Text(parent, size, color, flags)
     color = color or C.text
     fs:SetTextColor(color[1], color[2], color[3])
     fs:SetJustifyH("LEFT")
+    if color == AC then S.Accent(fs) end
     return fs
 end
 
@@ -130,7 +132,8 @@ local function OpenMenu(owner, items, onPick, current)
         menu:SetFrameStrata("FULLSCREEN_DIALOG")
         menu.bg = Tex(menu, "BACKGROUND", { 0.07, 0.08, 0.1, 0.98 })
         menu.bg:SetAllPoints()
-        Border(menu, { AC[1], AC[2], AC[3], 0.6 })
+        local menuBorder = Border(menu)
+        S.OnAccent(function() menuBorder:SetColor(AC[1], AC[2], AC[3], 0.6) end)
         menu.rows = {}
     end
     local rowH = 22
@@ -139,7 +142,7 @@ local function OpenMenu(owner, items, onPick, current)
         if not row then
             row = CreateFrame("Button", nil, menu)
             row:SetHeight(rowH)
-            row.hl = Tex(row, "BACKGROUND", { AC[1], AC[2], AC[3], 0.18 })
+            row.hl = S.Accent(Tex(row, "BACKGROUND"), 0.18)
             row.hl:SetAllPoints()
             row.hl:Hide()
             row.text = Text(row, 11)

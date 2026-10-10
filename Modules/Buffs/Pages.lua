@@ -49,10 +49,9 @@ PAGES[#PAGES + 1] = { key = "appearance", label = "Appearance", suite = true, bu
         end
         return t
     end, function() return DB().accent end, function(v)
-        DB().accent = v
-        if T.Options then T.Options.needsReload = true end
-    end, "Highlights, selected tabs, target glows and headers across the whole UI. Reload to recolour everything already on screen."))
-    p:Add(W.Button("Reload UI", function() ReloadUI() end, "Applies the accent colour everywhere."))
+        DB().accent = v   -- the dropdown itself calls Changed()
+    end, "Highlights, selected tabs, target glows and headers. The settings window, bags and move boxes recolour at once; some Blizzard skins need a reload."))
+    p:Add(W.Button("Reload UI", function() ReloadUI() end, "Recolours everything, including the parts that do not change live."))
     p:Dropdown(DB, "theme", "Theme", {
         { "MODERN", "Modern - crisp border & shadow" }, { "GLOSS", "Gloss - glassy highlight" },
         { "CLASSIC", "Classic - Blizzard look" }, { "FLAT", "Flat - borderless" } })

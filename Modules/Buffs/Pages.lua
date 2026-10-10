@@ -41,14 +41,17 @@ end }
 
 PAGES[#PAGES + 1] = { key = "appearance", label = "Appearance", suite = true, build = function(p)
     p:Section("Style")
-    p:Dropdown(DB, "accent", "Accent colour", function()
+    p:Add(W.Dropdown("Accent colour", function()
         local t = {}
         for _, a in ipairs(T.accents) do
             local c = a[3]
             t[#t + 1] = { a[1], ("|cff%02x%02x%02x%s|r"):format(c[1] * 255 + 0.5, c[2] * 255 + 0.5, c[3] * 255 + 0.5, a[2]) }
         end
         return t
-    end, "Highlights, selected tabs, target glows and headers across the whole UI. /reload to recolour everything already on screen.")
+    end, function() return DB().accent end, function(v)
+        DB().accent = v
+        if T.Options then T.Options.needsReload = true end
+    end, "Highlights, selected tabs, target glows and headers across the whole UI. Reload to recolour everything already on screen."))
     p:Add(W.Button("Reload UI", function() ReloadUI() end, "Applies the accent colour everywhere."))
     p:Dropdown(DB, "theme", "Theme", {
         { "MODERN", "Modern - crisp border & shadow" }, { "GLOSS", "Gloss - glassy highlight" },

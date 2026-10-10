@@ -8,6 +8,7 @@
 - **Mouseover keybinds for healers**: hover a party or raid frame and press a key to cast on that player, in combat too. Up to 8 per class, with Shift, Ctrl or Alt (Party & raid frames > Click-casting).
 - **Resize group frames by dragging**: unlock the UI and drag the grip in the corner of the party or raid box; the frame width and height follow the settings sliders.
 - **Group frame size presets**: Compact, Standard and Large set frame sizes, spacing, text and aura sizes for party and raid in one click (Party & raid frames > General).
+- **Hide names on group frames**: "Show player names" on the Party and Raid pages turns names off for a compact grid of bars and health text.
 - **Party frames by role**: the party can list tank, healer, then damage (Party > Arrange by); party order is still available.
 - **Combat Pulse bar scale**: choose Auto or a Fixed maximum DPS for the end of the bar (General > Combat Pulse). In combat the game hides DPS, so Auto can only size the bar from earlier readable fights and early-fight bursts can fill it; a fixed maximum avoids the guesswork.
 

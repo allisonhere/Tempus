@@ -8,6 +8,7 @@ T.changelog = {
             { 0, "|cffffffffMouseover keybinds for healers|r: hover a party or raid frame and press a key to cast on that player, in combat too. Up to 8 per class, with Shift, Ctrl or Alt (Party & raid frames > Click-casting)." },
             { 0, "|cffffffffResize group frames by dragging|r: unlock the UI and drag the grip in the corner of the party or raid box; the frame width and height follow the settings sliders." },
             { 0, "|cffffffffGroup frame size presets|r: Compact, Standard and Large set frame sizes, spacing, text and aura sizes for party and raid in one click (Party & raid frames > General)." },
+            { 0, "|cffffffffHide names on group frames|r: \"Show player names\" on the Party and Raid pages turns names off for a compact grid of bars and health text." },
             { 0, "|cffffffffParty frames by role|r: the party can list tank, healer, then damage (Party > Arrange by); party order is still available." },
             { 0, "|cffffffffCombat Pulse bar scale|r: choose Auto or a Fixed maximum DPS for the end of the bar (General > Combat Pulse). In combat the game hides DPS, so Auto can only size the bar from earlier readable fights and early-fight bursts can fill it; a fixed maximum avoids the guesswork." },
         } },

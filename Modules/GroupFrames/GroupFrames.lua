@@ -27,9 +27,11 @@ GF.defaults = {
     clickcast = { enabled = true, hints = true, bindings = {}, seeded = {},
         keybinds = {} },   -- keybinds[class] = { { key = "SHIFT-1", spell = "Renew" }, ... } while hovering a frame
     party = { enabled = true, width = 130, height = 46, spacing = 4, growth = "DOWN", showPlayer = true, showSolo = false,
+        showNames = true,
         sortBy = "ROLE",    -- ROLE: tank, healer, then damage | INDEX: party order
         point = { "TOPLEFT", "UIParent", "TOPLEFT", 30, -300 } },
     raid = { enabled = true, width = 84, height = 42, spacing = 3, groupBy = "GROUP", growth = "COLUMNS", sampleSize = 20,
+        showNames = true,
         point = { "BOTTOMLEFT", "UIParent", "BOTTOMLEFT", 30, 260 } },
 }
 
@@ -175,8 +177,14 @@ function GF:Layout(b, cfg)
     c.name:ClearAllPoints()
     c.name:SetPoint("CENTER", c.health, "CENTER", 0, db.healthText ~= "NONE" and (fs / 2 + 1) or 0)
     c.name:SetWidth(w - 8)
+    local showName = cfg.showNames ~= false
+    c.name:SetShown(showName)
     c.status:ClearAllPoints()
-    c.status:SetPoint("TOP", c.name, "BOTTOM", 0, -1)
+    if showName then
+        c.status:SetPoint("TOP", c.name, "BOTTOM", 0, -1)
+    else
+        c.status:SetPoint("CENTER", c.health, "CENTER", 0, 0)   -- health text and status take the middle
+    end
 
     local icon = math.max(10, math.min(16, math.floor(h / 3)))
     c.role:SetSize(icon, icon)

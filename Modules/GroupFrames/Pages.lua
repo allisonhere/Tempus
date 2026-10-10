@@ -79,6 +79,7 @@ local function SizePage(kind, label, order)
         p:Slider(cfg, "width", "Width", 40, 240, 1)
         p:Slider(cfg, "height", "Height", 20, 90, 1)
         p:Slider(cfg, "spacing", "Spacing", 0, 20, 1)
+        p:Check(cfg, "showNames", "Show player names", "Off keeps just the bars and health text, for a very compact raid grid.")
         if kind == "party" then
             p:Dropdown(cfg, "growth", "Direction", { { "DOWN", "Downwards" }, { "RIGHT", "Sideways" } })
             p:Dropdown(cfg, "sortBy", "Arrange by", { { "ROLE", "Role (tank, healer, damage)" }, { "INDEX", "Party order" } })

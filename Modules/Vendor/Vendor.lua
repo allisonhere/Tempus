@@ -30,9 +30,13 @@ local function GetItem(bag, slot)
     end
 end
 
+-- Vendor price for a stack, or 0 when the client has not cached the item or does not say.
+-- The global GetItemInfo is gone on newer clients; C_Item.GetItemInfo replaces it.
 local function SellPrice(itemID, count)
-    if not itemID or not GetItemInfo then return 0 end
-    local price = select(11, GetItemInfo(itemID))
+    local get = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    if not itemID or not get then return 0 end
+    local ok, a, b, c, d, e, f, g, h, i, j, price = pcall(get, itemID)
+    if ok and type(a) == "table" then price = a.sellPrice or a.itemSellPrice end
     return T.Num(price) and price * (count or 1) or 0
 end
 
@@ -76,11 +80,21 @@ end
 function V:OnMerchant()
     local db = V.db
     local soldCount, soldCopper, repairCost, guild = 0, 0, 0, false
+    local before = GetMoney()
     if db.sellGrey then soldCount, soldCopper = V:SellGrey() end
     if db.autoRepair then repairCost, guild = V:Repair() end
     if not db.summary then return end
     if soldCount > 0 then
-        T:Print("sold %d grey item%s for %s.", soldCount, soldCount == 1 and "" or "s", Money(soldCopper))
+        if soldCopper > 0 then
+            T:Print("sold %d grey item%s for %s.", soldCount, soldCount == 1 and "" or "s", Money(soldCopper))
+        else
+            -- No price from the item cache: report what the sales actually paid once they land.
+            local paidRepair = (not guild and repairCost) or 0
+            C_Timer.After(0.7, function()
+                local gained = math.max(0, GetMoney() - before + paidRepair)
+                T:Print("sold %d grey item%s for %s.", soldCount, soldCount == 1 and "" or "s", Money(gained))
+            end)
+        end
     end
     if repairCost > 0 then
         T:Print("repaired for %s%s.", Money(repairCost), guild and " (guild bank)" or "")

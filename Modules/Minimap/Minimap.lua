@@ -89,6 +89,150 @@ local function AddonButtons()
     return list
 end
 
+-- How addon buttons behave: EDGE (around the square), FADE (edge, hidden until mouseover) or
+-- TRAY (collected behind one button). Older profiles only have the fadeAddonButtons checkbox.
+function MM:ButtonMode()
+    local db = MM.db
+    return db.addonButtons or (db.fadeAddonButtons and "FADE" or "EDGE")
+end
+
+----------------------------------------------------------------------------------------
+-- Button tray: every LibDBIcon button is moved into a grid that opens from one small button.
+----------------------------------------------------------------------------------------
+local TRAY_COLS, TRAY_PAD, TRAY_GAP = 5, 6, 4
+
+local function DBIcon()
+    return LibStub and LibStub("LibDBIcon-1.0", true)
+end
+
+local function TrayCandidates()
+    local list = {}
+    for _, parent in ipairs({ Minimap, MM.tray }) do
+        if parent then
+            for _, child in ipairs({ parent:GetChildren() }) do
+                local name = child.GetName and child:GetName()
+                if name and name:find("^LibDBIcon10_") then list[#list + 1] = child end
+            end
+        end
+    end
+    table.sort(list, function(a, b) return a:GetName() < b:GetName() end)
+    return list
+end
+
+local function Collect(b)
+    b.tempusTray = true
+    b:SetParent(MM.tray)
+    b:SetFrameLevel(MM.tray:GetFrameLevel() + 2)
+    b:SetAlpha(1)
+    b:RegisterForDrag()                       -- no dragging around the minimap edge while in the tray
+    if not b.tempusTrayHook then
+        b.tempusTrayHook = true
+        -- LibDBIcon puts a button back on the edge whenever it refreshes; send it back to its tray cell.
+        hooksecurefunc(b, "SetPoint", function(self)
+            if self.tempusTray and not self.tempusPlacing and MM.trayOn then
+                C_Timer.After(0, function() MM:LayoutTray() end)
+            end
+        end)
+    end
+end
+
+function MM:LayoutTray()
+    if not (MM.tray and MM.trayOn) then return end
+    local n, size = 0, 31
+    for _, b in ipairs(TrayCandidates()) do
+        if not b.tempusTray then Collect(b) end
+        if not (b.db and b.db.hide) then
+            size = b:GetWidth() > 0 and b:GetWidth() or size
+            local col, row = n % TRAY_COLS, math.floor(n / TRAY_COLS)
+            b.tempusPlacing = true
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", MM.tray, "TOPLEFT", TRAY_PAD + col * (size + TRAY_GAP), -TRAY_PAD - row * (size + TRAY_GAP))
+            b.tempusPlacing = false
+            b:Show()
+            n = n + 1
+        end
+    end
+    local cols, rows = math.max(1, math.min(n, TRAY_COLS)), math.max(1, math.ceil(n / TRAY_COLS))
+    MM.tray:SetSize(TRAY_PAD * 2 + cols * size + (cols - 1) * TRAY_GAP, TRAY_PAD * 2 + rows * size + (rows - 1) * TRAY_GAP)
+    MM.trayEmpty:SetShown(n == 0)
+end
+
+-- Back to the minimap edge: re-parent each button and let LibDBIcon place it from its saved angle.
+function MM:ReleaseTray()
+    local lib = DBIcon()
+    for _, b in ipairs(TrayCandidates()) do
+        if b.tempusTray then
+            b.tempusTray = false
+            b:SetParent(Minimap)
+            b:RegisterForDrag("LeftButton")
+            local name = b:GetName():match("^LibDBIcon10_(.+)")
+            if lib and lib.Refresh and name then pcall(lib.Refresh, lib, name, b.db) end
+        end
+    end
+end
+
+function MM:BuildTray()
+    local UI = T.UI
+    local tray = CreateFrame("Frame", "TempusMinimapTray", UIParent)
+    tray:SetFrameStrata("HIGH")
+    tray:SetClampedToScreen(true)
+    tray:EnableMouse(true)
+    S.Backdrop(tray)
+    tray:Hide()
+    MM.tray = tray
+    MM.trayEmpty = tray:CreateFontString(nil, "OVERLAY")
+    MM.trayEmpty:SetFont(S.FONT, 11, "")
+    MM.trayEmpty:SetTextColor(0.55, 0.6, 0.68)
+    MM.trayEmpty:SetText("No addon buttons")
+    MM.trayEmpty:SetPoint("CENTER")
+    tray:SetSize(120, 40)
+
+    local button = UI.FlatButton(MM.holder, "...", 22, 16, function()
+        if tray:IsShown() then tray:Hide() return end
+        MM:LayoutTray()
+        tray:ClearAllPoints()
+        local bottom = MM.holder:GetBottom() or 0
+        if bottom < (UIParent:GetHeight() or 768) / 2 then
+            tray:SetPoint("BOTTOMRIGHT", MM.holder, "TOPRIGHT", 0, 4)
+        else
+            tray:SetPoint("TOPRIGHT", MM.holder, "BOTTOMRIGHT", 0, -4)
+        end
+        tray:Show()
+    end)
+    button:SetPoint("RIGHT", MM.holder, "RIGHT", -3, -10)
+    button:SetFrameLevel(Minimap:GetFrameLevel() + 8)
+    button:Hide()
+    MM.trayButton = button
+
+    -- Closes itself shortly after the mouse leaves.
+    tray:SetScript("OnUpdate", function(self, elapsed)
+        if self:IsMouseOver(8, -8, -8, 8) or button:IsMouseOver() then
+            self.idle = 0
+        else
+            self.idle = (self.idle or 0) + elapsed
+            if self.idle > 1.2 then self:Hide() end
+        end
+    end)
+end
+
+function MM:ApplyButtonMode()
+    local mode = MM:ButtonMode()
+    if mode == "TRAY" then
+        MM.trayOn = true
+        MM.trayButton:Show()
+        for _, b in ipairs(AddonButtons()) do b:SetAlpha(1) end   -- Tempus's own button stays on the edge
+        MM:LayoutTray()
+    else
+        if MM.trayOn then
+            MM.trayOn = false
+            MM:ReleaseTray()
+        end
+        MM.trayButton:Hide()
+        MM.tray:Hide()
+        for _, b in ipairs(AddonButtons()) do b:SetAlpha(mode == "FADE" and 0 or 1) end
+    end
+end
+
 local function Hovered()
     return MM.holder:IsMouseOver(8, -8, -8, 8)
 end
@@ -98,7 +242,7 @@ function MM:UpdateHover()
     if over == MM.lastOver then return end
     MM.lastOver = over
     if MM.db.zoneText == "MOUSEOVER" then MM.zone:SetShown(over) end
-    if MM.db.fadeAddonButtons then
+    if MM:ButtonMode() == "FADE" then
         for _, b in ipairs(AddonButtons()) do b:SetAlpha(over and 1 or 0) end
     end
 end
@@ -211,9 +355,16 @@ local function Build()
         corner = function() return MM.db.point[1] end,
     })
 
-    local t, tc = 0, 0
+    MM:BuildTray()
+
+    local t, tc, tt = 0, 0, 0
     holder:SetScript("OnUpdate", T:Wrap("minimap.tick", function(_, elapsed)
-        t, tc = t + elapsed, tc + elapsed
+        t, tc, tt = t + elapsed, tc + elapsed, tt + elapsed
+        -- Addons that create their button late still end up in the tray.
+        if tt >= 3 then
+            tt = 0
+            if MM.trayOn then MM:LayoutTray() end
+        end
         if t >= 0.1 then
             t = 0
             MM:UpdateHover()
@@ -244,7 +395,7 @@ function MM:Refresh()
     MM.clock:SetShown(db.clock)
     MM.coords:SetShown(db.coords)
     MM.lastOver = nil
-    for _, b in ipairs(AddonButtons()) do b:SetAlpha(db.fadeAddonButtons and 0 or 1) end
+    MM:ApplyButtonMode()
     MM:UpdateZone()
     MM:UpdateClock()
     if T.UpdateMinimapButton then T:UpdateMinimapButton() end

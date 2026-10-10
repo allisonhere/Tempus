@@ -5,11 +5,14 @@ local W, Changed = UI.W, UI.Changed
 
 T:RegisterPage("minimap", { key = "minimap", label = "Minimap", order = 1, build = function(p)
     local cfg = function() return T.db.minimap end
-    p:Section("Minimap", "A square minimap in a Tempus panel. Mouse wheel zooms, right-click opens tracking, middle-click opens the calendar. Addon buttons tuck around the square edge.")
+    p:Section("Minimap", "A square minimap in a Tempus panel. Mouse wheel zooms, right-click opens tracking, middle-click opens the calendar. Addon buttons can stay around the square edge, fade until mouseover, or gather in a tray behind one small button.")
     p:Slider(cfg, "size", "Size", 120, 320, 2)
     p:Slider(cfg, "scale", "Scale", 0.5, 2, 0.05, UI.pct)
     p:Dropdown(cfg, "zoneText", "Zone name", { { "MOUSEOVER", "On mouseover" }, { "ALWAYS", "Always" }, { "HIDE", "Hidden" } })
-    p:Check(cfg, "fadeAddonButtons", "Hide addon buttons until mouseover")
+    p:Add(W.Dropdown("Addon buttons", { { "EDGE", "Around the edge" }, { "FADE", "Hide until mouseover" },
+        { "TRAY", "Collect in a tray" } }, function() return T.Minimap:ButtonMode() end,
+        function(v) T.db.minimap.addonButtons = v end,
+        "Tray: one small button on the minimap opens a grid of every addon button, which closes when you move away."))
     p:Check(cfg, "clock", "Clock")
     p:Check(cfg, "clock24", "24-hour clock")
     p:Check(cfg, "coords", "Coordinates")

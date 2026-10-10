@@ -41,7 +41,7 @@ Built for the new Classic client (interface 16001), where the game hides health,
 - **Bags**: combines carried bags and personal bank storage, with instant multi-word search, native item interactions, filter chips, a bag bar, item level and upgrade marks, cooldowns, a gold and currency footer, and grid or automatic category views with foldable sections and your own custom categories. It also remembers every character's bags and bank: the **Alts** button browses them, even offline, and item tooltips show what your other characters hold. If another bag addon is enabled, Tempus asks which one should own the bags for that character.
 - **Profiles**: share your settings as a text string (Export / Import on the Profiles page).
 - **Action Bars**: restyled bars with fading, hotkeys and range colouring, plus a movable, restyled micro menu and bag buttons.
-- **Minimap, Info Bar, XP & Reputation Bars**: a square minimap and a configurable info bar.
+- **Minimap, Info Bar, XP & Reputation Bars**: a square minimap and a configurable info bar. Addon minimap buttons can stay on the edge, fade until mouseover, or collect in a tray.
 - **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM. Includes a quest log search and a fully skinned quest tracker. **Stock skin** keeps the search but leaves Blizzard's own look in place.
 
 ## Themes

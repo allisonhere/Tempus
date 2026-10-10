@@ -7,9 +7,12 @@ T.changelog = {
             { 0, "|cffffffffOther characters in Bags|r: Tempus saves what each character carries and keeps in the bank and reagent bank. Alts in the bag header opens a menu of every saved character and storage, shown in the same window (read-only, with search, filters, grid and category views). Your own bank is listed there too, so you can browse it away from the banker. Item tooltips gain a line per character, such as |cff9fd6ffBags 4  Bank 12|r. The bank saves while it is open; characters appear after you log into them once. Turn it off, or forget the other characters, on the Bags page." },
             { 0, "|cffffffffMouseover keybinds for healers|r: hover a party or raid frame and press a key to cast on that player, in combat too. Up to 8 per class, with Shift, Ctrl or Alt (Party & raid frames > Click-casting)." },
             { 0, "|cffffffffResize group frames by dragging|r: unlock the UI and drag the grip in the corner of the party or raid box; the frame width and height follow the settings sliders." },
+            { 0, "|cffffffffGroup frame size presets|r: Compact, Standard and Large set frame sizes, spacing, text and aura sizes for party and raid in one click (Party & raid frames > General)." },
+            { 0, "|cffffffffParty frames by role|r: the party can list tank, healer, then damage (Party > Arrange by); party order is still available." },
             { 0, "|cffffffffCombat Pulse bar scale|r: choose Auto or a Fixed maximum DPS for the end of the bar (General > Combat Pulse). In combat the game hides DPS, so Auto can only size the bar from earlier readable fights and early-fight bursts can fill it; a fixed maximum avoids the guesswork." },
         } },
         { title = "Changed", items = {
+            { 0, "New profiles show health percent on group frames by default." },
             { 0, "Changing the accent colour recolours the settings window, move boxes and bags straight away; some Blizzard skins still need a reload." },
             { 0, "The bag bar and micro menu lose Blizzard's bronze frame, and their buttons are one size." },
             { 0, "Dropdown menus widen to fit their longest label, open toward the side of the screen with room, and scroll when the list is long." },

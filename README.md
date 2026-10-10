@@ -33,7 +33,8 @@ Built for the new Classic client (interface 16001), where the game hides health,
   - Your HoTs with timers, role and leader icons, aggro borders, and a raid grid for up to 40.
   - Built-in click-casting with starting bindings for Druid, Priest, Shaman and Paladin; Clique also works.
   - Mouseover keybinds: hover a frame and press a key (up to 8 per class) to cast on that player, in combat too.
-  - Drag the corner grip on an unlocked party or raid box to resize the frames.
+  - Drag the corner grip on an unlocked party or raid box to resize the frames, or pick a Compact, Standard or Large preset.
+  - Party and raid frames can list tanks and healers first.
 - **Cooldowns**: a row of icons with cooldown swipes for spells you pick, plus your trinkets.
 - **Combat Pulse**: one compact strip that gathers the fight. The layered DPS bar from Blizzard's damage meter (live, your peak, group top) and a thin swing line, plus small cues that appear only when they matter: an interruptible target cast (with your interrupt's cooldown), a buff you can purge, threat trouble and the execute range. Three modes: **Minimal** (urgent cues only), **Standard** (DPS, swing and cues) and **Full** (everything, including peak and group top numbers). Each signal can be switched off; the threat role and execute threshold follow the Nameplates settings. Swing timing needs the Swing timer module. A test mode shows every cue out of combat.
 - **Vendor**: sells grey items and repairs gear when a merchant opens.

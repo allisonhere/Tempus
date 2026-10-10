@@ -7,9 +7,12 @@
 - **Other characters in Bags**: Tempus saves what each character carries and keeps in the bank and reagent bank. Alts in the bag header opens a menu of every saved character and storage, shown in the same window (read-only, with search, filters, grid and category views). Your own bank is listed there too, so you can browse it away from the banker. Item tooltips gain a line per character, such as `Bags 4  Bank 12`. The bank saves while it is open; characters appear after you log into them once. Turn it off, or forget the other characters, on the Bags page.
 - **Mouseover keybinds for healers**: hover a party or raid frame and press a key to cast on that player, in combat too. Up to 8 per class, with Shift, Ctrl or Alt (Party & raid frames > Click-casting).
 - **Resize group frames by dragging**: unlock the UI and drag the grip in the corner of the party or raid box; the frame width and height follow the settings sliders.
+- **Group frame size presets**: Compact, Standard and Large set frame sizes, spacing, text and aura sizes for party and raid in one click (Party & raid frames > General).
+- **Party frames by role**: the party can list tank, healer, then damage (Party > Arrange by); party order is still available.
 - **Combat Pulse bar scale**: choose Auto or a Fixed maximum DPS for the end of the bar (General > Combat Pulse). In combat the game hides DPS, so Auto can only size the bar from earlier readable fights and early-fight bursts can fill it; a fixed maximum avoids the guesswork.
 
 ### Changed
+- New profiles show health percent on group frames by default.
 - Changing the accent colour recolours the settings window, move boxes and bags straight away; some Blizzard skins still need a reload.
 - The bag bar and micro menu lose Blizzard's bronze frame, and their buttons are one size.
 - Dropdown menus widen to fit their longest label, open toward the side of the screen with room, and scroll when the list is long.

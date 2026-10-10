@@ -73,13 +73,14 @@ function Window.New(owner, storage, title, pointKey)
 
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
-    header:SetScript("OnDragStart", function() frame:StartMoving() end)
-    header:SetScript("OnDragStop", function()
+    local function StopMoving()
         frame:StopMovingOrSizing()
         local cfg = { point = owner.db[pointKey] }
         T.Movers.SavePoint(frame, cfg, pointKey == "point" and "BOTTOMRIGHT" or "BOTTOMLEFT")
         owner.db[pointKey] = cfg.point
-    end)
+    end
+    header:SetScript("OnDragStart", function() frame:StartMoving() end)
+    header:SetScript("OnDragStop", StopMoving)
 
     self.search = UI.StyledEditBox(frame, 220, 24)
     self.search:SetScript("OnTextChanged", function(box)
@@ -145,7 +146,7 @@ function Window.New(owner, storage, title, pointKey)
     self.wealth:SetPoint("BOTTOMRIGHT", -10, 9)
 
     frame:SetScript("OnDragStart", function() frame:StartMoving() end)
-    frame:SetScript("OnDragStop", function() frame:StopMovingOrSizing() end)
+    frame:SetScript("OnDragStop", StopMoving)
     frame:Hide()
     return self
 end
@@ -310,7 +311,7 @@ function Window:StyleButton(button, record, size)
     local countText = button.Count or button.count_text
     if countText and countText.SetText then
         local count = record.count or 0
-        countText:SetText(count > 1 and (count >= 1000 and "*" or count) or "")
+        countText:SetText(count > 1 and (count >= 1000 and ("%dk"):format(math.floor(count / 1000)) or count) or "")
         countText:SetShown(count > 1)
     end
 

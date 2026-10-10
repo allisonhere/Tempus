@@ -1012,7 +1012,7 @@ end
 function SK:MicroButton(b)
     local name = b:GetName()
     local isChar = name == "CharacterMicroButton"
-    if b.tempusSkinned or not (isChar or MICRO_ICONS[name]) then return end
+    if b.tempusSkinned or not name then return end
     b.tempusSkinned = true
     for _, get in ipairs({ "GetNormalTexture", "GetPushedTexture", "GetDisabledTexture", "GetHighlightTexture" }) do
         local t = b[get] and b[get](b)
@@ -1033,8 +1033,15 @@ function SK:MicroButton(b)
         ev:RegisterUnitEvent("UNIT_PORTRAIT_UPDATE", "player")
         ev:RegisterEvent("PLAYER_ENTERING_WORLD")
         ev:SetScript("OnEvent", Portrait)
-    else
+    elseif MICRO_ICONS[name] then
         icon:SetTexture(MICRO_ICONS[name])
+        icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+    else
+        -- A button this list doesn't know (new or renamed in this client): reuse its own stock art
+        -- inside the Tempus frame, so it matches without guessing an icon.
+        local stock = b.GetNormalTexture and b:GetNormalTexture()
+        local atlas = stock and stock.GetAtlas and stock:GetAtlas()
+        if atlas then icon:SetAtlas(atlas) else icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark") end
         icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     end
     local hl = b:CreateTexture(nil, "HIGHLIGHT")
@@ -1217,12 +1224,71 @@ function SK:InitTracker()
     hooksecurefunc(tr, "Hide", function() if tr.tempusPanel then tr.tempusPanel:Hide() end end)
 end
 
+-- The bronze frame, dividers and corner notches around the bag and micro bars live on the
+-- container frames (and their non-button children), not on the buttons.
+function SK:StripBars()
+    for _, holder in ipairs({ MicroButtonAndBagsBar, BagsBar, BagSlotCluster, MicroMenuContainer, MicroMenu }) do
+        if type(holder) == "table" and holder.GetChildren then
+            SK:Strip(holder)
+            for _, key in ipairs({ "NineSlice", "Background", "MicroBagBar", "BorderTexture", "Border" }) do HideKey(holder, key) end
+            for _, child in ipairs({ holder:GetChildren() }) do
+                local kind = child.GetObjectType and child:GetObjectType()
+                if kind ~= "Button" and kind ~= "CheckButton" then
+                    SK:Strip(child)
+                    for _, key in ipairs({ "NineSlice", "Background" }) do HideKey(child, key) end
+                end
+            end
+        end
+    end
+end
+
+-- Bag slots and micro buttons ship in different sizes; make every one a square of the same size.
+local BAR_BUTTON = 32
+local sizing = false
+local function SizeBarButtons(holder)
+    if sizing or InCombatLockdown() or type(holder) ~= "table" or not holder.GetChildren then return end
+    sizing = true
+    for _, b in ipairs({ holder:GetChildren() }) do
+        local n = b.GetName and b:GetName()
+        if n and (n:find("MicroButton$") or n:find("Bag%d?Slot$") or n:find("BackpackButton$")) then
+            if b.SetSize then b:SetSize(BAR_BUTTON, BAR_BUTTON) end
+        end
+    end
+    if holder.Layout then pcall(holder.Layout, holder) end   -- still flagged: the Layout hook must not re-enter
+    sizing = false
+end
+
+function SK:SizeBars()
+    for _, holder in ipairs({ BagsBar, BagSlotCluster, MicroMenu }) do
+        if type(holder) == "table" and holder.GetChildren then
+            SizeBarButtons(holder)
+            if holder.Layout and not holder.tempusSized then
+                holder.tempusSized = true
+                hooksecurefunc(holder, "Layout", function(h) SizeBarButtons(h) end)
+            end
+        end
+    end
+end
+
 function SK:SkinBarButtons()
+    SK:Try("bar frames", SK.StripBars, SK)
+    SK:Try("bar sizes", SK.SizeBars, SK)
     for _, name in ipairs(BAG_BUTTONS) do
         local b = _G[name]
-        if b then pcall(SK.BagButton, SK, b) end
+        if b then SK:Try("bag button " .. name, SK.BagButton, SK, b) end
     end
-    for _, b in ipairs(MicroButtons()) do pcall(SK.MicroButton, SK, b) end
+    -- Whatever else sits in the bag bar in this client (reagent bag, expand toggle).
+    for _, holder in ipairs({ BagsBar, BagSlotCluster }) do
+        if type(holder) == "table" and holder.GetChildren then
+            for _, child in ipairs({ holder:GetChildren() }) do
+                local n = child.GetName and child:GetName()
+                if n and (n:find("Bag%d?Slot$") or n:find("BackpackButton$")) then SK:Try("bag button " .. n, SK.BagButton, SK, child) end
+            end
+        end
+    end
+    local micro = MicroButtons()
+    if #micro == 0 then SK:ReportError("micro buttons", "none found") end
+    for _, b in ipairs(micro) do SK:Try("micro button " .. tostring(b:GetName()), SK.MicroButton, SK, b) end
 end
 
 ----------------------------------------------------------------------------------------

@@ -225,11 +225,13 @@ local function StyleMinimapButton()
         mm.icon:SetPoint("TOPLEFT", 3, -3)
         mm.icon:SetPoint("BOTTOMRIGHT", -3, 3)
         mm.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        mm.icon:SetTexture("Interface\\AddOns\\Tempus\\media\\icon-minimap")   -- the logo without its tick marks
         if not mm.iconMasked then mm.icon:AddMaskTexture(mm.iconMask); mm.iconMasked = true end
         mm:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     else
         if mm.ringOuter then mm.ringOuter:Hide(); mm.ringInner:Hide() end
         if mm.iconMasked then mm.icon:RemoveMaskTexture(mm.iconMask); mm.iconMasked = false end
+        mm.icon:SetTexture(T.LOGO)
         mm:SetScale(1)
         mm:SetSize(31, 31)
         mm:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")

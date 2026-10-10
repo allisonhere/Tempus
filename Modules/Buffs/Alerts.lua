@@ -175,27 +175,64 @@ local function Docked()
     return T.Minimap and T.Minimap.holder and true or false
 end
 
+-- Same size, scale and inset as the day/night icon in the opposite corner (falls back to 28px at 0.8).
+local function DielMetrics()
+    local diel = (MinimapCluster and MinimapCluster.DielFrame) or _G.DielFrame
+    local w, h = diel and diel:GetWidth() or 0, diel and diel:GetHeight() or 0
+    if w < 8 or h < 8 then return 35, 35, 0.8 end
+    return w, h, diel:GetScale() or 1
+end
+
+local RING = { 0.62, 0.47, 0.2 }
+local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
+
+-- A round gold-ringed icon like the day/night one: outer ring, dark inner rim, masked logo.
+local function BuildRing()
+    if mm.ringOuter then return end
+    mm.ringOuter = mm:CreateTexture(nil, "BACKGROUND", nil, 1)
+    mm.ringOuter:SetTexture(T.Style.WHITE)
+    mm.ringOuter:SetVertexColor(RING[1], RING[2], RING[3], 1)
+    mm.ringOuter:SetAllPoints(mm)
+    mm.ringInner = mm:CreateTexture(nil, "BACKGROUND", nil, 2)
+    mm.ringInner:SetTexture(T.Style.WHITE)
+    mm.ringInner:SetVertexColor(0.05, 0.045, 0.04, 1)
+    mm.ringInner:SetPoint("TOPLEFT", 2, -2)
+    mm.ringInner:SetPoint("BOTTOMRIGHT", -2, 2)
+    mm.mask = mm:CreateMaskTexture()
+    mm.mask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mm.mask:SetAllPoints(mm)
+    mm.ringOuter:AddMaskTexture(mm.mask)
+    mm.ringInner:AddMaskTexture(mm.mask)
+    mm.iconMask = mm:CreateMaskTexture()
+    mm.iconMask:SetTexture(CIRCLE_MASK, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+    mm.iconMask:SetPoint("TOPLEFT", 3, -3)
+    mm.iconMask:SetPoint("BOTTOMRIGHT", -3, 3)
+end
+
 local function StyleMinimapButton()
-    local square = Docked()
-    mm.round:SetShown(not square)
-    mm.roundBg:SetShown(not square)
-    if square then
-        local bd = T.Style.Backdrop(mm, { fill = { 0.03, 0.035, 0.045, 1 } })
-        bd.hidden = false
-        bd:Refresh()
-        mm:SetSize(22, 22)
+    local docked = Docked()
+    mm.round:SetShown(not docked)
+    mm.roundBg:SetShown(not docked)
+    if mm.tempusBackdrop then mm.tempusBackdrop.hidden = true; mm.tempusBackdrop:Refresh() end
+    if docked then
+        BuildRing()
+        local w, h, scale = DielMetrics()
+        mm:SetSize(w, h)
+        mm:SetScale(scale)
+        mm.ringOuter:Show()
+        mm.ringInner:Show()
         mm.icon:ClearAllPoints()
-        mm.icon:SetPoint("TOPLEFT", 2, -2)
-        mm.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+        mm.icon:SetPoint("TOPLEFT", 3, -3)
+        mm.icon:SetPoint("BOTTOMRIGHT", -3, 3)
         mm.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        mm:SetHighlightTexture(T.Style.WHITE)
-        local hl = mm:GetHighlightTexture()
-        hl:SetVertexColor(1, 1, 1, 0.15)
-        hl:SetAllPoints(mm)
-    else
+        if not mm.iconMasked then mm.icon:AddMaskTexture(mm.iconMask); mm.iconMasked = true end
         mm:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
-        if mm.tempusBackdrop then mm.tempusBackdrop.hidden = true; mm.tempusBackdrop:Refresh() end
+    else
+        if mm.ringOuter then mm.ringOuter:Hide(); mm.ringInner:Hide() end
+        if mm.iconMasked then mm.icon:RemoveMaskTexture(mm.iconMask); mm.iconMasked = false end
+        mm:SetScale(1)
         mm:SetSize(31, 31)
+        mm:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
         mm.icon:ClearAllPoints()
         mm.icon:SetPoint("TOPLEFT", 6, -5)
         mm.icon:SetSize(20, 20)
@@ -207,7 +244,7 @@ local function PositionMinimapButton()
     StyleMinimapButton()
     if Docked() then
         mm:ClearAllPoints()
-        mm:SetPoint("BOTTOMRIGHT", T.Minimap.holder, "BOTTOMRIGHT", -3, 3)
+        mm:SetPoint("BOTTOMRIGHT", T.Minimap.holder, "BOTTOMRIGHT", -2, 2)   -- mirrors the day/night icon at BOTTOMLEFT 2, 2
         mm:SetFrameLevel(T.Minimap.holder:GetFrameLevel() + 9)
         return
     end

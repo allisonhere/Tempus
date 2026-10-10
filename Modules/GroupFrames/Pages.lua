@@ -128,6 +128,45 @@ T:RegisterPage("groupframes", { key = "gf_clicks", label = "Click-casting", orde
         end
     end
 
+    -- Mouseover keybinds: hover a frame and press the key to cast on that player.
+    p:Section("Mouseover keybinds", "Hover a party or raid frame and press a key to cast on that player, even in combat. Click a key button, then press the key (with Shift, Ctrl or Alt if you like). Backspace clears it, Escape cancels. These keys override your action bar keys only while the mouse is over a frame.")
+    local keyItems = { { "", "None" } }
+    for _, name in ipairs(GF:SpellbookSpells()) do keyItems[#keyItems + 1] = { name, name } end
+    local MODIFIER_KEYS = { LSHIFT = true, RSHIFT = true, LCTRL = true, RCTRL = true, LALT = true, RALT = true }
+    for i = 1, GF.maxKeybinds do
+        local function Slot() local list = GF:KeyBinds(); list[i] = list[i] or {}; return list[i] end
+        local row = W.Button("", nil, "Click, then press the key to bind.", 150)
+        local btn = row.button
+        function row:Refresh() btn.text:SetText(Slot().key or ("Key " .. i .. ": not set")) end
+        local function Store(key)
+            Slot().key = key
+            btn:EnableKeyboard(false)
+            row:Refresh()
+            GF:ApplyClickCasting()
+        end
+        btn:SetScript("OnClick", function()
+            btn.text:SetText("Press a key...")
+            btn:EnableKeyboard(true)
+        end)
+        btn:SetScript("OnKeyDown", function(self, key)
+            if not self:IsKeyboardEnabled() then return end
+            self:SetPropagateKeyboardInput(false)
+            if MODIFIER_KEYS[key] then return end
+            if key == "ESCAPE" then Store(Slot().key)
+            elseif key == "BACKSPACE" then Store(nil)
+            else
+                local mods = (IsAltKeyDown() and "ALT-" or "") .. (IsControlKeyDown() and "CTRL-" or "")
+                    .. (IsShiftKeyDown() and "SHIFT-" or "")
+                Store(mods .. key)
+            end
+        end)
+        p:Add(row, 28)
+        p:Add(W.Dropdown("   Casts", keyItems, function() return Slot().spell or "" end, function(v)
+            Slot().spell = v ~= "" and v or nil
+            GF:ApplyClickCasting()
+        end))
+    end
+
     p:Section("Reset")
     p:Add(W.Button("Restore starting bindings", function()
         GF:ResetClickBindings()

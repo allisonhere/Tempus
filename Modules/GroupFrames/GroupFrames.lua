@@ -24,7 +24,8 @@ GF.defaults = {
     debuffs = true, debuffSize = 18, debuffMax = 3,
     buffs = true, buffSize = 14, buffMax = 3,
     -- Bindings are per class; a class's starting set is copied in once (see seeded).
-    clickcast = { enabled = true, hints = true, bindings = {}, seeded = {} },
+    clickcast = { enabled = true, hints = true, bindings = {}, seeded = {},
+        keybinds = {} },   -- keybinds[class] = { { key = "SHIFT-1", spell = "Renew" }, ... } while hovering a frame
     party = { enabled = true, width = 130, height = 46, spacing = 4, growth = "DOWN", showPlayer = true, showSolo = false,
         point = { "TOPLEFT", "UIParent", "TOPLEFT", 30, -300 } },
     raid = { enabled = true, width = 84, height = 42, spacing = 3, groupBy = "GROUP", growth = "COLUMNS", sampleSize = 20,
@@ -656,6 +657,17 @@ function GF:ClickBindings()
     return binds
 end
 
+-- Mouseover keybinds for this class: a short list of { key, spell }, pressed while hovering a frame.
+GF.maxKeybinds = 8
+function GF:KeyBinds()
+    local cc = (GF.db or T.db.groupframes).clickcast
+    cc.keybinds = cc.keybinds or {}
+    local _, class = UnitClass("player")
+    class = class or "UNKNOWN"
+    cc.keybinds[class] = cc.keybinds[class] or {}
+    return cc.keybinds[class]
+end
+
 function GF:ResetClickBindings()
     local cc = T.db.groupframes.clickcast
     local _, class = UnitClass("player")
@@ -719,6 +731,15 @@ local function ApplyClicks(b)
             Set(mod .. "type" .. btn, "togglemenu")
         end
     end
+    -- Mouseover keybinds arrive as clicks from the virtual button "tempus<N>" (see KeyDriver).
+    -- Both attribute spellings are set so the lookup works either way.
+    for i, kb in ipairs(GF:KeyBinds()) do
+        local kind, spell = GF.ResolveAction(kb.spell)
+        if kb.key and kind == "spell" then
+            Set("*type-tempus" .. i, "spell"); Set("*spell-tempus" .. i, spell)
+            Set("*typetempus" .. i, "spell"); Set("*spelltempus" .. i, spell)
+        end
+    end
 end
 
 -- Tooltip lines for the active spell bindings, in button then modifier order.
@@ -732,6 +753,12 @@ local function BuildHints()
                 local kind, spell = GF.ResolveAction(binds[combo])
                 if kind == "spell" then hints[#hints + 1] = { GF.ComboLabel(combo), spell } end
             end
+        end
+    end
+    if GF.db.clickcast.enabled and not GF.cliqueLoaded then
+        for _, kb in ipairs(GF:KeyBinds()) do
+            local kind, spell = GF.ResolveAction(kb.spell)
+            if kb.key and kind == "spell" then hints[#hints + 1] = { kb.key, spell } end
         end
     end
     GF.hints = hints
@@ -786,8 +813,40 @@ function GF:SpellbookSpells()
     return names
 end
 
+-- A secure handler that, while the mouse is over a group button, binds the keybind keys to
+-- that button and releases them again on leave or hide. It works in combat because the
+-- binding is made inside the secure environment; only the key list is set from here.
+local ENTER_SNIPPET = [[
+    control:ClearBindings()
+    for i = 1, control:GetAttribute("nkeys") or 0 do
+        local key = control:GetAttribute("key" .. i)
+        if key then control:SetBindingClick(true, key, self, "tempus" .. i) end
+    end
+]]
+local function EnsureKeyDriver()
+    if not GF.keyDriver then
+        GF.keyDriver = CreateFrame("Frame", "TempusGroupKeyDriver", UIParent, "SecureHandlerBaseTemplate")
+    end
+    return GF.keyDriver
+end
+
+local function ApplyKeyDriver()
+    local driver = EnsureKeyDriver()
+    local on = GF.db.clickcast.enabled and not GF.cliqueLoaded
+    local list = on and GF:KeyBinds() or {}
+    local n = 0
+    for i = 1, GF.maxKeybinds do
+        local kb = list[i]
+        local kind = kb and kb.key and GF.ResolveAction(kb.spell)
+        driver:SetAttribute("key" .. i, kind == "spell" and kb.key or nil)
+        if kind == "spell" then n = i end
+    end
+    driver:SetAttribute("nkeys", n)
+end
+
 function GF:ApplyClickCasting()
     T:RunOOC(function()
+        ApplyKeyDriver()
         for b in pairs(GF.buttons) do ApplyClicks(b) end
         BuildHints()
     end, "gfclicks")
@@ -814,6 +873,10 @@ local function StyleButton(header, b)
     b.header = header
     BuildContent(b)
     b:RegisterForClicks("AnyUp")
+    local driver = EnsureKeyDriver()
+    SecureHandlerWrapScript(b, "OnEnter", driver, ENTER_SNIPPET)
+    SecureHandlerWrapScript(b, "OnLeave", driver, "control:ClearBindings()")
+    SecureHandlerWrapScript(b, "OnHide", driver, "control:ClearBindings()")
     b:HookScript("OnEnter", OnEnter)
     b:HookScript("OnLeave", function() GameTooltip:Hide() end)
     -- Click-cast addons (Clique and others) pick frames up from this table.

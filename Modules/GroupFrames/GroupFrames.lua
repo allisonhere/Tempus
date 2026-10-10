@@ -12,7 +12,7 @@ T.GroupFrames = GF
 GF.defaults = {
     hideBlizzard = true,
     healthColor = "CLASS",      -- CLASS | DARK | GRADIENT
-    healthText = "NONE",        -- NONE | PERCENT
+    healthText = "PERCENT",        -- NONE | PERCENT
     fontSize = 11,
     smooth = true,
     rangeAlpha = 0.4,
@@ -27,6 +27,7 @@ GF.defaults = {
     clickcast = { enabled = true, hints = true, bindings = {}, seeded = {},
         keybinds = {} },   -- keybinds[class] = { { key = "SHIFT-1", spell = "Renew" }, ... } while hovering a frame
     party = { enabled = true, width = 130, height = 46, spacing = 4, growth = "DOWN", showPlayer = true, showSolo = false,
+        sortBy = "ROLE",    -- ROLE: tank, healer, then damage | INDEX: party order
         point = { "TOPLEFT", "UIParent", "TOPLEFT", 30, -300 } },
     raid = { enabled = true, width = 84, height = 42, spacing = 3, groupBy = "GROUP", growth = "COLUMNS", sampleSize = 20,
         point = { "BOTTOMLEFT", "UIParent", "BOTTOMLEFT", 30, 260 } },
@@ -929,6 +930,13 @@ local function ConfigureHeader(header)
         header:SetAttribute("showPlayer", cfg.showPlayer)
         header:SetAttribute("showRaid", false)
         header:SetAttribute("showSolo", cfg.showSolo and cfg.showPlayer)
+        if cfg.sortBy == "INDEX" then
+            header:SetAttribute("groupBy", nil)
+            header:SetAttribute("groupingOrder", nil)
+        else
+            header:SetAttribute("groupBy", "ASSIGNEDROLE")
+            header:SetAttribute("groupingOrder", "TANK,HEALER,DAMAGER,NONE")
+        end
         if cfg.growth == "RIGHT" then
             header:SetAttribute("point", "LEFT"); header:SetAttribute("xOffset", sp); header:SetAttribute("yOffset", 0)
         else
@@ -1029,6 +1037,7 @@ local function CreateHeader(kind)
         corner = function() return GF.db[kind].point[1] end,
         enabled = function() return GF.db[kind].enabled end,
         onResize = function(w, h) ResizeFromBox(kind, w, h) end,
+        onMoved = function() if T.Options and T.Options.Refresh then T.Options:Refresh() end end,
     })
     return header
 end
@@ -1386,6 +1395,29 @@ end
 ----------------------------------------------------------------------------------------
 -- Module
 ----------------------------------------------------------------------------------------
+-- Size presets for both frames at once: one click from a roomy layout to a compact one.
+GF.presets = {
+    { key = "COMPACT", label = "Compact", general = { powerHeight = 0, fontSize = 10, buffSize = 12, buffMax = 2, debuffSize = 14, debuffMax = 2 },
+        party = { width = 100, height = 30, spacing = 2 }, raid = { width = 64, height = 28, spacing = 2 } },
+    { key = "STANDARD", label = "Standard", general = { powerHeight = 4, fontSize = 11, buffSize = 14, buffMax = 3, debuffSize = 18, debuffMax = 3 },
+        party = { width = 130, height = 46, spacing = 4 }, raid = { width = 84, height = 42, spacing = 3 } },
+    { key = "LARGE", label = "Large", general = { powerHeight = 6, fontSize = 13, buffSize = 18, buffMax = 4, debuffSize = 22, debuffMax = 3 },
+        party = { width = 170, height = 58, spacing = 5 }, raid = { width = 104, height = 52, spacing = 4 } },
+}
+
+function GF:ApplyPreset(key)
+    for _, preset in ipairs(GF.presets) do
+        if preset.key == key then
+            for k, v in pairs(preset.general) do GF.db[k] = v end
+            for _, kind in ipairs({ "party", "raid" }) do
+                for k, v in pairs(preset[kind]) do GF.db[kind][k] = v end
+            end
+            return true
+        end
+    end
+    return false
+end
+
 function GF:Refresh()
     GF.version = GF.version + 1
     GF.groups = AuraGroups()

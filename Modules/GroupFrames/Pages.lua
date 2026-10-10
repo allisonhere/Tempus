@@ -29,6 +29,14 @@ T:RegisterPage("groupframes", { key = "gf_general", label = "General", order = 1
     Preview(p, "party")
     SampleToggle(p)
     p:Newline()
+    p:Section("Size preset", "Sets the frame sizes, spacing, text and aura sizes for party and raid in one click. You can still adjust everything afterwards.")
+    for _, preset in ipairs(T.GroupFrames.presets) do
+        p:Add(W.Button(preset.label, function()
+            T.GroupFrames:ApplyPreset(preset.key)
+            Changed()
+        end, "Applies the " .. preset.label:lower() .. " layout to the party and raid frames."))
+    end
+    p:Newline()
     p:Section("Party & raid frames", "Shared look for both. Health, range and incoming heals are hidden from addons on this client, so they're drawn by the game straight into the bars. Unlock (top right) to move the frames; sample party and raid frames fill the boxes so you can arrange them without a group. Works with click-cast addons such as Clique.")
     p:Dropdown(GFDB, "healthColor", "Health colour", {
         { "CLASS", "Class" }, { "DARK", "Dark bars, class-coloured names" }, { "GRADIENT", "By health (green > red)" } })
@@ -73,6 +81,7 @@ local function SizePage(kind, label, order)
         p:Slider(cfg, "spacing", "Spacing", 0, 20, 1)
         if kind == "party" then
             p:Dropdown(cfg, "growth", "Direction", { { "DOWN", "Downwards" }, { "RIGHT", "Sideways" } })
+            p:Dropdown(cfg, "sortBy", "Arrange by", { { "ROLE", "Role (tank, healer, damage)" }, { "INDEX", "Party order" } })
             p:Check(cfg, "showPlayer", "Include yourself")
             p:Check(cfg, "showSolo", "Show when not in a group", "Your own frame while solo: handy for testing auras, HoTs and dispels on yourself.")
         else

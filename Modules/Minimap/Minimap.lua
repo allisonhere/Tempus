@@ -171,8 +171,23 @@ function MM:ReleaseTray()
     end
 end
 
+-- Right-click on the Tempus minimap button.
+function MM:ToggleTray()
+    local tray = MM.tray
+    if not tray or not MM.trayOn then return end
+    if tray:IsShown() then tray:Hide() return end
+    MM:LayoutTray()
+    tray:ClearAllPoints()
+    local bottom = MM.holder:GetBottom() or 0
+    if bottom < (UIParent:GetHeight() or 768) / 2 then
+        tray:SetPoint("BOTTOMRIGHT", MM.holder, "TOPRIGHT", 0, 4)
+    else
+        tray:SetPoint("TOPRIGHT", MM.holder, "BOTTOMRIGHT", 0, -4)
+    end
+    tray:Show()
+end
+
 function MM:BuildTray()
-    local UI = T.UI
     local tray = CreateFrame("Frame", "TempusMinimapTray", UIParent)
     tray:SetFrameStrata("HIGH")
     tray:SetClampedToScreen(true)
@@ -187,26 +202,10 @@ function MM:BuildTray()
     MM.trayEmpty:SetPoint("CENTER")
     tray:SetSize(120, 40)
 
-    local button = UI.FlatButton(MM.holder, "...", 22, 16, function()
-        if tray:IsShown() then tray:Hide() return end
-        MM:LayoutTray()
-        tray:ClearAllPoints()
-        local bottom = MM.holder:GetBottom() or 0
-        if bottom < (UIParent:GetHeight() or 768) / 2 then
-            tray:SetPoint("BOTTOMRIGHT", MM.holder, "TOPRIGHT", 0, 4)
-        else
-            tray:SetPoint("TOPRIGHT", MM.holder, "BOTTOMRIGHT", 0, -4)
-        end
-        tray:Show()
-    end)
-    button:SetPoint("RIGHT", MM.holder, "RIGHT", -3, -10)
-    button:SetFrameLevel(Minimap:GetFrameLevel() + 8)
-    button:Hide()
-    MM.trayButton = button
-
     -- Closes itself shortly after the mouse leaves.
     tray:SetScript("OnUpdate", function(self, elapsed)
-        if self:IsMouseOver(8, -8, -8, 8) or button:IsMouseOver() then
+        local opener = _G.TempusMinimapButton
+        if self:IsMouseOver(8, -8, -8, 8) or (opener and opener:IsMouseOver()) then
             self.idle = 0
         else
             self.idle = (self.idle or 0) + elapsed
@@ -219,7 +218,6 @@ function MM:ApplyButtonMode()
     local mode = MM:ButtonMode()
     if mode == "TRAY" then
         MM.trayOn = true
-        MM.trayButton:Show()
         for _, b in ipairs(AddonButtons()) do b:SetAlpha(1) end   -- Tempus's own button stays on the edge
         MM:LayoutTray()
     else
@@ -227,7 +225,6 @@ function MM:ApplyButtonMode()
             MM.trayOn = false
             MM:ReleaseTray()
         end
-        MM.trayButton:Hide()
         MM.tray:Hide()
         for _, b in ipairs(AddonButtons()) do b:SetAlpha(mode == "FADE" and 0 or 1) end
     end
@@ -332,7 +329,7 @@ local function Build()
     MM.clock = over:CreateFontString(nil, "OVERLAY")
     MM.clock:SetPoint("BOTTOM", holder, "BOTTOM", 0, 5)
     MM.coords = over:CreateFontString(nil, "OVERLAY")
-    MM.coords:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -5, 5)
+    MM.coords:SetPoint("BOTTOMRIGHT", holder, "BOTTOMRIGHT", -30, 5)   -- clear of the Tempus button in the corner
 
     -- Interaction: wheel zoom, right-click tracking, middle-click calendar.
     Minimap:EnableMouseWheel(true)

@@ -170,7 +170,47 @@ end
 ----------------------------------------------------------------------------------------
 local mm
 
+-- With the Tempus minimap, the button is a square docked in the map's lower right corner.
+local function Docked()
+    return T.Minimap and T.Minimap.holder and true or false
+end
+
+local function StyleMinimapButton()
+    local square = Docked()
+    mm.round:SetShown(not square)
+    mm.roundBg:SetShown(not square)
+    if square then
+        local bd = T.Style.Backdrop(mm, { fill = { 0.03, 0.035, 0.045, 1 } })
+        bd.hidden = false
+        bd:Refresh()
+        mm:SetSize(22, 22)
+        mm.icon:ClearAllPoints()
+        mm.icon:SetPoint("TOPLEFT", 2, -2)
+        mm.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+        mm.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+        mm:SetHighlightTexture(T.Style.WHITE)
+        local hl = mm:GetHighlightTexture()
+        hl:SetVertexColor(1, 1, 1, 0.15)
+        hl:SetAllPoints(mm)
+    else
+        mm:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
+        if mm.tempusBackdrop then mm.tempusBackdrop.hidden = true; mm.tempusBackdrop:Refresh() end
+        mm:SetSize(31, 31)
+        mm.icon:ClearAllPoints()
+        mm.icon:SetPoint("TOPLEFT", 6, -5)
+        mm.icon:SetSize(20, 20)
+        mm.icon:SetTexCoord(0, 1, 0, 1)
+    end
+end
+
 local function PositionMinimapButton()
+    StyleMinimapButton()
+    if Docked() then
+        mm:ClearAllPoints()
+        mm:SetPoint("BOTTOMRIGHT", T.Minimap.holder, "BOTTOMRIGHT", -3, 3)
+        mm:SetFrameLevel(T.Minimap.holder:GetFrameLevel() + 9)
+        return
+    end
     local angle = math.rad(T.db.minimap.angle or 215)
     local r = (Minimap:GetWidth() / 2) + 5
     local x, y = math.cos(angle), math.sin(angle)
@@ -192,26 +232,34 @@ function T:InitMinimapButton()
     mm:RegisterForDrag("LeftButton")
     mm:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     local overlay = mm:CreateTexture(nil, "OVERLAY")
+    mm.round = overlay
     overlay:SetSize(53, 53)
     overlay:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
     overlay:SetPoint("TOPLEFT")
     local bg = mm:CreateTexture(nil, "BACKGROUND")
+    mm.roundBg = bg
     bg:SetSize(20, 20)
     bg:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
     bg:SetPoint("TOPLEFT", 7, -5)
     local icon = mm:CreateTexture(nil, "ARTWORK")
+    mm.icon = icon
     icon:SetSize(20, 20)
     icon:SetTexture(T.LOGO)
     icon:SetPoint("TOPLEFT", 6, -5)
     mm:SetScript("OnClick", function(_, button)
         if button == "RightButton" then
-            T.db.locked = not T.db.locked
-            T:ApplySettings()
+            if T.Minimap and T.Minimap.ButtonMode and Docked() and T.Minimap:ButtonMode() == "TRAY" then
+                T.Minimap:ToggleTray()
+            else
+                T.db.locked = not T.db.locked
+                T:ApplySettings()
+            end
         else
             T.Options:Toggle()
         end
     end)
     mm:SetScript("OnDragStart", function(self)
+        if Docked() then return end
         self:SetScript("OnUpdate", function()
             local mx, my = Minimap:GetCenter()
             local cx, cy = GetCursorPosition()
@@ -225,8 +273,12 @@ function T:InitMinimapButton()
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:SetText("|cff" .. T.accentHex .. "Tempus|r UI")
         GameTooltip:AddLine("Left-click: settings", 1, 1, 1)
-        GameTooltip:AddLine("Right-click: " .. (T.db.locked and "unlock" or "lock") .. " frames", 1, 1, 1)
-        GameTooltip:AddLine("Drag: move this button", 0.7, 0.7, 0.7)
+        if Docked() and T.Minimap:ButtonMode() == "TRAY" then
+            GameTooltip:AddLine("Right-click: addon button tray", 1, 1, 1)
+        else
+            GameTooltip:AddLine("Right-click: " .. (T.db.locked and "unlock" or "lock") .. " frames", 1, 1, 1)
+        end
+        if not Docked() then GameTooltip:AddLine("Drag: move this button", 0.7, 0.7, 0.7) end
         GameTooltip:Show()
     end)
     mm:SetScript("OnLeave", function() GameTooltip:Hide() end)

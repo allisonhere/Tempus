@@ -130,45 +130,82 @@ local function OpenMenu(owner, items, onPick, current)
         catcher:SetScript("OnClick", CloseMenu)
         menu = CreateFrame("Frame", nil, UIParent)
         menu:SetFrameStrata("FULLSCREEN_DIALOG")
-        menu.bg = Tex(menu, "BACKGROUND", { 0.07, 0.08, 0.1, 0.98 })
+        menu:EnableMouseWheel(true)
+        menu.bg = Tex(menu, "BACKGROUND", { 0.07, 0.08, 0.1, 1 })
         menu.bg:SetAllPoints()
         local menuBorder = Border(menu)
         S.OnAccent(function() menuBorder:SetColor(AC[1], AC[2], AC[3], 0.6) end)
         menu.rows = {}
     end
     local rowH = 22
-    for i, item in ipairs(items) do
-        local row = menu.rows[i]
-        if not row then
-            row = CreateFrame("Button", nil, menu)
-            row:SetHeight(rowH)
-            row.hl = S.Accent(Tex(row, "BACKGROUND"), 0.18)
-            row.hl:SetAllPoints()
-            row.hl:Hide()
-            row.text = Text(row, 11)
-            row.text:SetPoint("LEFT", 10, 0)
-            row.mark = Tex(row, "ARTWORK", AC)
-            row.mark:SetSize(3, rowH - 8)
-            row.mark:SetPoint("LEFT", 2, 0)
-            row:SetScript("OnEnter", function(self) self.hl:Show() end)
-            row:SetScript("OnLeave", function(self) self.hl:Hide() end)
-            menu.rows[i] = row
+    -- A long list scrolls instead of running off the screen.
+    local maxRows = math.max(4, math.floor((UIParent:GetHeight() * 0.7) / rowH))
+    local shown = math.min(#items, maxRows)
+    menu.items, menu.current, menu.onPick, menu.offset, menu.shown = items, current, onPick, 0, shown
+
+    local function Populate()
+        for i = 1, shown do
+            local item = menu.items[menu.offset + i]
+            local row = menu.rows[i]
+            if not row then
+                row = CreateFrame("Button", nil, menu)
+                row:SetHeight(rowH)
+                row:EnableMouseWheel(true)
+                row.hl = S.Accent(Tex(row, "BACKGROUND"), 0.18)
+                row.hl:SetAllPoints()
+                row.hl:Hide()
+                row.text = Text(row, 11)
+                row.text:SetPoint("LEFT", 10, 0)
+                row.mark = Tex(row, "ARTWORK", AC)
+                row.mark:SetSize(3, rowH - 8)
+                row.mark:SetPoint("LEFT", 2, 0)
+                row:SetScript("OnEnter", function(self) self.hl:Show() end)
+                row:SetScript("OnLeave", function(self) self.hl:Hide() end)
+                row:SetScript("OnMouseWheel", function(_, delta) menu:GetScript("OnMouseWheel")(menu, delta) end)
+                menu.rows[i] = row
+            end
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, -1 - (i - 1) * rowH)
+            row:SetPoint("RIGHT", menu, "RIGHT", -1, 0)
+            row.text:SetText(item[2])
+            row.mark:SetShown(item[1] == menu.current)
+            row:SetScript("OnClick", function()
+                local pick = menu.onPick
+                CloseMenu()
+                pick(item[1])
+            end)
+            row:Show()
         end
-        row:ClearAllPoints()
-        row:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, -1 - (i - 1) * rowH)
-        row:SetPoint("RIGHT", menu, "RIGHT", -1, 0)
-        row.text:SetText(item[2])
-        row.mark:SetShown(item[1] == current)
-        row:SetScript("OnClick", function()
-            CloseMenu()
-            onPick(item[1])
-        end)
-        row:Show()
+        for i = shown + 1, #menu.rows do menu.rows[i]:Hide() end
     end
-    for i = #items + 1, #menu.rows do menu.rows[i]:Hide() end
-    menu:SetSize(math.max(owner:GetWidth(), 140), #items * rowH + 2)
+    menu:SetScript("OnMouseWheel", function(self, delta)
+        local max = #self.items - self.shown
+        if max <= 0 then return end
+        local offset = math.max(0, math.min(max, self.offset - delta))
+        if offset ~= self.offset then self.offset = offset; Populate() end
+    end)
+    Populate()
+
+    -- Wide enough for the longest label in the whole list, not just the rows on screen.
+    local width = math.max(owner:GetWidth(), 140)
+    local probe = menu.probe or menu:CreateFontString(nil, "OVERLAY")
+    menu.probe = probe
+    probe:SetFont(S.FONT, 11, "")
+    probe:Hide()
+    for _, item in ipairs(items) do
+        probe:SetText(item[2])
+        width = math.max(width, (probe:GetStringWidth() or 0) + 28)
+    end
+    menu:SetSize(math.min(width, UIParent:GetWidth() - 20), shown * rowH + 2)
     menu:ClearAllPoints()
-    menu:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -2)
+    -- Open toward the side of the screen that has room (the bag windows sit in the lower right).
+    local right = owner:GetRight() or 0
+    if right + width > UIParent:GetWidth() - 10 then
+        menu:SetPoint("TOPRIGHT", owner, "BOTTOMRIGHT", 0, -2)
+    else
+        menu:SetPoint("TOPLEFT", owner, "BOTTOMLEFT", 0, -2)
+    end
+    menu:SetClampedToScreen(true)
     catcher:Show()
     menu:Show()
 end

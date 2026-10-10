@@ -217,7 +217,8 @@ local function StyleMinimapButton()
     if docked then
         BuildRing()
         local w, h, scale = DielMetrics()
-        mm:SetSize(w, h)
+        -- The day/night frame has clear padding around its disc; shrink ours to the disc's size.
+        mm:SetSize(w * 0.86, h * 0.86)
         mm:SetScale(scale)
         mm.ringOuter:Show()
         mm.ringInner:Show()
@@ -246,7 +247,7 @@ local function PositionMinimapButton()
     StyleMinimapButton()
     if Docked() then
         mm:ClearAllPoints()
-        mm:SetPoint("BOTTOMRIGHT", T.Minimap.holder, "BOTTOMRIGHT", -2, 2)   -- mirrors the day/night icon at BOTTOMLEFT 2, 2
+        mm:SetPoint("BOTTOMRIGHT", T.Minimap.holder, "BOTTOMRIGHT", -6, 6)   -- same margin as the day/night disc at BOTTOMLEFT
         mm:SetFrameLevel(T.Minimap.holder:GetFrameLevel() + 9)
         return
     end

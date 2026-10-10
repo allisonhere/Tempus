@@ -806,7 +806,7 @@ SlashCmdList.TEMPUS = function(msg)
         end
         if log.lastError then T:Print("last error (%s): %s", log.lastError.combat and "combat" or "idle", log.lastError.err:match("^[^\n]*")) end
     elseif msg == "help" then
-        T:Print("/tempus [lock | unlock | test | install | reset | debug | probe | safe] - no argument opens settings. 'safe' turns off everything but buffs and reloads.")
+        T:Print("/tempus [lock | unlock | test | install | reset | log | debug | perf | skinreport | probe | safe] - no argument opens settings. 'safe' turns off everything but buffs and reloads.")
     else
         T.Options:Toggle()
     end

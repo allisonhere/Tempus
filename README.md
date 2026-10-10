@@ -32,18 +32,20 @@ Built for the new Classic client (interface 16001), where the game hides health,
   - Healer-ready frames: range fading, incoming heals and absorbs, and dispellable debuffs with a coloured tint.
   - Your HoTs with timers, role and leader icons, aggro borders, and a raid grid for up to 40.
   - Built-in click-casting with starting bindings for Druid, Priest, Shaman and Paladin; Clique also works.
+  - Mouseover keybinds: hover a frame and press a key (up to 8 per class) to cast on that player, in combat too.
+  - Drag the corner grip on an unlocked party or raid box to resize the frames.
 - **Cooldowns**: a row of icons with cooldown swipes for spells you pick, plus your trinkets.
 - **Combat Pulse**: one compact strip that gathers the fight. The layered DPS bar from Blizzard's damage meter (live, your peak, group top) and a thin swing line, plus small cues that appear only when they matter: an interruptible target cast (with your interrupt's cooldown), a buff you can purge, threat trouble and the execute range. Three modes: **Minimal** (urgent cues only), **Standard** (DPS, swing and cues) and **Full** (everything, including peak and group top numbers). Each signal can be switched off; the threat role and execute threshold follow the Nameplates settings. Swing timing needs the Swing timer module. A test mode shows every cue out of combat.
 - **Vendor**: sells grey items and repairs gear when a merchant opens.
-- **Bags**: combines carried bags and personal bank storage, with instant multi-word search, native item interactions, filter chips, a bag bar, item level and upgrade marks, cooldowns, a gold and currency footer, and grid or automatic category views with foldable sections and your own custom categories. If another bag addon is enabled, Tempus asks which one should own the bags for that character.
+- **Bags**: combines carried bags and personal bank storage, with instant multi-word search, native item interactions, filter chips, a bag bar, item level and upgrade marks, cooldowns, a gold and currency footer, and grid or automatic category views with foldable sections and your own custom categories. It also remembers every character's bags and bank: the **Alts** button browses them, even offline, and item tooltips show what your other characters hold. If another bag addon is enabled, Tempus asks which one should own the bags for that character.
 - **Profiles**: share your settings as a text string (Export / Import on the Profiles page).
-- **Action Bars**: restyled bars with fading, hotkeys and range colouring.
+- **Action Bars**: restyled bars with fading, hotkeys and range colouring, plus a movable, restyled micro menu and bag buttons.
 - **Minimap, Info Bar, XP & Reputation Bars**: a square minimap and a configurable info bar.
 - **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM. Includes a quest log search and a fully skinned quest tracker. **Stock skin** keeps the search but leaves Blizzard's own look in place.
 
 ## Themes
 
-The Theme setting (Appearance) restyles every Tempus panel and status bar live: **Modern** (crisp edge and soft shadow), **Gloss** (adds a glassy highlight), **Classic** (a warm Blizzard-style border; skinned windows keep Blizzard's own frames after a reload) and **Flat** (no decoration). Class, dispel and target highlight edges stay visible in every theme.
+The accent colour recolours the settings window, move boxes and bags at once (some Blizzard skins need a reload). The Theme setting (Appearance) restyles every Tempus panel and status bar live: **Modern** (crisp edge and soft shadow), **Gloss** (adds a glassy highlight), **Classic** (a warm Blizzard-style border; skinned windows keep Blizzard's own frames after a reload) and **Flat** (no decoration). Class, dispel and target highlight edges stay visible in every theme.
 
 Every settings page has a live preview. Unlock the UI to drag any element into place; sample frames fill the boxes so you can arrange group frames while solo.
 
@@ -61,6 +63,9 @@ Copy the `Tempus` folder into `World of Warcraft/_classic_/Interface/AddOns/` (o
 | `/tempus test` | Preview buff displays with sample auras |
 | `/tempus safe` | Turn off everything except buffs and reload (escape hatch) |
 | `/tempus debug` | Show aura status and the last error |
+| `/tempus log` | Show recent Lua errors and blocked-action messages |
+| `/tempus perf` / `cpu` | Report time spent per Tempus feature |
+| `/tempus skinreport` | Record the window under the mouse for skin fixes |
 | `/tempus help` | List commands |
 
 The settings window also has a **What's new** page with the changelog.
@@ -68,7 +73,7 @@ The settings window also has a **What's new** page with the changelog.
 ## Notes
 
 - Tempus nameplates stay off while Plater or another nameplate addon is loaded.
-- Settings are stored per profile in `TempusDB`.
+- Settings are stored per profile in `TempusDB`. Saved character inventories are shared by every profile.
 - Combat Pulse and the hidden combat values on WoW Forever:
   - Combat DPS and group top can arrive as hidden values that can be drawn but not compared. Your peak and the bar's saved scale only update from readable readings, usually just after a fight ends. Until the scale is known, the bar is drawn against the group top. The meter's in-combat value is a running average, so early-fight bursts can run past an Auto scale; set Bar scale to Fixed maximum to choose where the bar ends.
   - Whether the target's cast can be interrupted, and its health for the execute cue, are also hidden in combat. The game decides those cues' visibility, so the execute skull has no idle state, and the kick icon rests dim (Full mode) only when the target is not casting.

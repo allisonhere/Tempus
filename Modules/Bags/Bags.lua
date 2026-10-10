@@ -575,7 +575,7 @@ end
 
 T:NewModule("bags", {
     label = "Bags",
-    desc = "A searchable combined bag and personal-bank window with grid and automatic category views.",
+    desc = "A searchable combined bag and personal-bank window with grid and automatic category views, and a viewer for your other characters' bags and banks.",
     defaults = B.defaults,
     OnEnable = function() B:OnEnable() end,
     OnSettings = function() B:OnSettings() end,

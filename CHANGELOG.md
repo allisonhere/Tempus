@@ -4,7 +4,19 @@
 
 ### New
 - **Native Bags module**: combined carried bags and personal/reagent bank windows with instant multi-word search, native item interactions and sorting, plus grid and automatic category views. Filter chips (gear, consumables, quest, junk), a bag bar that highlights or isolates one bag, item level and bind-on-equip tags, upgrade arrows, cooldowns, durability tint, and a footer with slots, currencies and gold. Category sections fold when you click their headers, items sort by quality and item level, and Tag lets you build your own categories. New installs enable it; upgraded profiles keep it off until enabled. When another bag addon is active, Tempus asks which one should own the bags for that character.
+- **Other characters in Bags**: Tempus saves what each character carries and keeps in the bank and reagent bank. Alts in the bag header opens a menu of every saved character and storage, shown in the same window (read-only, with search, filters, grid and category views). Your own bank is listed there too, so you can browse it away from the banker. Item tooltips gain a line per character, such as `Bags 4  Bank 12`. The bank saves while it is open; characters appear after you log into them once. Turn it off, or forget the other characters, on the Bags page.
+- **Mouseover keybinds for healers**: hover a party or raid frame and press a key to cast on that player, in combat too. Up to 8 per class, with Shift, Ctrl or Alt (Party & raid frames > Click-casting).
+- **Resize group frames by dragging**: unlock the UI and drag the grip in the corner of the party or raid box; the frame width and height follow the settings sliders.
 - **Combat Pulse bar scale**: choose Auto or a Fixed maximum DPS for the end of the bar (General > Combat Pulse). In combat the game hides DPS, so Auto can only size the bar from earlier readable fights and early-fight bursts can fill it; a fixed maximum avoids the guesswork.
+
+### Changed
+- Changing the accent colour recolours the settings window, move boxes and bags straight away; some Blizzard skins still need a reload.
+- The bag bar and micro menu lose Blizzard's bronze frame, and their buttons are one size.
+- Dropdown menus widen to fit their longest label, open toward the side of the screen with room, and scroll when the list is long.
+
+### Fixed
+- Vendor: the "sold grey items for" total was always 0 on clients without the old `GetItemInfo`. It now reads prices from `C_Item.GetItemInfo` and falls back to the gold you actually received.
+- Bags: moving a window by its body now saves its position, and stacks of 1000 or more show as `1k`.
 
 ## 2.5.0
 

@@ -60,7 +60,7 @@ function I.Snapshot(storage, locations, read)
             hasNoValue = source.hasNoValue and true or false, bagFamily = source.bagFamily or 0,
             itemLevel = source.itemLevel, bindType = source.bindType, bound = source.bound and true or false,
             durability = source.durability, maxDurability = source.maxDurability,
-            empty = not source.itemID,
+            empty = not source.itemID, readonly = source.readonly and true or false,
         }
         record.category = I.Category(record)
         record.searchText = SearchText(record)

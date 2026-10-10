@@ -20,6 +20,13 @@ T:RegisterPage("bags", { key = "bags", label = "Bags", order = 1, build = functi
     p:Check(cfg, "showItemLevel", "Item level and bind-on-equip tag on gear")
     p:Check(cfg, "showUpgrades", "Arrow on gear better than what you wear")
     p:Check(cfg, "showCooldowns", "Item cooldowns")
+    p:Section("Characters", "Bags saves what each character carries and keeps in the bank. Use Alts in the bag header to browse it, even for characters you are not playing. The bank is saved while it is open.")
+    p:Check(cfg, "trackChars", "Remember every character's bags and bank")
+    p:Check(cfg, "showAltCounts", "Show alt item counts on tooltips")
+    p:Add(W.Button("Forget other characters", function()
+        T.Bags.Characters.ForgetAllExcept(T:CharacterKey())
+        UI.Changed()
+    end, "Deletes the saved inventories of every character except this one."))
     p:Section("Custom categories", "Use Tag in the bag header, then click an item to put it in your own category.")
     p:Add(W.Button("Clear custom categories", function()
         T.db.bags.customCategories = {}

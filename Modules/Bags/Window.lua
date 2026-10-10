@@ -44,7 +44,7 @@ end
 
 function Window.New(owner, storage, title, pointKey)
     local self = setmetatable({ owner = owner, storage = storage, pointKey = pointKey,
-        buttons = {}, proxies = {}, headers = {}, chips = {} }, Window)
+        buttons = {}, altButtons = {}, proxies = {}, headers = {}, chips = {}, baseTitle = title }, Window)
     local frame = CreateFrame("Frame", "Tempus" .. title:gsub("%s", "") .. "Frame", UIParent)
     frame:SetFrameStrata("HIGH")
     frame:SetClampedToScreen(true)
@@ -70,6 +70,10 @@ function Window.New(owner, storage, title, pointKey)
     self.sort:SetPoint("RIGHT", self.mode, "LEFT", -4, 0)
     self.tag = SmallButton(header, "Tag", 40, function() owner:ToggleTagMode() end)
     self.tag:SetPoint("RIGHT", self.sort, "LEFT", -4, 0)
+    if storage == "CARRIED" then
+        self.alts = SmallButton(header, "Alts", 40, function() owner:ShowCharacterMenu(self.alts) end)
+        self.alts:SetPoint("RIGHT", self.tag, "LEFT", -4, 0)
+    end
 
     header:EnableMouse(true)
     header:RegisterForDrag("LeftButton")
@@ -164,18 +168,9 @@ end
 local STOCK_DECOR = { "IconBorder", "IconOverlay", "IconOverlay2", "NewItemTexture", "BattlepayItemTexture",
     "JunkIcon", "UpgradeIcon", "flash", "ExtendedSlot" }
 
-function Window:Button(record)
-    local button = self.buttons[record.key]
-    if button then return button end
+-- Our own regions on an item button, shared by live (secure template) and saved (plain) buttons.
+local function Decorate(self, button, withCooldown)
     local owner = self.owner
-    button = owner.client:CreateItemButton(self:Proxy(record.location.container))
-    local normal = button.GetNormalTexture and button:GetNormalTexture()
-    if normal then normal:SetAlpha(0) end
-    for _, key in ipairs(STOCK_DECOR) do
-        local decor = button[key]
-        if decor and decor.Hide then decor:Hide() end
-    end
-
     button.tempusBg = S.Tex(button, "BACKGROUND", S.C.card, -8)
     button.tempusBg:SetAllPoints()
     button.tempusBorder = S.CreateBorder(button, "OVERLAY", 3)
@@ -196,10 +191,12 @@ function Window:Button(record)
     button.tempusBoE = Label(button, "", 8, { 0.35, 0.9, 0.5 })
     button.tempusBoE:SetPoint("TOPLEFT", 2, -2)
 
-    local cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
-    cooldown:SetAllPoints()
-    if cooldown.SetDrawEdge then cooldown:SetDrawEdge(false) end
-    button.tempusCooldown = cooldown
+    if withCooldown then
+        local cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
+        cooldown:SetAllPoints()
+        if cooldown.SetDrawEdge then cooldown:SetDrawEdge(false) end
+        button.tempusCooldown = cooldown
+    end
 
     -- Category tagging overlay: ours, so the secure item click never runs while tagging.
     local tag = CreateFrame("Button", nil, button)
@@ -221,8 +218,40 @@ function Window:Button(record)
         local c = b.tempusBorderColor or BORDER_DEFAULT
         b.tempusBorder:SetColor(c[1], c[2], c[3], c[4] or 1)
     end)
+end
 
+function Window:Button(record)
+    local button = self.buttons[record.key]
+    if button then return button end
+    button = self.owner.client:CreateItemButton(self:Proxy(record.location.container))
+    local normal = button.GetNormalTexture and button:GetNormalTexture()
+    if normal then normal:SetAlpha(0) end
+    for _, key in ipairs(STOCK_DECOR) do
+        local decor = button[key]
+        if decor and decor.Hide then decor:Hide() end
+    end
+    Decorate(self, button, true)
     self.buttons[record.key] = button
+    return button
+end
+
+-- A saved item (another character's, or one the current character no longer carries): a plain button
+-- with a tooltip and our marks. No bag or slot id, so it can never act on a live item.
+function Window:ReadOnlyButton(record)
+    local button = self.altButtons[record.key]
+    if button then return button end
+    button = CreateFrame("Button", nil, self.content)
+    button.icon = button:CreateTexture(nil, "ARTWORK")
+    button.icon:SetAllPoints()
+    button.Count = Label(button, "", 11)
+    button.Count:SetJustifyH("RIGHT")
+    button.Count:SetPoint("BOTTOMRIGHT", -2, 2)
+    Decorate(self, button, false)
+    button:HookScript("OnEnter", function(b)
+        if b.tempusRecord then self.owner.client:ShowTooltip(b, b.tempusRecord) end
+    end)
+    button:HookScript("OnLeave", function() GameTooltip:Hide() end)
+    self.altButtons[record.key] = button
     return button
 end
 
@@ -261,6 +290,7 @@ end
 
 function Window:UpdateCooldown(button, record)
     local cooldown = button.tempusCooldown
+    if not cooldown then return end
     local start, duration
     if self.owner.db.showCooldowns and not record.empty then
         start, duration = self.owner.client:Cooldown(record.location)
@@ -292,7 +322,7 @@ end
 function Window:StyleButton(button, record, size)
     local owner, db = self.owner, self.owner.db
     button:SetSize(size, size)
-    owner.client:BindItemButton(button, record)
+    if not record.readonly then owner.client:BindItemButton(button, record) end
     button.tempusRecord, button.tempusContainer = record, record.location.container
     button.tempusTag.record = record
 
@@ -326,7 +356,7 @@ function Window:StyleButton(button, record, size)
     button.tempusBg:SetVertexColor(S.C.card[1], S.C.card[2], S.C.card[3], record.empty and 0.55 or 1)
 
     local gear = GEAR_CLASSES[record.classID or 0] and record.equipLoc and record.equipLoc ~= ""
-    local upgrade = db.showUpgrades and gear and self:IsUpgrade(record)
+    local upgrade = db.showUpgrades and gear and not record.readonly and self:IsUpgrade(record)
     button.tempusNew:SetShown(db.showNew and record.isNew)
     button.tempusUp:SetShown(upgrade and true or false)
     local mark = record.quest and "!" or (record.quality == 0 and not record.hasNoValue and "$" or "")
@@ -364,8 +394,9 @@ function Window:Layout()
     Place(self.chipRow, 20, db.showFilters)
     if self.bankRow then Place(self.bankRow, 22, true) end
     if self.bagBar then
-        Place(self.bagBar.frame, 24, db.showBagBar)
-        if db.showBagBar then self.bagBar:Refresh() end
+        local showBar = db.showBagBar and not self.owner.viewing
+        Place(self.bagBar.frame, 24, showBar)
+        if showBar then self.bagBar:Refresh() end
     end
     self.scroll:ClearAllPoints()
     self.scroll:SetPoint("TOPLEFT", self.frame, "TOPLEFT", PAD, -y)
@@ -383,7 +414,16 @@ function Window:UpdateFooter(snapshot)
     else self.slotFill:SetVertexColor(T.accent[1], T.accent[2], T.accent[3]) end
     self.footer:SetText(("%d / %d  (%d free)"):format(snapshot.used, snapshot.capacity, snapshot.capacity - snapshot.used))
 
+    local viewing = self.owner.viewing
     local parts = {}
+    if viewing then
+        local rec = self.owner.Characters.Record(viewing.key)
+        local age = self.owner.Characters.Age(time() - (snapshot.updated or 0))
+        self.footer:SetText(("%d / %d  (%d free)  saved %s"):format(snapshot.used, snapshot.capacity,
+            snapshot.capacity - snapshot.used, age))
+        self.wealth:SetText(Window.FormatMoney(rec and rec.money or 0))
+        return
+    end
     if self.owner.db.showCurrencies and self.storage == "CARRIED" then
         for _, currency in ipairs(self.owner.client:Currencies()) do
             local icon = currency.icon and ("|T%s:12:12:0:0|t "):format(tostring(currency.icon)) or ""
@@ -404,6 +444,7 @@ function Window:Render(snapshot, projection)
     self.chipRow:SetWidth(inner)
     if self.bankRow then self.bankRow:SetWidth(inner) end
     for _, button in pairs(self.buttons) do button:Hide(); button:ClearAllPoints() end
+    for _, button in pairs(self.altButtons) do button:Hide(); button:ClearAllPoints() end
     for _, header in ipairs(self.headers) do header:Hide(); header:ClearAllPoints() end
 
     local y, headerIndex = 0, 0
@@ -421,7 +462,7 @@ function Window:Render(snapshot, projection)
         end
         for index, key in ipairs(section.keys) do
             local record = snapshot.byKey[key]
-            local button = self:Button(record)
+            local button = record.readonly and self:ReadOnlyButton(record) or self:Button(record)
             local col, row = (index - 1) % columns, math.floor((index - 1) / columns)
             button:SetPoint("TOPLEFT", content, "TOPLEFT", col * (size + gap), -(y + row * (size + gap)))
             self:StyleButton(button, record, size)
@@ -434,6 +475,15 @@ function Window:Render(snapshot, projection)
     local screenHeight = UIParent:GetHeight() or 768
     self.frame:SetSize(width, math.min(y + self.chrome, screenHeight - 70))
 
+    local viewing = owner.viewing
+    if self.alts then self.alts:SetActive(viewing and true or false) end
+    self.sort:SetAlpha(viewing and 0.4 or 1)
+    if viewing then
+        local rec = owner.Characters.Record(viewing.key)
+        self.title:SetText(("%s |cff8c97ad%s|r"):format(rec and rec.name or "?", owner.Characters.labels[viewing.storage]))
+    else
+        self.title:SetText(self.baseTitle)
+    end
     self.mode.text:SetText(db.mode == "GRID" and "Grid" or "Sections")
     self.tag:SetActive(owner.tagMode and true or false)
     self.empty:SetShown(projection.emptyResult)

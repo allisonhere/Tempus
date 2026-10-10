@@ -14,6 +14,8 @@ B.defaults = {
     showUpgrades = true,
     showCooldowns = true,
     showCurrencies = true,
+    trackChars = true,       -- keep every character's bags and bank for the Alts viewer and tooltips
+    showAltCounts = true,    -- "Alt: Bags 4  Bank 12" lines on item tooltips
     showBagBar = true,
     showFilters = true,
     sortItems = true,
@@ -184,10 +186,94 @@ function B:Snapshot(storage)
     snapshot.revision = previous and previous.revision + 1 or 1
     self.snapshots = self.snapshots or {}
     self.snapshots[storage] = snapshot
+    self:CaptureCharacter(storage, snapshot)
     return snapshot
 end
 
+-- Keep this character's saved copy current. Bank contents are only readable while the bank is open,
+-- so a closed bank never overwrites what was saved.
+function B:CaptureCharacter(storage, snapshot)
+    if not (self.db and self.db.trackChars) or snapshot.capacity == 0 then return end
+    if storage ~= "CARRIED" and not self.bankOpen then return end
+    local _, class = UnitClass("player")
+    self.Characters.Capture(T:CharacterKey(), { name = UnitName("player"), realm = GetRealmName(), class = class,
+        money = self.client:Money(), time = time() }, storage, snapshot)
+end
+
+-- Show another character's saved storage in the carried window; nil clears back to live bags.
+function B:ViewCharacter(key, storage)
+    if not self.carriedWindow then return end
+    self.viewing = { key = key, storage = storage }
+    self.bagFilter = nil
+    self.carriedWindow.frame:Show()
+    self:Render("CARRIED")
+end
+
+function B:StopViewing()
+    if not self.viewing then return end
+    self.viewing = nil
+    self:Render("CARRIED")
+end
+
+function B:RenderViewing()
+    local view = self.viewing
+    local snapshot = self.Characters.Snapshot(view.key, view.storage)
+    if not snapshot then
+        self.viewing = nil
+        return self:Render("CARRIED")
+    end
+    local opts = self:ProjectOptions("CARRIED")
+    opts.container = nil
+    local projection = self.Inventory.Project(snapshot, self.db.mode, self.query.CARRIED or "", false, opts)
+    if self.carriedWindow and self.carriedWindow.frame:IsShown() then self.carriedWindow:Render(snapshot, projection) end
+end
+
+function B:ShowCharacterMenu(anchor)
+    local here = T:CharacterKey()
+    local now = time()
+    local items = { { "__self", self.viewing and "Back to this character" or "This character (live)" } }
+    for _, c in ipairs(self.Characters.List()) do
+        for _, storage in ipairs(c.storages) do
+            -- Your own carried bags are the live window, so only its bank is listed.
+            if c.key ~= here or storage ~= "CARRIED" then
+                local saved = c.rec.storages[storage]
+                items[#items + 1] = { c.key .. "\t" .. storage, ("|cff%s%s|r  %s  |cff8c97ad%d items, %s|r"):format(
+                    self.Characters.ClassHex(c.class), c.name, self.Characters.labels[storage], #saved.items,
+                    self.Characters.Age(now - (saved.updated or 0))) }
+            end
+        end
+    end
+    if #items == 1 then T:Print("no other saved characters yet. Log in on them once with Bags enabled.") end
+    local current = self.viewing and (self.viewing.key .. "\t" .. self.viewing.storage) or "__self"
+    T.UI.OpenMenu(anchor, items, function(value)
+        if value == "__self" then self:StopViewing(); return end
+        local key, storage = value:match("^(.-)\t(.+)$")
+        if key then self:ViewCharacter(key, storage) end
+    end, current)
+end
+
+-- "Alt: Bags 4  Bank 12" lines under an item tooltip.
+function B:HookTooltips()
+    if self.tooltipHooked or not (TooltipDataProcessor and TooltipDataProcessor.AddTooltipPostCall
+        and Enum and Enum.TooltipDataType) then return end
+    self.tooltipHooked = true
+    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Item, function(tooltip, data)
+        if not (self.db and self.db.trackChars and self.db.showAltCounts) then return end
+        if tooltip ~= GameTooltip and tooltip ~= ItemRefTooltip then return end
+        local id = data and data.id
+        if not T.Num(id) then return end
+        local ok, lines = pcall(self.Characters.CountLines, id, T:CharacterKey(), 8)
+        if not ok or #lines == 0 then return end
+        tooltip:AddLine(" ")
+        for _, line in ipairs(lines) do tooltip:AddDoubleLine(line.left, line.right, 1, 1, 1, 0.75, 0.8, 0.88) end
+    end)
+end
+
 function B:Render(storage)
+    if self.viewing then
+        if storage == "CARRIED" then return self:RenderViewing() end
+        if storage == "BANK" then return end
+    end
     local actual = storage == "BANK" and self.bankStorage or storage
     local snapshot = self.snapshots and self.snapshots[actual] or self:Snapshot(actual)
     local queryKey = storage == "BANK" and "BANK" or storage
@@ -209,6 +295,7 @@ function B:SetCarriedShown(shown)
         self.carriedWindow.frame:Show()
         self:Refresh("CARRIED")
     else
+        self.viewing = nil
         self.carriedWindow.frame:Hide()
     end
 end
@@ -370,6 +457,7 @@ function B:SetBankStorage(storage)
 end
 
 function B:Sort(storage)
+    if self.viewing then T:Print("Bags: sorting works on this character's live bags only."); return end
     local actual = storage == "BANK" and self.bankStorage or storage
     local ok, err = self.client:Sort(actual)
     if not ok then T:Print("Bags: %s", err) end
@@ -382,13 +470,19 @@ end
 
 function B:OnEvent(event)
     if event == "BANKFRAME_OPENED" then
+        self.viewing = nil
+        self.bankOpen = true
         self.client:SuppressBank()
         if self.bankStorage == "REAGENT" and not self.client:IsReagentAvailable() then self.bankStorage = "BANK" end
         self.openedCarriedForBank = not self.carriedWindow.frame:IsShown()
         self:SetCarriedShown(true)
         self.bankWindow.frame:Show()
         self:Refresh(self.bankStorage)
+        -- Save the other bank tab too, so the Alts viewer has both.
+        local other = self.bankStorage == "BANK" and "REAGENT" or "BANK"
+        if other == "BANK" or self.client:IsReagentAvailable() then self:Snapshot(other) end
     elseif event == "BANKFRAME_CLOSED" then
+        self.bankOpen = false
         self.bankWindow.frame:Hide()
         self.client:ShowBankManagement(false)
         if self.openedCarriedForBank then self:SetCarriedShown(false) end
@@ -398,6 +492,9 @@ function B:OnEvent(event)
         self:Refresh("CARRIED")
         if self.bankWindow.frame:IsShown() then self:Refresh(self.bankStorage) end
     elseif event == "PLAYER_MONEY" or event == "CURRENCY_DISPLAY_UPDATE" then
+        if event == "PLAYER_MONEY" and self.db.trackChars then
+            self.Characters.SetMoney(T:CharacterKey(), self.client:Money())
+        end
         if self.carriedWindow then self.carriedWindow:UpdateFooter() end
         if self.bankWindow and self.bankWindow.frame:IsShown() then self.bankWindow:UpdateFooter() end
     elseif event == "BAG_UPDATE_COOLDOWN" then
@@ -461,6 +558,7 @@ end
 function B:OnEnable()
     self.db = T.db.bags
     self.snapshots = {}
+    self:HookTooltips()
     self:Start()
 end
 

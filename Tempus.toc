@@ -37,6 +37,7 @@ Modules\ActionBars\Pages.lua
 
 Modules\Bags\Client.lua
 Modules\Bags\Inventory.lua
+Modules\Bags\Characters.lua
 Modules\Bags\BagBar.lua
 Modules\Bags\Window.lua
 Modules\Bags\Bags.lua

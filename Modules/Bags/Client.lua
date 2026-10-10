@@ -108,8 +108,10 @@ function Client:Read(location)
     if type(info) ~= "table" then return { bagFamily = self:BagFamily(location.container) } end
 
     local itemID, link = info.itemID, info.hyperlink
+    -- The global GetItemInfo is gone on newer clients; C_Item.GetItemInfo replaces it.
+    local getInfo = env.GetItemInfo or (env.C_Item and env.C_Item.GetItemInfo)
     local name, itemLink, quality, baseLevel, _, itemType, itemSubType, _, equipLoc, icon,
-        _, classID, subClassID, bindType = CallAll(env.GetItemInfo, itemID or link)
+        _, classID, subClassID, bindType = CallAll(getInfo, itemID or link)
     local quest
     local questFn = C and C.GetContainerItemQuestInfo or env.GetContainerItemQuestInfo
     local questInfo, legacyQuest = Call(questFn, location.container, location.slot)
@@ -290,9 +292,10 @@ end
 
 function Client:ShowTooltip(button, record)
     local tip = self.env.GameTooltip
-    if not tip or not record.link then return end
+    local link = record.link or (record.itemID and ("item:" .. record.itemID))
+    if not tip or not link then return end
     tip:SetOwner(button, "ANCHOR_RIGHT")
-    tip:SetHyperlink(record.link)
+    tip:SetHyperlink(link)
     tip:Show()
 end
 

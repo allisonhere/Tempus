@@ -708,7 +708,7 @@ end
 ----------------------------------------------------------------------------------------
 local CHAT_EVENTS = { "CHAT_MSG_SAY", "CHAT_MSG_YELL", "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID",
     "CHAT_MSG_RAID_LEADER", "CHAT_MSG_INSTANCE_CHAT", "CHAT_MSG_GUILD", "CHAT_MSG_OFFICER", "CHAT_MSG_WHISPER",
-    "CHAT_MSG_BN_WHISPER", "CHAT_MSG_CHANNEL", "CHAT_MSG_EMOTE", "CHAT_MSG_SYSTEM", "CHAT_MSG_LOOT",
+    "CHAT_MSG_WHISPER_INFORM", "CHAT_MSG_BN_WHISPER", "CHAT_MSG_BN_WHISPER_INFORM", "CHAT_MSG_CHANNEL", "CHAT_MSG_EMOTE", "CHAT_MSG_SYSTEM", "CHAT_MSG_LOOT",
     "CHAT_MSG_MONSTER_SAY", "CHAT_MSG_MONSTER_YELL", "CHAT_MSG_RAID_BOSS_EMOTE", "CHAT_MSG_COMBAT_XP_GAIN",
     "CHAT_MSG_ADDON" }
 local CHAT_PER_EVENT, CHAT_MAX = 3, 120
@@ -717,7 +717,8 @@ local function ChatSituation()
     local inInstance, kind = IsInInstance()
     return { combat = InCombatLockdown() and true or false, instance = inInstance and kind or "none",
         group = IsInRaid and IsInRaid() and "raid" or (IsInGroup and IsInGroup() and "party" or "none"),
-        encounter = IsEncounterInProgress and IsEncounterInProgress() or false }
+        encounter = IsEncounterInProgress and IsEncounterInProgress() or false,
+        lockdown = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() or false }
 end
 
 -- What can be done with one argument: is it secret, and does ordinary string work succeed.
@@ -747,7 +748,7 @@ local function ArmChatProbe()
         if issecret(text) then c.secretCount[event] = (c.secretCount[event] or 0) + 1 end
         -- Keep the first few of each event, plus every secret one the first time its situation shows up.
         local sit = ChatSituation()
-        local sitKey = event .. "|" .. tostring(sit.combat) .. "|" .. sit.instance .. "|" .. sit.group .. "|" .. tostring(sit.encounter)
+        local sitKey = event .. "|" .. tostring(sit.combat) .. "|" .. sit.instance .. "|" .. sit.group .. "|" .. tostring(sit.encounter) .. "|" .. tostring(sit.lockdown)
         c.seen = c.seen or {}
         local first = not c.seen[sitKey]
         c.samples = c.samples or {}

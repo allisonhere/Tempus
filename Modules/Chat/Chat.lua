@@ -230,15 +230,19 @@ local function FadeTick()
         end
         return
     end
-    for _, cf in ipairs(Frames()) do
-        if cf:IsShown() then
-            local name = cf:GetName()
-            local over = Over(cf) or Over(_G[name .. "Tab"]) or Over(_G.GeneralDockManager)
-                or (_G[name .. "EditBox"] and _G[name .. "EditBox"]:HasFocus())
-            local alpha = over and 1 or 0
-            for _, f in ipairs(ChromeFrames(cf)) do
-                if f and f.SetAlpha and f:GetAlpha() ~= alpha then f:SetAlpha(alpha) end
-            end
+    -- One answer for the whole chat area: tabs of windows that are not showing fade with the rest.
+    local frames = Frames()
+    local over = Over(_G.GeneralDockManager)
+    for _, cf in ipairs(frames) do
+        local name = cf:GetName()
+        if (cf:IsShown() and Over(cf)) or Over(_G[name .. "Tab"]) then over = true end
+        local edit = _G[name .. "EditBox"]
+        if edit and edit:HasFocus() then over = true end
+    end
+    local alpha = over and 1 or 0
+    for _, cf in ipairs(frames) do
+        for _, f in ipairs(ChromeFrames(cf)) do
+            if f and f.SetAlpha and f:GetAlpha() ~= alpha then f:SetAlpha(alpha) end
         end
     end
 end

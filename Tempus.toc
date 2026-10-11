@@ -70,6 +70,7 @@ Modules\Skins\Quests.lua
 Modules\Skins\TrackerQuests.lua
 Modules\Skins\Tooltip.lua
 Modules\Skins\Chat.lua
+Modules\Skins\DamageMeter.lua
 Modules\Skins\AddOns.lua
 Modules\Skins\Pages.lua
 

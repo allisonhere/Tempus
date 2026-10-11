@@ -8,7 +8,7 @@ local C = S.C
 local SK = { skinned = {}, extrasSkinned = {} }
 T.Skins = SK
 
-local RELOAD_SETTINGS = { "stockSkin", "windows", "parchment", "tooltips", "tooltipHealth", "chat", "bagnon", "dbm" }
+local RELOAD_SETTINGS = { "stockSkin", "windows", "parchment", "tooltips", "tooltipHealth", "chat", "meter", "bagnon", "dbm" }
 
 function SK:ReportError(name, err)
     if TempusDB and TempusDB.debug then
@@ -42,6 +42,7 @@ SK.defaults = {
     windows = true,
     tooltips = true, tooltipCursor = false, tooltipHealth = true,
     chat = true, chatAlpha = 0.55,
+    meter = true, meterAlpha = 0.55,
     bagnon = true, dbm = true,
     parchment = true,           -- keep parchment on reading surfaces (quests, gossip, books, mail)
     trackerPanel = true, trackerAlpha = 0.45,
@@ -1606,6 +1607,7 @@ T:NewModule("skins", {
         end
         if SK.InitTooltips and SK:On("tooltips") then SK:Try("tooltips", SK.InitTooltips, SK) end
         if SK.InitChat and SK:On("chat") then SK:Try("chat", SK.InitChat, SK) end
+        if SK.InitMeter and SK:On("meter") then SK:Try("damage meter", SK.InitMeter, SK) end
         if SK.InitAddOns then SK:Try("addon skins", SK.InitAddOns, SK) end
         local ev = CreateFrame("Frame")
         ev:RegisterEvent("ADDON_LOADED")
@@ -1621,6 +1623,7 @@ T:NewModule("skins", {
         end
         if SK:ClassicTheme() ~= SK.loadedSettings.classicTheme and T.Options then T.Options.needsReload = true end
         if SK.UpdateChatAlpha then SK:Try("chat opacity", SK.UpdateChatAlpha, SK) end
+        if SK.UpdateMeterAlpha then SK:Try("meter opacity", SK.UpdateMeterAlpha, SK) end
         SK:Try("quest tracker panel", SK.UpdateTrackerPanel, SK)
     end,
 })

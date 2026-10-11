@@ -15,6 +15,8 @@ T:RegisterPage("skins", { key = "skins", label = "Skins", order = 1, build = fun
     p:Check(cfg, "tooltipCursor", "Tooltips follow the cursor")
     p:Check(cfg, "chat", "Chat frames", "Panels behind chat, flat tabs and edit box. Works alongside Prat.")
     p:Slider(cfg, "chatAlpha", "Chat panel opacity", 0, 1, 0.05, UI.pct)
+    p:Check(cfg, "meter", "Damage meter", "Blizzard's built-in damage meter in a Tempus panel with flat bars. Applies after a reload.")
+    p:Slider(cfg, "meterAlpha", "Damage meter opacity", 0, 1, 0.05, UI.pct)
     p:Section("Quest tracker")
     p:Check(cfg, "trackerPanel", "Panel behind the quest tracker", "A translucent Tempus panel sized to your tracked quests.")
     p:Slider(cfg, "trackerAlpha", "Panel opacity", 0.1, 1, 0.05, UI.pct)

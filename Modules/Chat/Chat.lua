@@ -180,33 +180,54 @@ end
 ----------------------------------------------------------------------------------------
 -- Copy buttons and fading tabs
 ----------------------------------------------------------------------------------------
-local buttons = {}
+-- One icon button at the right end of the tab row; it copies whichever chat window is selected.
+local function Outline(parent, x, y, size, list)
+    local function line(point, rel, w, h, ox, oy)
+        local t = parent:CreateTexture(nil, "OVERLAY")
+        t:SetTexture(S.WHITE)
+        t:SetSize(w, h)
+        t:SetPoint(point, parent, rel, x + ox, y + oy)
+        list[#list + 1] = t
+    end
+    line("TOPLEFT", "TOPLEFT", size, 1, 0, 0)
+    line("BOTTOMLEFT", "TOPLEFT", size, 1, 0, -size)
+    line("TOPLEFT", "TOPLEFT", 1, size, 0, 0)
+    line("TOPLEFT", "TOPLEFT", 1, size, size - 1, 0)
+end
 
-local function AddCopyButton(cf)
-    if cf.tempusCopy then return end
-    local b = CreateFrame("Button", nil, cf)
-    b:SetSize(36, 14)
-    b:SetPoint("TOPRIGHT", cf, "TOPRIGHT", -2, -2)
-    b:SetFrameLevel(cf:GetFrameLevel() + 5)
-    local fs = b:CreateFontString(nil, "OVERLAY")
-    S.ApplyFont(fs, 10)
-    fs:SetPoint("RIGHT")
-    fs:SetText("copy")
-    fs:SetTextColor(0.75, 0.8, 0.9)
-    b:SetAlpha(0.25)
-    b:SetScript("OnEnter", function(self) self:SetAlpha(1) end)
-    b:SetScript("OnLeave", function(self) self:SetAlpha(0.25) end)
-    b:SetScript("OnClick", function() Chat:Copy(cf) end)
-    cf.tempusCopy = b
-    buttons[#buttons + 1] = b
+local function BuildCopyButton()
+    local dock = _G.GeneralDockManager
+    if Chat.copyButton or not dock then return end
+    local b = CreateFrame("Button", nil, dock)
+    b:SetSize(20, 20)
+    b:SetPoint("RIGHT", dock, "RIGHT", -2, 0)
+    b:SetFrameLevel(dock:GetFrameLevel() + 5)
+    local lines = {}
+    Outline(b, 5, -3, 9, lines)     -- the sheet behind
+    Outline(b, 8, -7, 9, lines)     -- the sheet in front
+    local fill = b:CreateTexture(nil, "ARTWORK")
+    fill:SetTexture(S.WHITE)
+    fill:SetPoint("TOPLEFT", b, "TOPLEFT", 9, -8)
+    fill:SetSize(7, 7)
+    fill:SetVertexColor(0.04, 0.045, 0.058, 1)
+    local function Tint(r, g, bl) for _, t in ipairs(lines) do t:SetVertexColor(r, g, bl, 1) end end
+    Tint(0.75, 0.8, 0.9)
+    b:SetScript("OnEnter", function(self)
+        local ac = T.accent
+        Tint(ac[1], ac[2], ac[3])
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText("Copy chat")
+        GameTooltip:AddLine("Opens this window's text so you can copy it.", 0.8, 0.85, 0.9, true)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() Tint(0.75, 0.8, 0.9); GameTooltip:Hide() end)
+    b:SetScript("OnClick", function() Chat:Copy(SELECTED_CHAT_FRAME or ChatFrame1) end)
+    Chat.copyButton = b
 end
 
 function Chat:ApplyButtons()
-    local on = self.db.copyButton
-    for _, cf in ipairs(Frames()) do
-        if on then AddCopyButton(cf) end
-        if cf.tempusCopy then cf.tempusCopy:SetShown(on) end
-    end
+    BuildCopyButton()
+    if self.copyButton then self.copyButton:SetShown(self.db.copyButton and true or false) end
 end
 
 -- Tabs, the button column and the dock hide until the mouse is over a chat window. Alpha only.
@@ -223,6 +244,7 @@ end
 local function FadeTick()
     if not (Chat.db and Chat.db.fadeChrome) then
         if fadeTicker then fadeTicker:Cancel(); fadeTicker = nil end
+        if Chat.copyButton then Chat.copyButton:SetAlpha(1) end
         for _, cf in ipairs(Frames()) do
             for _, f in ipairs(ChromeFrames(cf)) do
                 if f and f.SetAlpha then f:SetAlpha(1) end
@@ -240,6 +262,7 @@ local function FadeTick()
         if edit and edit:HasFocus() then over = true end
     end
     local alpha = over and 1 or 0
+    if Chat.copyButton and Chat.copyButton:GetAlpha() ~= alpha then Chat.copyButton:SetAlpha(alpha) end
     for _, cf in ipairs(frames) do
         for _, f in ipairs(ChromeFrames(cf)) do
             if f and f.SetAlpha and f:GetAlpha() ~= alpha then f:SetAlpha(alpha) end

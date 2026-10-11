@@ -11,7 +11,7 @@ T:RegisterPage("chat", { key = "chat", label = "Chat", order = 1, build = functi
     end
     p:Section("Links and copying")
     p:Check(cfg, "urls", "Clickable web links", "Web addresses in chat become blue links. Click one to get a box to copy it from.")
-    p:Check(cfg, "copyButton", "Copy button on each window", "A small 'copy' in the top corner opens the window's text for copying. Also /tempus copychat.")
+    p:Check(cfg, "copyButton", "Copy button next to the tabs", "A small copy icon at the right end of the tab row opens the selected window's text for copying. Also /tempus copychat.")
     p:Section("History", "Recent lines are saved and shown again after a reload or relog. Lines the game hides during boss fights and Mythic+ cannot be saved.")
     p:Check(cfg, "history", "Keep chat history", "Applies after a reload.")
     p:Slider(cfg, "historyLines", "Lines kept per window", 25, 500, 25)

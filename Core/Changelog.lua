@@ -3,7 +3,7 @@ local _, T = ...
 T.changelog = {
     { version = "2.7.0", sections = {
         { title = "New", items = {
-            { 0, "|cffffffffChat module|r: extras on top of Blizzard's chat windows, on their own Chat settings page. Web addresses become clickable links that open a box to copy from; a small |cff9fd6ffcopy|r in each window's corner (or |cff9fd6ff/tempus copychat|r) opens the window's text for copying; recent lines are saved and shown again after a reload or relog; timestamps can be set to 24-hour, 12-hour or off; and tabs and buttons can hide until the mouse is over the window. Lines the game hides during boss fights and Mythic+ runs are passed through untouched, because addons cannot read, search or save them. If Prat is loaded, switch off its matching modules so lines are not linked or stamped twice." },
+            { 0, "|cffffffffChat module|r: extras on top of Blizzard's chat windows, on their own Chat settings page. Web addresses become clickable links that open a box to copy from; a copy icon at the right end of the tab row (or |cff9fd6ff/tempus copychat|r) opens the selected window's text for copying; recent lines are saved and shown again after a reload or relog; timestamps can be set to 24-hour, 12-hour or off; and tabs and buttons can hide until the mouse is over the window. Lines the game hides during boss fights and Mythic+ runs are passed through untouched, because addons cannot read, search or save them. If Prat is loaded, switch off its matching modules so lines are not linked or stamped twice." },
             { 0, "|cff9fd6ff/tempus probe chat|r records whether chat arrives as secret values on your client, in the open world, in groups and in instances." },
         } },
     } },

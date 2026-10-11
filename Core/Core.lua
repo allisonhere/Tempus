@@ -385,6 +385,7 @@ T.pageSections = {
     { key = "actionbars", label = "Action Bars" },
     { key = "bags", label = "Bags" },
     { key = "minimap", label = "Minimap & Info Bar" },
+    { key = "chat", label = "Chat" },
     { key = "skins", label = "Skins" },
     { key = "spellpower", label = "SpellPower" },
 }
@@ -770,6 +771,8 @@ SlashCmdList.TEMPUS = function(msg)
             if key ~= "buffs" then T.db.modules[key] = false end
         end
         ReloadUI()
+    elseif msg == "copychat" then
+        if T.Chat and T.Chat.Copy then T.Chat:Copy() else T:Print("the Chat module is off.") end
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+dps") then
         local s = T:RunDPSProbe()
         T:Print("DPS probe: API %s, meter %s, enabled %s, live %s, top %s. /reload to save it.",
@@ -809,7 +812,7 @@ SlashCmdList.TEMPUS = function(msg)
         end
         if log.lastError then T:Print("last error (%s): %s", log.lastError.combat and "combat" or "idle", log.lastError.err:match("^[^\n]*")) end
     elseif msg == "help" then
-        T:Print("/tempus [lock | unlock | test | install | reset | log | debug | perf | skinreport | probe | safe] - no argument opens settings. 'safe' turns off everything but buffs and reloads.")
+        T:Print("/tempus [lock | unlock | test | install | reset | log | debug | perf | skinreport | copychat | probe | safe] - no argument opens settings. 'safe' turns off everything but buffs and reloads.")
     else
         T.Options:Toggle()
     end

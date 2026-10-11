@@ -62,6 +62,9 @@ Modules\CombatPulse\Pages.lua
 Modules\Vendor\Vendor.lua
 Modules\Vendor\Pages.lua
 
+Modules\Chat\Chat.lua
+Modules\Chat\Pages.lua
+
 Modules\Skins\Skins.lua
 Modules\Skins\Quests.lua
 Modules\Skins\TrackerQuests.lua

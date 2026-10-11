@@ -216,6 +216,10 @@ local function ChromeFrames(cf)
     return { _G[name .. "Tab"], _G[name .. "ButtonFrame"] or cf.buttonFrame }
 end
 
+local function Over(frame)
+    return frame and frame.IsMouseOver and frame:IsMouseOver() or false
+end
+
 local function FadeTick()
     if not (Chat.db and Chat.db.fadeChrome) then
         if fadeTicker then fadeTicker:Cancel(); fadeTicker = nil end
@@ -229,8 +233,7 @@ local function FadeTick()
     for _, cf in ipairs(Frames()) do
         if cf:IsShown() then
             local name = cf:GetName()
-            local over = MouseIsOver(cf) or (_G[name .. "Tab"] and MouseIsOver(_G[name .. "Tab"]))
-                or (_G.GeneralDockManager and MouseIsOver(_G.GeneralDockManager))
+            local over = Over(cf) or Over(_G[name .. "Tab"]) or Over(_G.GeneralDockManager)
                 or (_G[name .. "EditBox"] and _G[name .. "EditBox"]:HasFocus())
             local alpha = over and 1 or 0
             for _, f in ipairs(ChromeFrames(cf)) do

@@ -783,6 +783,19 @@ SlashCmdList.TEMPUS = function(msg)
         else
             T:Print("group probe: join a party or raid first, then run it again.")
         end
+    elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+lockdown") then
+        local want = (fullMsg or ""):lower():match("lockdown%s+(%a+)")
+        local value = (want == "on" or want == "1") and "1" or (want == "off" or want == "0") and "0" or nil
+        local get = (C_CVar and C_CVar.GetCVar) or GetCVar
+        if value then
+            local set = (C_CVar and C_CVar.SetCVar) or SetCVar
+            local ok, err = pcall(set, "addonChatRestrictionsForced", value)
+            if not ok then T:Print("could not set addonChatRestrictionsForced: %s", tostring(err)) end
+        end
+        local okC, cvar = pcall(get, "addonChatRestrictionsForced")
+        local locked = C_ChatInfo and C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()
+        T:Print("chat lockdown test: setting %s, lockdown active %s. Use '/tempus probe lockdown on' or 'off'.",
+            okC and tostring(cvar) or "unreadable", tostring(locked))
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+chat") then
         T:RunChatProbe()
         T:Print("chat probe armed. Chat as usual, then enter a dungeon or boss fight and chat there; /reload any time to save what it saw.")

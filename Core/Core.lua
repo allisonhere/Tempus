@@ -780,6 +780,9 @@ SlashCmdList.TEMPUS = function(msg)
         else
             T:Print("group probe: join a party or raid first, then run it again.")
         end
+    elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+chat") then
+        T:RunChatProbe()
+        T:Print("chat probe armed. Chat as usual, then enter a dungeon or boss fight and chat there; /reload any time to save what it saw.")
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+auras") then
         T:RunAuraProbe()
         T:Print("aura probe armed. Just play: 4 seconds into each fight it checks your target for debuffs, until it finds some.")

@@ -698,3 +698,106 @@ function T:RunNewProbe()
     r.at = date("%H:%M:%S")
     return r
 end
+
+----------------------------------------------------------------------------------------
+-- Chat probe (/tempus probe chat): can an addon read incoming chat on this client?
+-- Records the restriction APIs now, then the first few messages of each chat event with
+-- which arguments came back secret and whether string work on the text succeeds, plus
+-- the situation (combat, instance, group) the message arrived in. Stays armed across
+-- /reload; /tempus probe off clears it.
+----------------------------------------------------------------------------------------
+local CHAT_EVENTS = { "CHAT_MSG_SAY", "CHAT_MSG_YELL", "CHAT_MSG_PARTY", "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID",
+    "CHAT_MSG_RAID_LEADER", "CHAT_MSG_INSTANCE_CHAT", "CHAT_MSG_GUILD", "CHAT_MSG_OFFICER", "CHAT_MSG_WHISPER",
+    "CHAT_MSG_BN_WHISPER", "CHAT_MSG_CHANNEL", "CHAT_MSG_EMOTE", "CHAT_MSG_SYSTEM", "CHAT_MSG_LOOT",
+    "CHAT_MSG_MONSTER_SAY", "CHAT_MSG_MONSTER_YELL", "CHAT_MSG_RAID_BOSS_EMOTE", "CHAT_MSG_COMBAT_XP_GAIN",
+    "CHAT_MSG_ADDON" }
+local CHAT_PER_EVENT, CHAT_MAX = 3, 120
+
+local function ChatSituation()
+    local inInstance, kind = IsInInstance()
+    return { combat = InCombatLockdown() and true or false, instance = inInstance and kind or "none",
+        group = IsInRaid and IsInRaid() and "raid" or (IsInGroup and IsInGroup() and "party" or "none"),
+        encounter = IsEncounterInProgress and IsEncounterInProgress() or false }
+end
+
+-- What can be done with one argument: is it secret, and does ordinary string work succeed.
+local function ChatArg(v)
+    if issecret(v) then
+        local ok = pcall(function() return #v end)
+        local okFind = pcall(string.find, v, "a", 1, true)
+        local okFmt = pcall(string.format, "%s", v)
+        local okConcat = pcall(function() return v .. "x" end)
+        return { secret = true, len = ok, find = okFind, format = okFmt, concat = okConcat }
+    end
+    if v == nil then return "nil" end
+    return type(v) == "string" and ("string(" .. #v .. ")") or type(v)
+end
+
+local chatWatcher
+local function ArmChatProbe()
+    if chatWatcher then return end
+    chatWatcher = CreateFrame("Frame")
+    for _, ev in ipairs(CHAT_EVENTS) do pcall(chatWatcher.RegisterEvent, chatWatcher, ev) end
+    chatWatcher:SetScript("OnEvent", function(_, event, text, sender, _, _, _, _, _, _, channelName, _, lineID, guid)
+        local c = TempusDB and TempusDB.probe and TempusDB.probe.chat
+        if not (c and c.armed) then return end
+        c.count = c.count or {}
+        c.count[event] = (c.count[event] or 0) + 1
+        c.secretCount = c.secretCount or {}
+        if issecret(text) then c.secretCount[event] = (c.secretCount[event] or 0) + 1 end
+        -- Keep the first few of each event, plus every secret one the first time its situation shows up.
+        local sit = ChatSituation()
+        local sitKey = event .. "|" .. tostring(sit.combat) .. "|" .. sit.instance .. "|" .. sit.group .. "|" .. tostring(sit.encounter)
+        c.seen = c.seen or {}
+        local first = not c.seen[sitKey]
+        c.samples = c.samples or {}
+        if (first or c.count[event] <= CHAT_PER_EVENT) and #c.samples < CHAT_MAX then
+            c.seen[sitKey] = true
+            c.samples[#c.samples + 1] = { at = date("%H:%M:%S"), event = event, situation = sit,
+                text = ChatArg(text), sender = ChatArg(sender), channel = ChatArg(channelName),
+                lineID = ChatArg(lineID), guid = ChatArg(guid) }
+        end
+    end)
+end
+
+function T:RunChatProbe()
+    TempusDB.probe = TempusDB.probe or {}
+    local c = { client = select(4, GetBuildInfo()), armed = true, apis = {}, started = date("%H:%M:%S") }
+    for _, api in ipairs({ "C_ChatInfo.AreOutgoingAddonChatMessagesRestricted", "C_ChatInfo.RegisterAddonMessagePrefix",
+        "C_ChatInfo.SendAddonMessage", "C_ChatInfo.GetChannelRuleset", "C_ChatInfo.GetChatLineSenderName",
+        "C_ChatInfo.GetColorForChatType", "C_Secrets.ShouldChatMessagesBeSecret", "C_Secrets.GetSecretRestrictions",
+        "C_RestrictedActions", "Enum.AddOnRestrictionType", "ChatFrame_AddMessageEventFilter",
+        "ChatFrame1.AddMessage", "ChatFrame1.GetNumMessages", "ChatFrame1.GetMessageInfo",
+        "C_StringUtil.WrapString", "C_StringUtil.RemoveContiguousSpaces" }) do
+        local v = Lookup(api)
+        c.apis[api] = v == nil and "missing" or type(v)
+    end
+    if Enum and Enum.AddOnRestrictionType then
+        c.restrictionTypes = {}
+        for name, value in pairs(Enum.AddOnRestrictionType) do c.restrictionTypes[name] = value end
+        if C_RestrictedActions and C_RestrictedActions.GetAddOnRestrictionState then
+            c.restrictionState = {}
+            for name, value in pairs(Enum.AddOnRestrictionType) do
+                c.restrictionState[name] = Sample(C_RestrictedActions.GetAddOnRestrictionState, value)
+            end
+        end
+    end
+    c.outgoingRestricted = Sample(Lookup("C_ChatInfo.AreOutgoingAddonChatMessagesRestricted"))
+    c.cvars = {}
+    for _, name in ipairs({ "addonChatRestrictionsForced", "addonCombatRestrictionsForced",
+        "addonEncounterRestrictionsForced", "addonMapRestrictionsForced", "addonChallengeModeRestrictionsForced",
+        "addonPvPMatchRestrictionsForced" }) do
+        local ok, v = pcall(GetCVar, name)
+        c.cvars[name] = ok and tostring(v) or "missing"
+    end
+    -- Can an AddMessage hook read the text it is handed? Counts what arrives through a real chat frame.
+    c.situation = ChatSituation()
+    TempusDB.probe.chat = c
+    ArmChatProbe()
+end
+
+local chatLogin = CreateFrame("Frame")
+chatLogin:RegisterEvent("PLAYER_LOGIN")
+chatLogin:SetScript("OnEvent", function()
+    if TempusDB and TempusDB.probe and TempusDB.probe.chat and TempusDB.probe.chat.armed then ArmChatProbe() end
+end)

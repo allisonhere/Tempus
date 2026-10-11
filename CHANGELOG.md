@@ -4,7 +4,7 @@
 
 ### New
 - **Chat module**: extras on top of Blizzard's chat windows, on their own Chat settings page. Web addresses become clickable links that open a box to copy from; a copy icon at the right end of the tab row (or `/tempus copychat`) opens the selected window's text for copying; recent lines are saved and shown again after a reload or relog; timestamps can be set to 24-hour, 12-hour or off; and tabs and buttons can hide until the mouse is over the window. Lines the game hides during boss fights and Mythic+ runs are passed through untouched, because addons cannot read, search or save them. If Prat is loaded, switch off its matching modules so lines are not linked or stamped twice.
-- **Damage meter skin**: Blizzard's built-in damage meter body gets a Tempus panel, flat bars with the class colours kept, and Tempus fonts and scrollbars; its title bar and buttons stay Blizzard's (Skins > Damage meter, with an opacity slider). Applies after a reload.
+- **Damage meter skin**: Blizzard's built-in damage meter gets a Tempus panel, a flat title bar with recoloured buttons and dropdowns, flat bars with the class colours kept, and Tempus fonts and scrollbars (Skins > Damage meter, with an opacity slider). Applies after a reload.
 - `/tempus probe chat` records whether chat arrives as secret values on your client, in the open world, in groups and in instances.
 
 ## 2.6.0

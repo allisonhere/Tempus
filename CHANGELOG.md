@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.6.0
 
 ### New
 - **Native Bags module**: combined carried bags and personal/reagent bank windows with instant multi-word search, native item interactions and sorting, plus grid and automatic category views. Filter chips (gear, consumables, quest, junk), a bag bar that highlights or isolates one bag, item level and bind-on-equip tags, upgrade arrows, cooldowns, durability tint, and a footer with slots, currencies and gold. Category sections fold when you click their headers, items sort by quality and item level, and Tag lets you build your own categories. New installs enable it; upgraded profiles keep it off until enabled. When another bag addon is active, Tempus asks which one should own the bags for that character.

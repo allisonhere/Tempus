@@ -783,6 +783,9 @@ SlashCmdList.TEMPUS = function(msg)
         else
             T:Print("group probe: join a party or raid first, then run it again.")
         end
+    elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+meter") then
+        local lines, frames = T:RunMeterProbe()
+        T:Print("damage meter probe: %d lines from %d frames. /reload so it is saved to disk.", lines, frames)
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+lockdown") then
         local want = (fullMsg or ""):lower():match("lockdown%s+(%a+)")
         local value = (want == "on" or want == "1") and "1" or (want == "off" or want == "0") and "0" or nil

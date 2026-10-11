@@ -802,3 +802,85 @@ chatLogin:RegisterEvent("PLAYER_LOGIN")
 chatLogin:SetScript("OnEvent", function()
     if TempusDB and TempusDB.probe and TempusDB.probe.chat and TempusDB.probe.chat.armed then ArmChatProbe() end
 end)
+
+----------------------------------------------------------------------------------------
+-- Damage meter probe (/tempus probe meter): the structure of Blizzard's built-in damage
+-- meter windows, so a skin can be written against what this client really has. Lines land
+-- in TempusDB.probe.meter; /reload saves them.
+----------------------------------------------------------------------------------------
+function T:RunMeterProbe()
+    TempusDB.probe = TempusDB.probe or {}
+    local out = {}
+    local function Add(fmt, ...) out[#out + 1] = fmt:format(...) end
+    local get = (C_CVar and C_CVar.GetCVar) or GetCVar
+    Add("build=%s damageMeterEnabled=%s", tostring(select(4, GetBuildInfo())), tostring(select(2, pcall(get, "damageMeterEnabled"))))
+
+    local names = {}
+    for name, v in pairs(_G) do
+        if type(name) == "string" and name:find("DamageMeter") and type(v) == "table" and v.GetObjectType then
+            names[#names + 1] = name
+        end
+    end
+    table.sort(names)
+    Add("globals: %s", table.concat(names, " "))
+
+    local function Info(o)
+        local parts = { o:GetObjectType() }
+        local function try(label, fn)
+            local ok, v = pcall(fn)
+            if ok and v ~= nil then parts[#parts + 1] = label .. "=" .. tostring(v) end
+        end
+        try("name", function() return o:GetName() end)
+        try("shown", function() return o:IsShown() end)
+        try("w", function() return ("%.0f"):format(o:GetWidth()) end)
+        try("h", function() return ("%.0f"):format(o:GetHeight()) end)
+        try("alpha", function() return ("%.2f"):format(o:GetAlpha()) end)
+        try("lvl", function() return o.GetFrameLevel and o:GetFrameLevel() end)
+        if o.GetAtlas then try("atlas", function() return o:GetAtlas() end) end
+        if o.GetTexture then try("tex", function() return o:GetTexture() end) end
+        if o.GetText then try("text", function() local t = o:GetText(); return issecret(t) and "SECRET" or t end) end
+        if o.GetStatusBarTexture then try("bar", function() local t = o:GetStatusBarTexture(); return t and (t:GetAtlas() or t:GetTexture()) end) end
+        if o.GetVertexColor then try("rgb", function() return ("%.2f,%.2f,%.2f"):format(o:GetVertexColor()) end) end
+        return table.concat(parts, " ")
+    end
+
+    local seen = {}
+    local function Walk(o, depth, label)
+        if depth > 7 or seen[o] or type(o) ~= "table" or not o.GetObjectType then return end
+        seen[o] = true
+        Add("%s%s: %s", ("  "):rep(depth), label, Info(o))
+        -- keys that point at children or regions give the parentKey names a skin can use
+        local keyed = {}
+        for k, v in pairs(o) do
+            if type(k) == "string" and type(v) == "table" and v ~= o and v.GetObjectType and not k:find("^_") and k ~= "parent" then
+                keyed[v] = k
+            end
+        end
+        if o.GetRegions then
+            for i, r in ipairs({ o:GetRegions() }) do
+                if i > 30 then break end
+                Add("%s  region %s: %s", ("  "):rep(depth), keyed[r] or ("#" .. i), Info(r))
+                seen[r] = true
+            end
+        end
+        if o.GetChildren then
+            for i, c in ipairs({ o:GetChildren() }) do
+                if i > 12 then Add("%s  ... more children", ("  "):rep(depth)) break end
+                Walk(c, depth + 1, keyed[c] or ("child" .. i))
+            end
+        end
+    end
+
+    for _, name in ipairs({ "DamageMeter" }) do
+        local f = _G[name]
+        if f then Walk(f, 0, name) else Add("%s: missing", name) end
+    end
+    for _, name in ipairs(names) do
+        local f = _G[name]
+        if name ~= "DamageMeter" and f and not seen[f] and f:GetObjectType() ~= "Texture" and f:GetObjectType() ~= "FontString" then
+            Walk(f, 0, name)
+        end
+    end
+    TempusDB.probe.meter = out
+    return #out, #names
+end

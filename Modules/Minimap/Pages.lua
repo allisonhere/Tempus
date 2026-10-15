@@ -10,9 +10,11 @@ T:RegisterPage("minimap", { key = "minimap", label = "Minimap", order = 1, build
     p:Slider(cfg, "scale", "Scale", 0.5, 2, 0.05, UI.pct)
     p:Dropdown(cfg, "zoneText", "Zone name", { { "MOUSEOVER", "On mouseover" }, { "ALWAYS", "Always" }, { "HIDE", "Hidden" } })
     p:Add(W.Dropdown("Addon buttons", { { "EDGE", "Around the edge" }, { "FADE", "Hide until mouseover" },
-        { "TRAY", "Collect in a tray" } }, function() return T.Minimap:ButtonMode() end,
+        { "TRAY", "Collect in a tray" }, { "ROW", "Row under the map" }, { "COLUMN", "Column on the left" } },
+        function() return T.Minimap:ButtonMode() end,
         function(v) T.db.minimap.addonButtons = v end,
-        "Tray: one small button on the minimap opens a grid of every addon button, which closes when you move away."))
+        "Tray: one small button on the minimap opens a grid of every addon button, which closes when you move away. Row and column line every button up 1px apart along the map, always visible."))
+    p:Check(cfg, "squareButtons", "Square addon buttons", "Takes off Blizzard's round gold ring and gives addon buttons a flat Tempus edge. Turning it off takes effect after /reload.")
     p:Check(cfg, "clock", "Clock")
     p:Check(cfg, "clock24", "24-hour clock")
     p:Check(cfg, "coords", "Coordinates")

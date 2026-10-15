@@ -15,6 +15,11 @@ local link = "|cff71d5ff|Hitem:1234|h[https://notaurl.com]|h|r"
 assert(L(link) == link, "existing hyperlinks are not touched")
 assert(L("a |cffff0000https://x.io|r b"):find("|Hurl:https://x.io|h", 1, true), "colour reset is not swallowed")
 
+assert(L("mail me at bob@example.com ok"):find("|Hurl:bob@example.com|h", 1, true), "email linked")
+assert(L("check example.com/path."):find("|Hurl:example.com/path|h", 1, true), "bare domain linked")
+assert(L("e.g. this and 3.5 stay") == "e.g. this and 3.5 stay", "abbreviations and numbers untouched")
+assert(L("see https://x.io/a now"):find("|Hurl:https://x.io/a|h", 1, true) and not L("see https://x.io/a now"):find("|Hurl:x.io", 1, true), "full url not relinked")
+
 -- The filter passes secret and non-string text through unchanged.
 Chat.db = { urls = true }
 local filter
@@ -34,4 +39,7 @@ local r1 = filter(nil, "CHAT_MSG_SAY", "SECRET", "Bob")
 assert(r1 == false, "secret text not filtered")
 local ok, text = filter(nil, "CHAT_MSG_SAY", "visit https://a.b/c", "Bob")
 assert(ok == false and text:find("|Hurl:", 1, true), "plain text linked")
+local _, sub = filter(nil, "CHAT_MSG_SAY", "see docs.google.com/a and mail a@b.com", "Bob")
+assert(sub:find("|Hurl:docs.google.com/a|h", 1, true), "subdomain linked whole")
+assert(sub:find("|Hurl:a@b.com|h", 1, true), "mail linked")
 print("PASS: chat links and secret handling")

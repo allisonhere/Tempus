@@ -43,6 +43,10 @@ local function Plain(v) return type(v) == "string" and not issecret(v) end
 ----------------------------------------------------------------------------------------
 -- Links
 ----------------------------------------------------------------------------------------
+local BARE_TLDS = { com = true, net = true, org = true, io = true, gg = true, tv = true, co = true, edu = true,
+    gov = true, info = true, me = true, dev = true, app = true, xyz = true, uk = true, de = true, fr = true,
+    ca = true, eu = true, ru = true, nl = true, se = true, us = true }
+
 -- Wrap web addresses in a |Hurl:| link. Existing hyperlinks are left alone.
 local function LinkPlain(text)
     text = text:gsub("(https?://[^%s|]+)", function(url)
@@ -58,17 +62,41 @@ local function LinkPlain(text)
     return text
 end
 
-function Chat.Linkify(msg)
-    if not (msg:find("://", 1, true) or msg:find("www.", 1, true)) then return msg end
+local function LinkMail(text)
+    text = text:gsub("(%f[%w][%w%._%-%+]+@[%w%-]+%.[%w%.%-]*%w)", function(mail)
+        return ("|cff5fb0ff|Hurl:%s|h[%s]|h|r"):format(mail, mail)
+    end)
+    return text
+end
+
+-- Bare domains (example.com/path). Only well-known endings, so "e.g." and "3.5" stay text.
+local function LinkBare(text)
+    text = text:gsub("(%f[%w][%w%-%.]*[%w]%.%a%a%a?%a?%f[^%w][^%s|]*)", function(word)
+        local host = word:match("^([%w%-%.]+)")
+        local tld = host:match("%.(%a+)$")
+        if not tld or not BARE_TLDS[tld:lower()] then return word end
+        local trail = word:match("[%.,;:!%?%)%]]+$") or ""
+        local core = word:sub(1, #word - #trail)
+        return ("|cff5fb0ff|Hurl:%s|h[%s]|h|r%s"):format(core, core, trail)
+    end)
+    return text
+end
+
+local function Segments(msg, fn)
     local out, pos = {}, 1
     while pos <= #msg do
         local s, e = msg:find("|H.-|h.-|h", pos)
-        out[#out + 1] = LinkPlain(msg:sub(pos, (s or #msg + 1) - 1))
+        out[#out + 1] = fn(msg:sub(pos, (s or #msg + 1) - 1))
         if not s then break end
         out[#out + 1] = msg:sub(s, e)
         pos = e + 1
     end
     return table.concat(out)
+end
+
+function Chat.Linkify(msg)
+    if not (msg:find(".", 1, true) or msg:find("@", 1, true)) then return msg end
+    return Segments(Segments(Segments(msg, LinkPlain), LinkMail), LinkBare)
 end
 
 local function UrlFilter(_, _, msg, ...)
@@ -237,6 +265,15 @@ local function ChromeFrames(cf)
     return { _G[name .. "Tab"], _G[name .. "ButtonFrame"] or cf.buttonFrame }
 end
 
+-- Buttons shared by all windows (chat menu, channels, quick join) fade with the rest.
+local SHARED_CHROME = { "ChatFrameMenuButton", "ChatFrameChannelButton", "QuickJoinToastButton" }
+local function EachChrome(fn)
+    for _, cf in ipairs(Frames()) do
+        for _, f in ipairs(ChromeFrames(cf)) do fn(f) end
+    end
+    for _, name in ipairs(SHARED_CHROME) do fn(_G[name]) end
+end
+
 local function Over(frame)
     return frame and frame.IsMouseOver and frame:IsMouseOver() or false
 end
@@ -245,16 +282,15 @@ local function FadeTick()
     if not (Chat.db and Chat.db.fadeChrome) then
         if fadeTicker then fadeTicker:Cancel(); fadeTicker = nil end
         if Chat.copyButton then Chat.copyButton:SetAlpha(1) end
-        for _, cf in ipairs(Frames()) do
-            for _, f in ipairs(ChromeFrames(cf)) do
-                if f and f.SetAlpha then f:SetAlpha(1) end
-            end
-        end
+        EachChrome(function(f) if f and f.SetAlpha then f:SetAlpha(1) end end)
         return
     end
     -- One answer for the whole chat area: tabs of windows that are not showing fade with the rest.
     local frames = Frames()
     local over = Over(_G.GeneralDockManager)
+    for _, name in ipairs(SHARED_CHROME) do
+        if Over(_G[name]) then over = true end
+    end
     for _, cf in ipairs(frames) do
         local name = cf:GetName()
         if (cf:IsShown() and Over(cf)) or Over(_G[name .. "Tab"]) then over = true end
@@ -263,11 +299,9 @@ local function FadeTick()
     end
     local alpha = over and 1 or 0
     if Chat.copyButton and Chat.copyButton:GetAlpha() ~= alpha then Chat.copyButton:SetAlpha(alpha) end
-    for _, cf in ipairs(frames) do
-        for _, f in ipairs(ChromeFrames(cf)) do
-            if f and f.SetAlpha and f:GetAlpha() ~= alpha then f:SetAlpha(alpha) end
-        end
-    end
+    EachChrome(function(f)
+        if f and f.SetAlpha and f:GetAlpha() ~= alpha then f:SetAlpha(alpha) end
+    end)
 end
 
 function Chat:ApplyFade()

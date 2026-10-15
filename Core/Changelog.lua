@@ -14,8 +14,14 @@ T.changelog = {
             { 0, "|cffffffffInterrupt-aware cast bars|r: target and focus cast bars turn amber while your interrupt (Kick, Pummel, Shield Bash, Counterspell, Earth Shock, Spell Lock) is cooling down, and a mark at the bar's end shows you can interrupt now. Uninterruptible casts get a grey shield and edge, and an interrupted cast flashes." },
             { 0, "|cffffffffAutomation module|r (General > Automation): accepts quests and hands in finished ones (it never chooses between rewards or pays gold, and Shift skips it), hides repeated red errors such as \"Ability is not ready yet\", loots everything at once when auto-loot is on, and an optional AFK screen fades the interface and turns the camera while you are away." },
             { 0, "|cffffffffTidier minimap buttons|r: the tray and hide-until-mouseover now also catch addon buttons that do not use LibDBIcon (Healium, TalentsForeverBook, the ForeverUtilities class helpers and others), and addon buttons lose Blizzard's round gold ring for a flat square Tempus edge (Minimap > Square addon buttons). Two new Addon buttons choices, |cffffffffRow under the map|r and |cffffffffColumn on the left|r, line every addon button up 1px apart along the map, always visible." },
-            { 0, "The minimap coordinates sit above the clock instead of running into it, and Blizzard's zone text (where Questie writes its own coordinates) no longer shows next to Tempus's." },
+            { 0, "|cffffffffMinimap footer|r: the clock and coordinates move into a slim bar under the map, and addon buttons line up in a row beneath it (or a column on the map's left), 1px apart; click the footer to fold the row away. Blizzard's zone text (where Questie writes its own coordinates) no longer shows next to Tempus's." },
             { 0, "|cff9fd6ff/tempus probe chat|r records whether chat arrives as secret values on your client, in the open world, in groups and in instances." },
+        } },
+        { title = "Changed", items = {
+            { 0, "|cffffffffThe beta is ending|r: a banner at the top of the settings window asks you to report bugs, with the issues address ready to copy." },
+            { 0, "\"What's new\" is pinned at the top of the settings sidebar, and every sidebar section starts closed when you open the settings." },
+            { 0, "New profiles use your class colour as the accent." },
+            { 0, "The new Chat, Gathering nodes and Automation modules start switched on in existing profiles too; turn any of them off under General > Modules." },
         } },
     } },
     { version = "2.6.0", sections = {

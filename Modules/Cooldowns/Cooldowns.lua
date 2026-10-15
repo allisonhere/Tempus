@@ -62,6 +62,8 @@ function CD:Wanted()
     return out
 end
 
+local SetCooldown
+
 local function NewIcon(parent)
     local b = CreateFrame("Frame", nil, parent)
     S.Backdrop(b, { inner = false, shadow = false })
@@ -72,10 +74,20 @@ local function NewIcon(parent)
     b.cd = CreateFrame("Cooldown", nil, b, "CooldownFrameTemplate")
     b.cd:SetAllPoints(b.icon)
     b.cd:SetDrawEdge(false)
+    -- An accent flash when a real cooldown (not the global one) comes back.
+    b.ready = b:CreateTexture(nil, "OVERLAY")
+    b.ready:SetTexture(S.WHITE)
+    b.ready:SetAllPoints(b.icon)
+    b.ready:SetBlendMode("ADD")
+    S.Accent(b.ready, 0.55)
+    b.flash = S.Flash(b.ready)
+    b.cd:HookScript("OnCooldownDone", function()
+        if b:IsShown() and b.entry then SetCooldown(b, b.entry) end
+    end)
     return b
 end
 
-local function SetCooldown(b, entry)
+function SetCooldown(b, entry)
     local cd = b.cd
     local desat = false
     if entry.spell then
@@ -105,6 +117,8 @@ local function SetCooldown(b, entry)
             end)
         end
     end
+    if b.down and not desat then b.flash() end
+    b.down = desat
     b.icon:SetDesaturated(desat)
 end
 
@@ -122,6 +136,8 @@ function CD:Refresh()
         b:ClearAllPoints()
         local offset = (i - 1) * (size + gap)
         if left then b:SetPoint("TOPRIGHT", f, "TOPRIGHT", -offset, 0) else b:SetPoint("TOPLEFT", f, "TOPLEFT", offset, 0) end
+        local old = b.entry
+        if not (old and old.spell == entry.spell and old.slot == entry.slot) then b.down = nil end  -- new spell: no flash
         b.entry = entry
         b.icon:SetTexture(entry.spell and SpellTexture(entry.spell) or GetInventoryItemTexture("player", entry.slot))
         SetCooldown(b, entry)

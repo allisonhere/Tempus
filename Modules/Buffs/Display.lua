@@ -168,7 +168,7 @@ function D:StyleButton(b, cfg, index)
     b.icon:SetAllPoints(art)
     b.border:SetThickness(bs, art)
 
-    local modern = theme == "MODERN" or theme == "GLOSS"
+    local modern = T.Style.Modern(theme)
     b.shadow:SetShown(modern)
     b.border:SetShown(modern)
     b.iconBg:SetShown(modern)
@@ -699,7 +699,7 @@ local function StyleNativeButton(g, button)
     r.icon:SetSize(S, S)
     local zoom = db.theme == "CLASSIC" and 0 or db.iconZoom
     r.icon:SetTexCoord(zoom, 1 - zoom, zoom, 1 - zoom)
-    local modern = db.theme == "MODERN" or db.theme == "GLOSS"
+    local modern = T.Style.Modern(db.theme)
     r.shadow:ClearAllPoints()
     r.shadow:SetPoint("TOPLEFT", r.icon, -bs - 2, bs + 2)
     r.shadow:SetPoint("BOTTOMRIGHT", r.icon, bs + 2, -bs - 2)

@@ -52,6 +52,7 @@ T.Style = {
     Text = function() return Widget("FontString") end,
     Tex = function() return Widget("Texture") end,
     CreateBorder = function() return Widget("Border") end,
+    FadeIn = function() end,
 }
 T.UI = {
     FlatButton = function(parent, label) local b = Widget("Button"); b.text = Widget("FontString"); b.label = label; return b end,

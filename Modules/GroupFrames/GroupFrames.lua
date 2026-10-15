@@ -15,6 +15,7 @@ GF.defaults = {
     healthText = "PERCENT",        -- NONE | PERCENT
     fontSize = 11,
     smooth = true,
+    lagBar = true,              -- recent damage drains away behind the health bar
     rangeAlpha = 0.4,
     healPrediction = true, absorbs = true,
     aggro = true, targetHighlight = true,
@@ -52,11 +53,8 @@ local function Plain(fn, ...)
 end
 
 local CURVE100 = CurveConstants and CurveConstants.ScaleTo100
-local SMOOTH = Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.ExponentialEaseOut
-
 local function SetBarValue(bar, v)
-    if GF.db.smooth and SMOOTH and pcall(bar.SetValue, bar, v, SMOOTH) then return end
-    bar:SetValue(v)
+    S.SetBar(bar, v, GF.db.smooth, GF.db.lagBar)
 end
 
 -- Health fraction (0-1) -> red / yellow / green.
@@ -109,6 +107,7 @@ local function BuildContent(b)
 
     c.health = S.StatusBar(c)
     c.health:SetClipsChildren(true)
+    S.LagBar(c.health)
     -- Incoming heals and absorbs start where the health fill ends and are clipped by the bar.
     c.heal = Overlay(c.health, S.WHITE)
     c.heal:SetStatusBarColor(0.3, 0.95, 0.45, 0.45)
@@ -155,6 +154,7 @@ function GF:Layout(b, cfg)
     c.health:SetHeight(ph > 0 and (h - ph - 1) or h)
     c.health:SetStatusBarTexture(tex)
     c.health.bg:SetTexture(tex)
+    if c.health.tempusLag then c.health.tempusLag:SetStatusBarTexture(tex) end
     for _, o in ipairs({ c.heal, c.absorb }) do
         o:ClearAllPoints()
         o:SetWidth(w)
@@ -425,6 +425,7 @@ local function StyleAura(b, g, button)
             -- A tint over the whole health bar in the dispel colour, drawn by the client.
             r.tint = button:CreateTexture(nil, "ARTWORK", nil, -1)
             r.tint:SetTexture(S.WHITE)
+            r.tintPulse = S.Pulse(r.tint, 0.4, 0.12, 1.4)    -- breathes so a dispel stands out
         end
         auraRegions[button] = r
     end
@@ -466,6 +467,7 @@ local function StyleAura(b, g, button)
         r.tint:SetAllPoints(b.content.health)
         r.tint:SetAlpha(0.3)
         r.tint:SetShown(GF.db.dispelTint)
+        r.tintPulse:SetActive(GF.db.dispelTint)
         if GF.db.dispelTint then
             pcall(button.AddDispelTypeTexture, button, r.tint, { showWhenHarmful = true, showWhenHelpful = false })
         end
@@ -624,6 +626,7 @@ local function SetUnit(b, unit)
     ev:UnregisterAllEvents()
     if unit then
         for _, e in ipairs(UNIT_EVENTS) do pcall(ev.RegisterUnitEvent, ev, e, unit) end
+        S.SnapLag(b.content.health)
         UpdateAll(b)
     end
     AttachAuras(b)
@@ -1110,7 +1113,7 @@ local function OnEvent(_, event)
     elseif event == "READY_CHECK_FINISHED" then
         EachActive(function(b) UpdateReady(b, true) end)
     elseif event == "GROUP_ROSTER_UPDATE" then
-        EachActive(UpdateAll)
+        EachActive(function(b) S.SnapLag(b.content.health); UpdateAll(b) end)
     elseif event == "PLAYER_REGEN_ENABLED" then
         -- Buttons the header made during combat get their Tempus look now.
         for _, kind in ipairs({ "party", "raid" }) do
@@ -1167,6 +1170,7 @@ local function FillSample(b, cfg, data)
     local hp = c.health
     hp:SetMinMaxValues(0, 1)
     hp:SetValue(pct)
+    if hp.tempusLag then hp.tempusLag:Hide() end
     if state == "dead" then
         hp:SetStatusBarColor(0.3, 0.3, 0.3)
         hp.bg:SetVertexColor(0.12, 0.12, 0.12, 0.9)

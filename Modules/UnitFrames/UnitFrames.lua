@@ -1,4 +1,4 @@
--- Tempus UI: player, target, target-of-target and pet frames.
+-- Tempus UI: player, target, target-of-target, pet and focus frames.
 -- Health and power are secret on this client, so values flow straight from the API into
 -- status bars and formatted text; Lua never compares or computes with them.
 local _, T = ...
@@ -8,9 +8,19 @@ local issecret = T.issecret
 local UF = { frames = {} }
 T.UnitFrames = UF
 
+-- Focus only exists on clients that have the focus event.
+local function HasFocus()
+    if C_EventUtils and C_EventUtils.IsEventValid then
+        local ok, valid = pcall(C_EventUtils.IsEventValid, "PLAYER_FOCUS_CHANGED")
+        if ok then return valid and true or false end
+    end
+    return FocusFrame ~= nil
+end
+
 local UNITS = { "player", "target", "targettarget", "pet" }
+if HasFocus() then UNITS[#UNITS + 1] = "focus" end
 UF.units = UNITS
-UF.labels = { player = "Player", target = "Target", targettarget = "Target of Target", pet = "Pet" }
+UF.labels = { player = "Player", target = "Target", targettarget = "Target of Target", pet = "Pet", focus = "Focus" }
 
 local function Unit(point, x, y, overrides)
     local u = {
@@ -32,12 +42,16 @@ UF.defaults = {
     hideBlizzard = true,
     fontSize = 12,
     smooth = true,
+    lagBar = true,              -- recent damage drains away behind the health bar
+    lowHealth = true,           -- the player frame glows and pulses red at low health
+    lowHealthAt = 35,           -- percent
     classPower = true,
     units = {
         player = Unit("CENTER", -300, -180, { portrait = "3D", castbar = true }),
         target = Unit("CENTER", 300, -180, { portrait = "3D", castbar = true, auras = true, powerText = "PERCENT" }),
         targettarget = Unit("CENTER", 300, -250, { width = 130, height = 26, powerHeight = 0, healthText = "PERCENT", showLevel = false }),
         pet = Unit("CENTER", -300, -250, { width = 130, height = 26, powerHeight = 5, healthText = "PERCENT", showLevel = false }),
+        focus = Unit("CENTER", 300, -330, { width = 160, height = 30, powerHeight = 4, castbar = true, healthText = "PERCENT" }),
     },
 }
 
@@ -58,11 +72,8 @@ local function Plain(fn, ...)
 end
 
 local CURVE100 = CurveConstants and CurveConstants.ScaleTo100
-local SMOOTH = Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.ExponentialEaseOut
-
 local function SetBarValue(bar, v)
-    if UF.db.smooth and SMOOTH and pcall(bar.SetValue, bar, v, SMOOTH) then return end
-    bar:SetValue(v)
+    S.SetBar(bar, v, UF.db.smooth, UF.db.lagBar)
 end
 
 ----------------------------------------------------------------------------------------
@@ -115,6 +126,27 @@ end
 ----------------------------------------------------------------------------------------
 -- Element updates
 ----------------------------------------------------------------------------------------
+-- Low health on the player frame: a red glow whose colour comes from a step curve, so the
+-- secret health value decides whether it is visible and Lua never compares it. Above the
+-- threshold the curve gives black, and the glow blends additively, so it vanishes even where
+-- the client ignores a secret colour's alpha.
+local LOW_COLOR, LOW_OFF = { 1, 0.12, 0.08 }, { 0, 0, 0, 0 }
+local lowCurve, lowCurveAt
+local function UpdateLowHealth(f, dead)
+    local db = UF.db
+    if lowCurveAt ~= db.lowHealthAt then
+        lowCurveAt, lowCurve = db.lowHealthAt, S.ThresholdCurve(db.lowHealthAt, LOW_COLOR, LOW_OFF)
+    end
+    local glow, on = f.lowGlow, false
+    if db.lowHealth and lowCurve and not dead and UnitHealthPercent then
+        on = pcall(function()
+            glow:SetVertexColor(UnitHealthPercent(f.unit, true, lowCurve):GetRGBA())
+        end)
+    end
+    glow:SetShown(on)
+    f.lowPulse:SetActive(on)
+end
+
 local function UpdateHealth(f)
     local unit = f.unit
     local hp = f.health
@@ -139,6 +171,8 @@ local function UpdateHealth(f)
             SetBarValue(hp, cur)
         end
     end
+
+    if f.lowGlow then UpdateLowHealth(f, dead) end
 
     -- Colour
     if dead or offline then
@@ -308,11 +342,84 @@ end
 local INTERP = Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.Immediate
 local DIR = Enum and Enum.StatusBarTimerDirection
 
+-- Your interrupt, for colouring target and focus cast bars. Every rank is listed because
+-- Classic knows each rank by its own id; ranks share one cooldown.
+local INTERRUPTS = {
+    1766, 1767, 1768, 1769, 38768,                  -- Kick
+    6552, 6554,                                     -- Pummel
+    72, 1671, 1672, 29704,                          -- Shield Bash
+    2139,                                           -- Counterspell
+    8042, 8044, 8045, 8046, 10412, 10413, 10414,    -- Earth Shock
+    19244, 19647,                                   -- Spell Lock (felhunter)
+}
+local KICK_CD = { 0.85, 0.6, 0.2 }
+local kickSpell
+
+function UF.FindInterrupt()
+    kickSpell = nil
+    for _, id in ipairs(INTERRUPTS) do
+        local known = false
+        if IsPlayerSpell then
+            local ok, v = pcall(IsPlayerSpell, id)
+            known = ok and v == true
+        end
+        if not known and IsSpellKnown then
+            local ok, v = pcall(IsSpellKnown, id, true)     -- pet spells
+            known = ok and v == true
+        end
+        if known then kickSpell = id end
+    end
+    return kickSpell
+end
+
+-- true when your interrupt is ready, false when it is cooling down, nil when you have none
+-- or the client will not say (secret cooldowns).
+function UF.KickReady()
+    if not kickSpell then return nil end
+    local start, duration
+    if C_Spell and C_Spell.GetSpellCooldown then
+        local ok, info = pcall(C_Spell.GetSpellCooldown, kickSpell)
+        if ok and type(info) == "table" then start, duration = info.startTime, info.duration end
+    elseif GetSpellCooldown then
+        local ok, a, b = pcall(GetSpellCooldown, kickSpell)
+        if ok then start, duration = a, b end
+    end
+    if not (T.Num(start) and T.Num(duration)) or issecret(start) or issecret(duration) then return nil end
+    -- The global cooldown is not a reason to wait.
+    return not (duration > 1.6 and start + duration > GetTime())
+end
+
+-- Colour a target or focus cast by whether you can interrupt it right now.
+local function PaintKick(cb)
+    if not cb.kickable then return end
+    local ready = UF.KickReady()
+    if ready == cb.kickState then return end
+    cb.kickState = ready
+    if ready == false then
+        cb.bar:SetStatusBarColor(KICK_CD[1], KICK_CD[2], KICK_CD[3])
+    else
+        local c = cb.baseColor
+        cb.bar:SetStatusBarColor(c[1], c[2], c[3])
+    end
+    cb.kick:SetShown(ready == true)
+end
+
+-- Alpha from a value that may be secret: the client decides; plain values are decided here.
+local function BoolAlpha(tex, v)
+    if issecret(v) then
+        if tex.SetAlphaFromBoolean then pcall(tex.SetAlphaFromBoolean, tex, v, 1, 0) end
+    else
+        tex:SetAlpha(v and 1 or 0)
+    end
+end
+
 local function CastStop(cb, failed)
     cb.casting, cb.dur = nil, nil
     if failed and cb:IsShown() then
         cb.bar:SetStatusBarColor(0.85, 0.2, 0.2)
         cb.text:SetText(failed)
+        cb.kick:Hide()
+        if failed == "Interrupted" and cb.kickable then cb.flash() end
         cb.fadeAt = GetTime() + 0.5
     else
         cb:Hide()
@@ -334,11 +441,12 @@ local function CastStart(cb, unit, channel)
     cb.channel = channel
     local ac = channel and { 0.35, 0.75, 0.35 } or { T.accent[1], T.accent[2], T.accent[3] }
     cb.bar:SetStatusBarColor(ac[1], ac[2], ac[3])
-    if issecret(notInterruptible) then
-        if cb.shield.SetAlphaFromBoolean then pcall(cb.shield.SetAlphaFromBoolean, cb.shield, notInterruptible, 1, 0) end
-    else
-        cb.shield:SetAlpha(notInterruptible and 1 or 0)
-    end
+    cb.baseColor = ac
+    BoolAlpha(cb.shield, notInterruptible)
+    for _, t in ipairs(cb.lock) do BoolAlpha(t, notInterruptible) end
+    cb.kickState = "unset"
+    cb.kick:Hide()
+    PaintKick(cb)
 
     local durFn = channel and UnitChannelDuration or UnitCastingDuration
     local dur
@@ -367,6 +475,10 @@ local function CastOnUpdate(cb)
         return
     end
     if not cb.casting then return end
+    if cb.kickable then
+        local now = GetTime()
+        if now >= (cb.kickAt or 0) then cb.kickAt = now + 0.1; PaintKick(cb) end
+    end
     if cb.dur then
         pcall(function() cb.time:SetFormattedText("%.1f", cb.dur:GetRemainingDuration()) end)
     elseif cb.endT then
@@ -398,6 +510,27 @@ local function CreateCastbar(f)
     cb.shield:SetTexture(S.WHITE)
     cb.shield:SetVertexColor(0.6, 0.6, 0.6, 0.45)
     cb.shield:SetAlpha(0)
+    -- Uninterruptible casts also get a grey edge, so "locked" reads at a glance.
+    local lock = S.CreateBorder(cb, "OVERLAY", 6)
+    lock:SetThickness(1, cb)
+    lock:SetColor(0.75, 0.75, 0.75, 1)
+    cb.lock = { lock.top, lock.bottom, lock.left, lock.right }
+    for _, t in ipairs(cb.lock) do t:SetAlpha(0) end
+    -- Ready-to-interrupt mark at the bar's right end.
+    cb.kick = cb.bar:CreateTexture(nil, "OVERLAY", nil, 7)
+    cb.kick:SetTexture(S.WHITE)
+    cb.kick:SetPoint("TOPRIGHT", cb.bar)
+    cb.kick:SetPoint("BOTTOMRIGHT", cb.bar)
+    cb.kick:SetWidth(3)
+    S.Accent(cb.kick)
+    cb.kick:Hide()
+    -- A flash over the bar when a cast is interrupted.
+    local flash = cb.bar:CreateTexture(nil, "OVERLAY", nil, 7)
+    flash:SetTexture(S.WHITE)
+    flash:SetAllPoints(cb.bar)
+    flash:SetBlendMode("ADD")
+    flash:SetVertexColor(1, 0.3, 0.2, 0.8)
+    cb.flash = S.Flash(flash)
     local over = CreateFrame("Frame", nil, cb)
     over:SetAllPoints(cb)
     over:SetFrameLevel(cb.bar:GetFrameLevel() + 3)
@@ -433,8 +566,15 @@ local function CreateUnitFrame(unit)
     f:SetScript("OnEnter", OnEnter)
     f:SetScript("OnLeave", function() GameTooltip:Hide() end)
     f.bd = S.Backdrop(f)
+    if unit ~= "player" then S.FadeIn(f, 0.12) end
 
     f.health = S.StatusBar(f)
+    S.LagBar(f.health)
+    if unit == "player" then
+        f.lowGlow = S.Glow(f, 14, "BACKGROUND", -7)
+        if f.lowGlow then f.lowGlow:SetBlendMode("ADD") end
+        if f.lowGlow then f.lowPulse = S.Pulse(f.lowGlow, 1, 0.3, 1.1) end
+    end
     f.power = S.StatusBar(f)
     f.powerSep = S.Tex(f, "ARTWORK", { 0, 0, 0, 1 })
     f.powerSep:SetHeight(1)
@@ -482,8 +622,9 @@ local function CreateUnitFrame(unit)
         cp:Hide()
         f.classPower = cp
     end
-    if unit == "player" or unit == "target" then
+    if unit == "player" or unit == "target" or unit == "focus" then
         f.castbar = CreateCastbar(f)
+        f.castbar.kickable = unit ~= "player"
     end
     if unit == "target" and T.Display and T.Display.NativeAvailable then
         -- Aura containers stay live in combat, when auras are secret to addons.
@@ -532,6 +673,7 @@ function UF:Layout(f)
     local tex = S.BarTexture(T.db.barTexture)
     f.health:SetStatusBarTexture(tex)
     f.health.bg:SetTexture(tex)
+    if f.health.tempusLag then f.health.tempusLag:SetStatusBarTexture(tex) end
     f.power:SetStatusBarTexture(tex)
     f.power.bg:SetTexture(tex)
     f.health:ClearAllPoints()
@@ -644,6 +786,8 @@ end
 function UF:Preview(f)
     f.health:SetMinMaxValues(0, 100)
     f.health:SetValue(72)
+    if f.health.tempusLag then f.health.tempusLag:Hide() end
+    if f.lowGlow then f.lowGlow:Hide(); f.lowPulse:SetActive(false) end
     local r, g, b = S.ClassColor(select(2, UnitClass("player")))
     f.health:SetStatusBarColor(r, g, b)
     f.power:SetMinMaxValues(0, 100)
@@ -685,6 +829,12 @@ local function OnEvent(f, event, unit, arg2)
     elseif CAST_STOP[event] ~= nil then
         if f.castbar and f.castbar.casting then CastStop(f.castbar, CAST_STOP[event] or nil) end
     else
+        -- A new unit behind the frame: its health bar jumps rather than draining.
+        if event == "UNIT_PET" or event == "PLAYER_ENTERING_WORLD"
+            or (event == "PLAYER_TARGET_CHANGED" and f.unit ~= "player")
+            or event == "PLAYER_FOCUS_CHANGED" then
+            S.SnapLag(f.health)
+        end
         UF:UpdateAll(f)
     end
 end
@@ -702,6 +852,7 @@ local function RegisterEvents(f)
     f:RegisterEvent("RAID_TARGET_UPDATE")
     if unit == "target" or unit == "targettarget" then f:RegisterEvent("PLAYER_TARGET_CHANGED") end
     if unit == "pet" then f:RegisterUnitEvent("UNIT_PET", "player") end
+    if unit == "focus" then f:RegisterEvent("PLAYER_FOCUS_CHANGED") end
     if unit == "player" then
         f:RegisterEvent("PLAYER_REGEN_DISABLED")
         f:RegisterEvent("PLAYER_REGEN_ENABLED")
@@ -760,6 +911,7 @@ function UF:HideBlizzard()
         if u.player.enabled then HideBlizzard(PlayerFrame) end
         if u.target.enabled then HideBlizzard(TargetFrame); HideBlizzard(ComboFrame) end
         if u.pet.enabled and PetFrame then HideBlizzard(PetFrame) end
+        if UF.frames.focus and u.focus.enabled and FocusFrame then HideBlizzard(FocusFrame) end
         if u.player.enabled and u.player.castbar and PlayerCastingBarFrame then
             pcall(PlayerCastingBarFrame.SetUnit, PlayerCastingBarFrame, nil)
             HideBlizzard(PlayerCastingBarFrame)
@@ -789,6 +941,11 @@ T:NewModule("unitframes", {
     defaults = UF.defaults,
     OnEnable = function()
         UF.db = T.db.unitframes
+        UF.FindInterrupt()
+        local spells = CreateFrame("Frame")
+        spells:RegisterEvent("SPELLS_CHANGED")
+        spells:RegisterEvent("UNIT_PET")
+        spells:SetScript("OnEvent", function() UF.FindInterrupt() end)
         for _, unit in ipairs(UNITS) do
             local f = CreateUnitFrame(unit)
             f.cfg = UF.db.units[unit]

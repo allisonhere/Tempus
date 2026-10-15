@@ -13,6 +13,9 @@ T:RegisterPage("unitframes", { key = "uf_general", label = "General", order = 1,
         { "GRADIENT", "By health (green > red)" }, { "DARK", "Dark bars, coloured background" } })
     p:Slider(UFDB, "fontSize", "Text size", 8, 18, 1)
     p:Check(UFDB, "smooth", "Smooth bar animation")
+    p:Check(UFDB, "lowHealth", "Pulse at low health", "The player frame glows red and pulses while your health is below the threshold.")
+    p:Slider(UFDB, "lowHealthAt", "Low health at", 10, 60, 5, function(v) return v .. "%" end)
+    p:Check(UFDB, "lagBar", "Show recent damage", "A hit shows as a red chunk that drains away behind the health bar. The bar itself jumps straight to the new value.")
     p:Check(UFDB, "classPower", "Combo points above the player frame", "Rogues, and druids in cat form.")
     p:Check(UFDB, "hideBlizzard", "Hide Blizzard unit frames", "Turning this off takes effect after /reload.")
     p:Newline()
@@ -38,8 +41,8 @@ local function UnitPage(unit, order)
             { "BOTH", "Value + percent" }, { "PERCENT", "Percent" }, { "CURRENT", "Value" }, { "NONE", "None" } })
         p:Dropdown(cfg, "powerText", "Power text", { { "CURRENT", "Value" }, { "PERCENT", "Percent" }, { "NONE", "None" } })
 
-        if unit == "player" or unit == "target" then
-            p:Section("Cast bar")
+        if unit == "player" or unit == "target" or unit == "focus" then
+            p:Section("Cast bar", unit ~= "player" and "Turns amber while your interrupt is cooling down; a mark at the right end means you can interrupt now. Uninterruptible casts get a grey shield and edge." or nil)
             p:Check(cfg, "castbar", "Show cast bar")
             p:Slider(cfg, "castbarHeight", "Cast bar height", 10, 36, 1)
         end
@@ -62,3 +65,6 @@ UnitPage("player", 2)
 UnitPage("target", 3)
 UnitPage("targettarget", 4)
 UnitPage("pet", 5)
+for _, unit in ipairs(UF.units) do
+    if unit == "focus" then UnitPage("focus", 6) end    -- only on clients with a focus
+end

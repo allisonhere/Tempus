@@ -25,6 +25,7 @@ T:RegisterPage("nameplates", { key = "np_general", label = "General", order = 1,
         { "PERCENT", "Percent" }, { "CURRENT", "Value" }, { "BOTH", "Value + percent" }, { "NONE", "None" } })
     p:Check(NPDB, "friendlyNameOnly", "Friendly units: name only", "Friendly players and NPCs show just a coloured name.")
     p:Check(NPDB, "smooth", "Smooth health animation")
+    p:Check(NPDB, "lagBar", "Show recent damage", "A hit shows as a red chunk that drains away behind the health bar. The bar itself jumps straight to the new value.")
     p:Check(NPDB, "raidIcon", "Raid target marks")
     p:Check(NPDB, "questIcon", "Quest mob marker")
 

@@ -17,12 +17,25 @@ T.accents = {
     { "GOLD", "Gold", { 1, 0.78, 0.25 } },
     { "RED", "Crimson", { 1, 0.34, 0.34 } },
     { "PINK", "Rose", { 1, 0.47, 0.75 } },
+    { "CLASS", "Class colour" },            -- resolved from the player's class
 }
 
+-- The colour behind an accent key.
+function T:AccentColor(key)
+    if key == "CLASS" then
+        local _, class = UnitClass("player")
+        local cc = class and (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class]
+        if cc then return { cc.r, cc.g, cc.b } end
+    end
+    for _, a in ipairs(T.accents) do if a[1] == key and a[3] then return a[3] end end
+    return T.accents[1][3]
+end
+
 function T:ApplyAccent()
-    local key = T.db and T.db.accent or "BLUE"
-    local c = T.accents[1][3]
-    for _, a in ipairs(T.accents) do if a[1] == key then c = a[3] end end
+    local db = T.db
+    local c = T:AccentColor(db and db.accent or "BLUE")
+    -- In combat the accent can switch to its own colour, so the whole UI says "fighting".
+    if T.inCombat and db and db.combatAccent and type(db.combatColor) == "table" then c = db.combatColor end
     T.accent[1], T.accent[2], T.accent[3] = c[1], c[2], c[3]
     T.accentHex = ("%02x%02x%02x"):format(c[1] * 255 + 0.5, c[2] * 255 + 0.5, c[3] * 255 + 0.5)
 end
@@ -80,16 +93,19 @@ end
 T.defaults = {
     locked = true,
     hideBlizzard = true,
-    theme = "MODERN",           -- MODERN | GLOSS | CLASSIC | FLAT
+    theme = "TEMPUS",           -- TEMPUS | MODERN | GLOSS | CLASSIC | FLAT
     accent = "BLUE",            -- key from T.accents
+    combatAccent = true,        -- accent switches to combatColor while in combat
+    combatColor = { 1, 0.45, 0.22 },
+    animate = true,             -- fade-ins and pulses
     borderSize = 1,
     iconZoom = 0.08,
-    font = "Fonts\\FRIZQT__.TTF",
+    font = "Interface\\AddOns\\Tempus\\media\\fonts\\Inter-SemiBold.ttf",
     fontOutline = "OUTLINE",
     timerFontSize = 11,
     countFontSize = 13,
     nameFontSize = 11,
-    barTexture = "SMOOTH",
+    barTexture = "TEMPUS",
     timerFormat = "SMART",      -- SMART | CLOCK | LONG
     decimals = 3,
     colorTimers = true,
@@ -571,6 +587,7 @@ local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:RegisterEvent("PLAYER_LOGIN")
 loader:RegisterEvent("PLAYER_REGEN_ENABLED")
+loader:RegisterEvent("PLAYER_REGEN_DISABLED")
 loader:SetScript("OnEvent", function(self, event, arg)
     if event == "ADDON_LOADED" and arg == ADDON then
         local fresh = type(TempusDB) ~= "table"
@@ -601,7 +618,10 @@ loader:SetScript("OnEvent", function(self, event, arg)
         T:InitMinimapButton()
         T.Options:InitBlizzardPanel()
         T:Print("loaded. Type |cff%s/tempus|r to configure.", T.accentHex)
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        T:SetCombatAccent(true)
     elseif event == "PLAYER_REGEN_ENABLED" then
+        T:SetCombatAccent(false)
         local order = oocOrder
         oocOrder = {}
         for _, key in ipairs(order) do
@@ -614,6 +634,15 @@ loader:SetScript("OnEvent", function(self, event, arg)
         end
     end
 end)
+
+-- Swaps the accent in and out of its combat colour and repaints what follows the accent.
+-- Only textures and text repaint, so this is safe in combat.
+function T:SetCombatAccent(on)
+    T.inCombat = on
+    if not (T.db and T.db.combatAccent) then return end
+    T:ApplyAccent()
+    if T.Style and T.Style.RefreshAccent then T.Style.RefreshAccent() end
+end
 
 ----------------------------------------------------------------------------------------
 -- Slash commands

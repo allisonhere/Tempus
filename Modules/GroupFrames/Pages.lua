@@ -46,6 +46,7 @@ T:RegisterPage("groupframes", { key = "gf_general", label = "General", order = 1
     p:Slider(GFDB, "powerHeight", "Power bar height", 0, 10, 1, function(v) return v == 0 and "hidden" or tostring(v) end)
     p:Check(GFDB, "manaOnly", "Power bar for mana users only", "Healers and casters; hides rage and energy bars.")
     p:Check(GFDB, "smooth", "Smooth health animation")
+    p:Check(GFDB, "lagBar", "Show recent damage", "A hit shows as a red chunk that drains away behind the health bar. The bar itself jumps straight to the new value.")
     p:Check(GFDB, "hideBlizzard", "Hide Blizzard party and raid frames", "Turning this off takes effect after /reload.")
 
     p:Section("Healing")

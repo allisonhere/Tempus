@@ -17,6 +17,7 @@ NP.defaults = {
     conMarker = "CHEVRONS",     -- CHEVRONS (elite/rare/boss) | DANGER (1-5 rating) | NONE
     trivialFade = true, trivialAlpha = 0.45,    -- grey (no XP) mobs: smaller and faded
     smooth = true,
+    lagBar = true,              -- recent damage drains away behind the health bar
     classColorEnemies = true, classColorFriends = true,
     friendlyNameOnly = true,
     targetScale = 1.15, nonTargetAlpha = 0.6, targetGlow = true, mouseoverGlow = true,
@@ -66,13 +67,11 @@ end
 NP.Bool, NP.Plain = Bool, Plain     -- shared with Combat Pulse
 
 local CURVE100 = CurveConstants and CurveConstants.ScaleTo100
-local SMOOTH = Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.ExponentialEaseOut
 local INTERP = Enum and Enum.StatusBarInterpolation and Enum.StatusBarInterpolation.Immediate
 local DIR = Enum and Enum.StatusBarTimerDirection
 
 local function SetBarValue(bar, v)
-    if NP.db.smooth and SMOOTH and pcall(bar.SetValue, bar, v, SMOOTH) then return end
-    bar:SetValue(v)
+    S.SetBar(bar, v, NP.db.smooth, NP.db.lagBar)
 end
 
 local function PlateFor(unit)
@@ -815,6 +814,7 @@ local function Build(plate, preview)
     f:EnableMouse(false)
 
     f.health = S.StatusBar(f)
+    S.LagBar(f.health)
     f.health:SetPoint("CENTER", f, "CENTER")
     f.bd = S.Backdrop(f.health, { inner = false })
     f.executeTint = f.health:CreateTexture(nil, "ARTWORK", nil, 2)
@@ -934,6 +934,7 @@ function NP:Layout(f)
     f.health:SetSize(w, h)
     f.health:SetStatusBarTexture(tex)
     f.health.bg:SetTexture(tex)
+    if f.health.tempusLag then f.health.tempusLag:SetStatusBarTexture(tex) end
     f.executeTint:SetAllPoints(f.health:GetStatusBarTexture())
     S.ApplyFont(f.nameText, db.nameSize)
     S.ApplyFont(f.healthText, db.fontSize)
@@ -1077,6 +1078,7 @@ local function Attach(unit)
     HideBlizzardPlate(plate.UnitFrame)
     ApplyHitArea(plate, f)
     f:Show()
+    S.SnapLag(f.health)         -- plates are reused: don't drain from the last unit's health
     UpdateAll(f)
     AttachAuras(f)
 end
@@ -1273,6 +1275,7 @@ local function FillSample(f, kind)
     if kind == "other" then pct = db.execute > 0 and math.max(db.execute - 6, 4) or 40 end
     f.health:SetMinMaxValues(0, 100)
     f.health:SetValue(pct)
+    if f.health.tempusLag then f.health.tempusLag:Hide() end
     local col = kind == "friend" and c.friendly or (kind == "other" and db.threat and c.threatWarn) or c.hostile
     f.health:SetStatusBarColor(col[1], col[2], col[3])
     f.health.bg:SetVertexColor(col[1] * 0.18, col[2] * 0.18, col[3] * 0.18, 0.9)
@@ -1454,6 +1457,11 @@ T:NewModule("nameplates", {
         NP.aurasOK = T.Display and T.Display.NativeAvailable and T.Display:NativeAvailable() or false
         NP.groups = AuraGroups()
         BuildExecuteCurve()
+        -- The target glow is painted from the accent; repaint it when the accent changes
+        -- (combat colour on and off), or it keeps the old colour until the target changes.
+        S.OnAccent(function()
+            for _, f in pairs(NP.byUnit) do UpdateHighlight(f) end
+        end)
 
         local ev = CreateFrame("Frame")
         for _, e in ipairs(EVENTS) do pcall(ev.RegisterEvent, ev, e) end

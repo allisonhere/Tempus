@@ -6,6 +6,8 @@ T.Style = S
 
 S.WHITE = "Interface\\Buttons\\WHITE8X8"
 S.FONT = "Fonts\\FRIZQT__.TTF"
+S.MEDIA = "Interface\\AddOns\\Tempus\\media\\"
+S.INTER = S.MEDIA .. "fonts\\Inter-SemiBold.ttf"     -- SIL OFL, see media/fonts/Inter-LICENSE.txt
 S.accent = T.accent
 
 -- Palette of the settings window; modules reuse it so the whole UI reads as one piece.
@@ -22,6 +24,7 @@ S.C = {
 }
 
 S.barTextures = {
+    { "TEMPUS", "Tempus", S.MEDIA .. "bar-tempus" },
     { "SMOOTH", "Smooth", "Interface\\TargetingFrame\\UI-StatusBar" },
     { "FLAT", "Flat", S.WHITE },
     { "RAID", "Raid", "Interface\\RaidFrame\\Raid-Bar-Hp-Fill" },
@@ -36,6 +39,7 @@ function S.BarTexture(key)
 end
 
 S.fonts = {
+    { S.INTER, "Inter" },
     { "Fonts\\FRIZQT__.TTF", "Friz Quadrata" }, { "Fonts\\ARIALN.TTF", "Arial Narrow" },
     { "Fonts\\MORPHEUS.TTF", "Morpheus" }, { "Fonts\\SKURRI.TTF", "Skurri" },
 }
@@ -94,6 +98,25 @@ function S.SetGradient(tex, orientation, r1, g1, b1, a1, r2, g2, b2, a2)
     if tex.SetGradientAlpha then tex:SetGradientAlpha(orientation, r1, g1, b1, a1, r2, g2, b2, a2) end
 end
 
+-- A soft glow around `frame`, reaching `pad` px outside it (media/glow.tga, sliced so its
+-- corners keep their shape at any size). Hidden until shown; nil where slicing is missing.
+function S.Glow(frame, pad, layer, sub)
+    local g = frame:CreateTexture(nil, layer or "BACKGROUND", nil, sub or -8)
+    g.tempus = true
+    g:SetTexture(S.MEDIA .. "glow")
+    g:SetPoint("TOPLEFT", -pad, pad)
+    g:SetPoint("BOTTOMRIGHT", pad, -pad)
+    if not (g.SetTextureSliceMargins and pcall(g.SetTextureSliceMargins, g, 16, 16, 16, 16)) then
+        g:Hide()
+        return nil
+    end
+    if g.SetTextureSliceMode and Enum and Enum.UITextureSliceMode then
+        pcall(g.SetTextureSliceMode, g, Enum.UITextureSliceMode.Stretched)
+    end
+    g:Hide()
+    return g
+end
+
 -- Accent-coloured things register here so a colour change repaints them without a reload.
 -- Textures and text made with T.accent itself register on their own; copies with an alpha
 -- or a darkening go through S.Accent. S.OnAccent runs a function now and on every change.
@@ -121,6 +144,7 @@ end
 
 function S.RefreshAccent()
     for obj, spec in pairs(accented) do PaintAccent(obj, spec) end
+    if S.Theme and S.Theme() == "TEMPUS" then S.ApplyTheme() end      -- accent-tinted edges
     for _, fn in ipairs(accentFns) do pcall(fn) end
 end
 
@@ -157,8 +181,9 @@ function S.ApplyFont(fs, size, font, outline)
 end
 
 ----------------------------------------------------------------------------------------
--- Themes. T.db.theme (MODERN | GLOSS | CLASSIC | FLAT) restyles every Backdrop and
+-- Themes. T.db.theme (TEMPUS | MODERN | GLOSS | CLASSIC | FLAT) restyles every Backdrop and
 -- StatusBar through one registry, live, with no reload:
+--   TEMPUS  Modern with an accent-tinted edge, a soft accent glow and a faint top sheen
 --   MODERN  crisp 1px edge, soft shadow, faint inner line
 --   GLOSS   Modern plus a glassy highlight over the top half
 --   CLASSIC thicker warm Blizzard-style border, no shadow or inner line
@@ -168,7 +193,7 @@ end
 ----------------------------------------------------------------------------------------
 function S.Theme()
     local theme = T.db and T.db.theme
-    if theme == "GLOSS" or theme == "CLASSIC" or theme == "FLAT" then return theme end
+    if theme == "TEMPUS" or theme == "GLOSS" or theme == "CLASSIC" or theme == "FLAT" then return theme end
     return "MODERN"
 end
 
@@ -176,6 +201,13 @@ S.backdrops = setmetatable({}, { __mode = "k" })
 S.statusBars = setmetatable({}, { __mode = "k" })
 
 local CLASSIC_EDGE = { 0.62, 0.52, 0.32 }
+local GLOW_ALPHA, GLOW_FUNCTIONAL, TINT_ALPHA = 0.16, 0.45, 0.35
+
+-- Themes that draw the shadow and inner line.
+function S.Modern(theme)
+    theme = theme or S.Theme()
+    return theme == "MODERN" or theme == "GLOSS" or theme == "TEMPUS"
+end
 
 local function IsNeutral(c)
     return c[1] <= 0.05 and c[2] <= 0.05 and c[3] <= 0.05
@@ -226,16 +258,35 @@ function S.Backdrop(frame, opts)
     h.gloss:SetPoint("BOTTOM", frame, "CENTER")
     S.SetGradient(h.gloss, "VERTICAL", 1, 1, 1, 0, 1, 1, 1, 0.12)
     h.gloss:Hide()
+    -- Tempus theme: a faint light falling from the top edge, and a soft glow outside the panel.
+    h.sheen = frame:CreateTexture(nil, "BACKGROUND", nil, -6)
+    h.sheen:SetTexture(S.WHITE)
+    h.sheen.tempus = true
+    h.sheen:SetPoint("TOPLEFT", frame)
+    h.sheen:SetPoint("TOPRIGHT", frame)
+    h.sheen:SetPoint("BOTTOM", frame, "CENTER")
+    S.SetGradient(h.sheen, "VERTICAL", 1, 1, 1, 0, 1, 1, 1, 0.045)
+    h.sheen:Hide()
+    if h.wantShadow then h.glow = S.Glow(frame, 12, "BACKGROUND", -8) end
 
     function h:Refresh()
         local theme = S.Theme()
         local c = self.edgeColor
         local functional = not IsNeutral(c)
         local shown = not self.hidden
+        local modern = S.Modern(theme)
+        local tempus = theme == "TEMPUS"
         self.fill:SetShown(shown)
-        self.shadow:SetShown(shown and self.wantShadow and (theme == "MODERN" or theme == "GLOSS"))
-        if self.inner then self.inner:SetShown(shown and (theme == "MODERN" or theme == "GLOSS")) end
+        self.shadow:SetShown(shown and self.wantShadow and modern)
+        if self.inner then self.inner:SetShown(shown and modern) end
         self.gloss:SetShown(shown and theme == "GLOSS")
+        self.sheen:SetShown(shown and tempus)
+        if self.glow then
+            self.glow:SetShown(shown and tempus)
+            local a = T.accent
+            if functional then self.glow:SetVertexColor(c[1], c[2], c[3], GLOW_FUNCTIONAL)
+            else self.glow:SetVertexColor(a[1], a[2], a[3], GLOW_ALPHA) end
+        end
         local edgeShown = shown and (theme ~= "FLAT" or functional)
         self.edge:SetShown(edgeShown)
         local thickness = theme == "CLASSIC" and 2 or 1
@@ -243,7 +294,10 @@ function S.Backdrop(frame, opts)
             self.thickness = thickness
             self.edge:SetThickness(thickness, self.frame)
         end
-        if theme == "CLASSIC" then
+        if tempus and not functional then
+            local a = T.accent
+            self.edge:SetColor(a[1] * 0.8, a[2] * 0.8, a[3] * 0.8, TINT_ALPHA)
+        elseif theme == "CLASSIC" then
             if functional then
                 self.edge:SetColor(c[1], c[2], c[3], c[4])
             else
@@ -284,10 +338,142 @@ function S.StatusBar(parent, texture)
     bar.tempusGloss:SetPoint("TOPRIGHT", bar)
     bar.tempusGloss:SetPoint("BOTTOM", bar, "CENTER")
     S.SetGradient(bar.tempusGloss, "VERTICAL", 1, 1, 1, 0, 1, 1, 1, 0.16)
-    function bar:RefreshTheme() self.tempusGloss:SetShown(S.Theme() == "GLOSS") end
+    -- Tempus theme: the fill deepens toward its leading edge.
+    bar.tempusShade = bar:CreateTexture(nil, "OVERLAY", nil, 5)
+    bar.tempusShade:SetTexture(S.WHITE)
+    bar.tempusShade.tempus = true
+    bar.tempusShade:SetAllPoints(bar:GetStatusBarTexture() or bar)
+    S.SetGradient(bar.tempusShade, "HORIZONTAL", 0, 0, 0, 0, 0, 0, 0, 0.22)
+    function bar:RefreshTheme()
+        local theme = S.Theme()
+        self.tempusGloss:SetShown(theme == "GLOSS")
+        self.tempusShade:SetShown(theme == "TEMPUS")
+    end
     S.statusBars[bar] = true
     bar:RefreshTheme()
     return bar
+end
+
+----------------------------------------------------------------------------------------
+-- Motion. All of it works on secret values: bars animate through the StatusBar's own
+-- interpolation, so Lua never reads or compares the health it shows.
+----------------------------------------------------------------------------------------
+local INTERP = Enum and Enum.StatusBarInterpolation
+S.SMOOTH = INTERP and INTERP.ExponentialEaseOut
+S.IMMEDIATE = INTERP and INTERP.Immediate
+
+-- A "recent damage" bar under `bar`: the main bar jumps, this one eases after it, so a hit
+-- shows as a chunk that drains away. After a heal it sits under the main fill, unseen.
+-- Returns nil when this client cannot interpolate bars.
+function S.LagBar(bar)
+    if not S.SMOOTH then return nil end
+    if bar.tempusLag then return bar.tempusLag end
+    local lag = CreateFrame("StatusBar", nil, bar)
+    lag:SetAllPoints(bar)
+    lag:SetFrameLevel(math.max(0, bar:GetFrameLevel() - 1))
+    lag:SetStatusBarTexture(S.BarTexture(T.db and T.db.barTexture))
+    lag:SetStatusBarColor(0.85, 0.25, 0.2, 0.75)
+    lag:Hide()
+    bar.tempusLag = lag
+    -- Draw the main bar's background under the lag bar, not over it.
+    if bar.bg then bar.bg:SetParent(lag); bar.bg:SetDrawLayer("BACKGROUND", -1) end
+    return lag
+end
+
+-- The bar now shows a different unit: its lag bar jumps with the next value instead of
+-- draining from the old unit's health.
+function S.SnapLag(bar)
+    bar.tempusSnap = true
+end
+
+-- Sets a bar's value. With `lag` on, the bar jumps and its lag bar eases after it; otherwise
+-- `smooth` eases the bar itself. Values may be secret.
+function S.SetBar(bar, v, smooth, lag)
+    local lagBar = bar.tempusLag
+    if lag and lagBar and S.IMMEDIATE then
+        local snap = bar.tempusSnap or not lagBar:IsShown()
+        bar.tempusSnap = nil
+        if not lagBar:IsShown() then lagBar:Show() end
+        local level = math.max(0, bar:GetFrameLevel() - 1)
+        if lagBar:GetFrameLevel() ~= level then lagBar:SetFrameLevel(level) end
+        lagBar:SetMinMaxValues(bar:GetMinMaxValues())
+        if pcall(bar.SetValue, bar, v, S.IMMEDIATE)
+            and pcall(lagBar.SetValue, lagBar, v, snap and S.IMMEDIATE or S.SMOOTH) then return end
+    elseif lagBar and lagBar:IsShown() then
+        lagBar:Hide()
+    end
+    if smooth and S.SMOOTH and pcall(bar.SetValue, bar, v, S.SMOOTH) then return end
+    bar:SetValue(v)
+end
+
+local function Animations()
+    return not (T.db and T.db.animate == false)
+end
+
+-- Fades a frame in each time it is shown.
+function S.FadeIn(frame, duration)
+    if frame.tempusFade or not frame.CreateAnimationGroup then return end
+    local ag = frame:CreateAnimationGroup()
+    local a = ag:CreateAnimation("Alpha")
+    a:SetFromAlpha(0)
+    a:SetToAlpha(1)
+    a:SetDuration(duration or 0.15)
+    if a.SetSmoothing then a:SetSmoothing("OUT") end
+    frame.tempusFade = ag
+    frame:HookScript("OnShow", function()
+        if Animations() then ag:Stop(); ag:Play() end
+    end)
+end
+
+-- A looping alpha pulse between `high` and `low` on a texture or frame. Returns a handle
+-- with :SetActive(on); nothing plays while animations are switched off.
+function S.Pulse(region, high, low, period)
+    local ag = region:CreateAnimationGroup()
+    ag:SetLooping("BOUNCE")
+    local a = ag:CreateAnimation("Alpha")
+    a:SetFromAlpha(high or 1)
+    a:SetToAlpha(low or 0.25)
+    a:SetDuration((period or 1.2) / 2)
+    if a.SetSmoothing then a:SetSmoothing("IN_OUT") end
+    local h = { ag = ag, region = region }
+    function h:SetActive(on)
+        on = on and Animations()
+        if on and not self.ag:IsPlaying() then self.ag:Play()
+        elseif not on and self.ag:IsPlaying() then self.ag:Stop() end
+    end
+    return h
+end
+
+-- A one-shot flash: `region` (normally invisible) lights up twice, then goes dark again.
+function S.Flash(region)
+    region:SetAlpha(0)
+    local ag = region:CreateAnimationGroup()
+    for i = 1, 2 do
+        local up = ag:CreateAnimation("Alpha")
+        up:SetFromAlpha(0); up:SetToAlpha(1); up:SetDuration(0.12); up:SetOrder(i * 2 - 1)
+        local down = ag:CreateAnimation("Alpha")
+        down:SetFromAlpha(1); down:SetToAlpha(0); down:SetDuration(0.3); down:SetOrder(i * 2)
+    end
+    return function()
+        if Animations() then ag:Stop(); ag:Play() end
+    end
+end
+
+-- A step colour curve for UnitHealthPercent: `c` below `threshold` percent, `off` above
+-- (default: `c` fully transparent). Lets a secret health value drive a texture's visibility
+-- without Lua comparing it.
+function S.ThresholdCurve(threshold, c, off)
+    if not T.Num(threshold) or threshold <= 0
+        or not (C_CurveUtil and C_CurveUtil.CreateColorCurve and Enum and Enum.LuaCurveType) then return end
+    local ok, curve = pcall(function()
+        local curve = C_CurveUtil.CreateColorCurve()
+        curve:SetType(Enum.LuaCurveType.Step)
+        curve:AddPoint(0, CreateColor(c[1], c[2], c[3], 1))
+        off = off or { c[1], c[2], c[3], 0 }
+        curve:AddPoint(threshold / 100, CreateColor(off[1], off[2], off[3], off[4] or 0))
+        return curve
+    end)
+    return ok and curve or nil
 end
 
 function S.ClassColor(class)

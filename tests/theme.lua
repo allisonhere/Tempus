@@ -33,4 +33,29 @@ T.db.theme = 'GLOSS'; S.ApplyTheme()
 assert(bar.tempusGloss.shown)
 T.db.theme = 'FLAT'; S.ApplyTheme()
 assert(not bar.tempusGloss.shown)
+-- Tempus theme: accent-tinted edge and glow on neutral panels; a functional edge keeps its colour.
+T.Num = function(v) return type(v) == 'number' end
+local edgeColor = function(h) return h.edge.top.color end
+T.db.theme = 'TEMPUS'; S.ApplyTheme()
+assert(S.Theme() == 'TEMPUS' and S.Modern())
+assert(a.shadow.shown == false, 'hidden panel stays hidden')
+a:SetShown(true)
+assert(a.shadow.shown and a.inner.top.shown and a.sheen.shown and a.glow.shown and not a.gloss.shown)
+assert(math.abs(edgeColor(a)[2] - 0.7 * 0.8) < 1e-6 and edgeColor(a)[4] == 0.35, 'neutral edge takes the accent tint')
+assert(a.glow.color[2] == 0.7, 'glow follows the accent')
+assert(edgeColor(b)[2] == 0.7 and edgeColor(b)[4] == 1, 'functional edge keeps its colour')
+T.accent[1], T.accent[2], T.accent[3] = 1, 0.2, 0.2
+S.RefreshAccent()
+assert(a.glow.color[2] == 0.2 and math.abs(edgeColor(a)[1] - 0.8) < 1e-6, 'an accent change repaints the Tempus edge and glow')
+assert(bar.tempusShade.shown and not bar.tempusGloss.shown, 'Tempus bars get the leading-edge shade')
+T.db.theme = 'MODERN'; S.ApplyTheme()
+assert(not a.glow.shown and not a.sheen.shown and edgeColor(a)[4] == 1)
+
+-- Motion helpers do nothing harmful on a client without bar interpolation.
+assert(S.SMOOTH == nil and S.LagBar(bar) == nil, 'no interpolation: no lag bar')
+local set
+bar.SetValue = function(_, v, mode) set = { v, mode } end
+S.SetBar(bar, 40, true, true)
+assert(set[1] == 40 and set[2] == nil, 'plain SetValue without interpolation')
+
 print('PASS: themes restyle backdrops and status bars live; coloured highlight edges survive')

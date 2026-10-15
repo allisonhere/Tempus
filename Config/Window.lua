@@ -12,6 +12,8 @@ T.Options = O
 
 local win, scroll, thumb, nav
 local expanded = {}          -- section key -> open in the sidebar
+local BANNER_H = 30
+local REPORT_URL = "https://github.com/allisonhere/Tempus/issues"
 
 ----------------------------------------------------------------------------------------
 -- Suite-level pages
@@ -100,7 +102,7 @@ function O:Select(key)
     page.frame:Show()
     page:Refresh()
     O.current = key
-    expanded[def.section] = true
+    if not def.pinned then expanded[def.section] = true end
     O:LayoutNav()
     scroll:SetVerticalScroll(0)
     UpdateScrollbar()
@@ -123,7 +125,7 @@ end
 local function SectionPages(section)
     local list = {}
     for _, def in ipairs(T.pages) do
-        if def.section == section then list[#list + 1] = def end
+        if def.section == section and not def.pinned then list[#list + 1] = def end
     end
     table.sort(list, function(a, b) return (a.order or 50) < (b.order or 50) end)
     return list
@@ -170,6 +172,23 @@ end
 function O:LayoutNav()
     local y = -8
     local hi, ii = 0, 0
+    -- Pinned pages (What's new) sit above every section, always visible.
+    for _, def in ipairs(T.pages) do
+        if def.pinned then
+            ii = ii + 1
+            local b = nav.items[ii] or NavItem(nav.child)
+            nav.items[ii] = b
+            b:ClearAllPoints()
+            b:SetPoint("TOPLEFT", 8, y)
+            b:SetPoint("RIGHT", nav.child, "RIGHT", -8, 0)
+            b.text:SetText(def.label)
+            b:SetSelected(def.key == O.current)
+            if not b.selected then b.text:SetTextColor(AC[1], AC[2], AC[3]) end
+            b:SetScript("OnClick", function() O:Select(def.key) end)
+            b:Show()
+            y = y - 31
+        end
+    end
     for _, section in ipairs(T.pageSections) do
         local pages = SectionPages(section.key)
         if #pages > 0 then
@@ -301,9 +320,36 @@ local function CreateWindow()
     win.reload:SetActive(true)
     win.reload:Hide()
 
+    -- Beta banner: loud on purpose. The address sits in a box to select and copy.
+    local banner = CreateFrame("Frame", nil, win)
+    banner:SetPoint("TOPLEFT", 0, -56)
+    banner:SetPoint("TOPRIGHT", 0, -56)
+    banner:SetHeight(BANNER_H)
+    local bbg = Tex(banner, "BACKGROUND", { 1, 1, 1, 1 }, -5)
+    bbg:SetAllPoints()
+    S.SetGradient(bbg, "HORIZONTAL", 0.95, 0.38, 0.08, 1, 0.78, 0.12, 0.12, 1)
+    local glow = Tex(banner, "BORDER", { 1, 1, 1, 0.22 })
+    glow:SetAllPoints()
+    glow:SetBlendMode("ADD")
+    S.Pulse(glow, 1, 0, 1.6):SetActive(true)
+    local warn = Text(banner, 14, { 1, 1, 1 }, "OUTLINE")
+    warn:SetPoint("LEFT", 16, 0)
+    warn:SetText("BETA IS RUNNING OUT!  Please report any bugs:")
+    local url = UI.StyledEditBox(banner, 300, 22)
+    url:SetPoint("LEFT", warn, "RIGHT", 10, 0)
+    url:SetText(REPORT_URL)
+    url:SetCursorPosition(0)
+    -- Read-only: any edit snaps back; a click selects it all, ready for Ctrl+C.
+    url:SetScript("OnTextChanged", function(self) if self:GetText() ~= REPORT_URL then self:SetText(REPORT_URL) end end)
+    url:HookScript("OnEditFocusGained", function(self) self:HighlightText() end)
+    url:HookScript("OnMouseUp", function(self) self:SetFocus(); self:HighlightText() end)
+    local copy = Text(banner, 11, { 1, 0.95, 0.85 })
+    copy:SetPoint("LEFT", url, "RIGHT", 8, 0)
+    copy:SetText("click, then Ctrl+C")
+
     -- Sidebar
     local side = CreateFrame("Frame", nil, win)
-    side:SetPoint("TOPLEFT", 0, -56)
+    side:SetPoint("TOPLEFT", 0, -56 - BANNER_H)
     side:SetPoint("BOTTOMLEFT")
     side:SetWidth(SIDE_W)
     Tex(side, "BACKGROUND", C.side, -6):SetAllPoints()
@@ -330,7 +376,7 @@ local function CreateWindow()
 
     -- Content
     scroll = CreateFrame("ScrollFrame", nil, win)
-    scroll:SetPoint("TOPLEFT", SIDE_W + 2, -60)
+    scroll:SetPoint("TOPLEFT", SIDE_W + 2, -60 - BANNER_H)
     scroll:SetPoint("BOTTOMRIGHT", -14, 6)
     scroll:EnableMouseWheel(true)
     scroll:SetScript("OnMouseWheel", function(self, delta)
@@ -351,6 +397,12 @@ function O:Open(key)
     if not win then CreateWindow() end
     win:Show()
     O:Select(key or O.current or "modules")
+    -- Opened plainly (slash command, minimap button): every sidebar section starts closed.
+    -- Opened to a page (a mover's right-click), that page's section stays open.
+    if not key then
+        wipe(expanded)
+        O:LayoutNav()
+    end
     O:Refresh()
 end
 

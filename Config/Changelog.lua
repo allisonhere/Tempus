@@ -3,7 +3,8 @@
 local _, T = ...
 local UI = T.UI
 
-T:RegisterPage("general", { key = "changelog", label = "What's new", order = 2, build = function(p)
+-- Pinned: shown at the top of the sidebar, outside the collapsible sections.
+T:RegisterPage("general", { key = "changelog", label = "What's new", order = 2, pinned = true, build = function(p)
     local log = T.changelog or {}
     local version = T.version or (C_AddOns and C_AddOns.GetAddOnMetadata and C_AddOns.GetAddOnMetadata("Tempus", "Version"))
         or (GetAddOnMetadata and GetAddOnMetadata("Tempus", "Version")) or "?"

@@ -23,8 +23,13 @@ T.accents = {
 -- The colour behind an accent key.
 function T:AccentColor(key)
     if key == "CLASS" then
-        local _, class = UnitClass("player")
-        local cc = class and (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class]
+        local class
+        if UnitClass then
+            local ok, _, c = pcall(UnitClass, "player")
+            if ok then class = c end
+        end
+        local colors = CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS
+        local cc = class and colors and colors[class]
         if cc then return { cc.r, cc.g, cc.b } end
     end
     for _, a in ipairs(T.accents) do if a[1] == key and a[3] then return a[3] end end
@@ -94,7 +99,7 @@ T.defaults = {
     locked = true,
     hideBlizzard = true,
     theme = "TEMPUS",           -- TEMPUS | MODERN | GLOSS | CLASSIC | FLAT
-    accent = "BLUE",            -- key from T.accents
+    accent = "CLASS",           -- key from T.accents; new profiles follow the class colour
     combatAccent = true,        -- accent switches to combatColor while in combat
     combatColor = { 1, 0.45, 0.22 },
     animate = true,             -- fade-ins and pulses

@@ -63,6 +63,8 @@ Modules\CombatPulse\Pages.lua
 
 Modules\Vendor\Vendor.lua
 Modules\Vendor\Pages.lua
+Modules\Automation\Automation.lua
+Modules\Automation\Pages.lua
 
 Modules\Chat\Chat.lua
 Modules\Chat\Pages.lua

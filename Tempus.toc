@@ -47,6 +47,8 @@ Modules\Minimap\Minimap.lua
 Modules\Minimap\DataBar.lua
 Modules\Minimap\StatusBars.lua
 Modules\Minimap\Pages.lua
+Modules\Nodes\Nodes.lua
+Modules\Nodes\Pages.lua
 
 Modules\Cooldowns\Cooldowns.lua
 Modules\Cooldowns\Pages.lua

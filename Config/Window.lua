@@ -12,8 +12,6 @@ T.Options = O
 
 local win, scroll, thumb, nav
 local expanded = {}          -- section key -> open in the sidebar
-local BANNER_H = 30
-local REPORT_URL = "https://github.com/allisonhere/Tempus/issues"
 
 ----------------------------------------------------------------------------------------
 -- Suite-level pages
@@ -320,36 +318,9 @@ local function CreateWindow()
     win.reload:SetActive(true)
     win.reload:Hide()
 
-    -- Beta banner: loud on purpose. The address sits in a box to select and copy.
-    local banner = CreateFrame("Frame", nil, win)
-    banner:SetPoint("TOPLEFT", 0, -56)
-    banner:SetPoint("TOPRIGHT", 0, -56)
-    banner:SetHeight(BANNER_H)
-    local bbg = Tex(banner, "BACKGROUND", { 1, 1, 1, 1 }, -5)
-    bbg:SetAllPoints()
-    S.SetGradient(bbg, "HORIZONTAL", 0.95, 0.38, 0.08, 1, 0.78, 0.12, 0.12, 1)
-    local glow = Tex(banner, "BORDER", { 1, 1, 1, 0.22 })
-    glow:SetAllPoints()
-    glow:SetBlendMode("ADD")
-    S.Pulse(glow, 1, 0, 1.6):SetActive(true)
-    local warn = Text(banner, 14, { 1, 1, 1 }, "OUTLINE")
-    warn:SetPoint("LEFT", 16, 0)
-    warn:SetText("BETA IS RUNNING OUT!  Please report any bugs:")
-    local url = UI.StyledEditBox(banner, 300, 22)
-    url:SetPoint("LEFT", warn, "RIGHT", 10, 0)
-    url:SetText(REPORT_URL)
-    url:SetCursorPosition(0)
-    -- Read-only: any edit snaps back; a click selects it all, ready for Ctrl+C.
-    url:SetScript("OnTextChanged", function(self) if self:GetText() ~= REPORT_URL then self:SetText(REPORT_URL) end end)
-    url:HookScript("OnEditFocusGained", function(self) self:HighlightText() end)
-    url:HookScript("OnMouseUp", function(self) self:SetFocus(); self:HighlightText() end)
-    local copy = Text(banner, 11, { 1, 0.95, 0.85 })
-    copy:SetPoint("LEFT", url, "RIGHT", 8, 0)
-    copy:SetText("click, then Ctrl+C")
-
     -- Sidebar
     local side = CreateFrame("Frame", nil, win)
-    side:SetPoint("TOPLEFT", 0, -56 - BANNER_H)
+    side:SetPoint("TOPLEFT", 0, -56)
     side:SetPoint("BOTTOMLEFT")
     side:SetWidth(SIDE_W)
     Tex(side, "BACKGROUND", C.side, -6):SetAllPoints()
@@ -376,7 +347,7 @@ local function CreateWindow()
 
     -- Content
     scroll = CreateFrame("ScrollFrame", nil, win)
-    scroll:SetPoint("TOPLEFT", SIDE_W + 2, -60 - BANNER_H)
+    scroll:SetPoint("TOPLEFT", SIDE_W + 2, -60)
     scroll:SetPoint("BOTTOMRIGHT", -14, 6)
     scroll:EnableMouseWheel(true)
     scroll:SetScript("OnMouseWheel", function(self, delta)

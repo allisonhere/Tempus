@@ -125,8 +125,27 @@ function M:Register(frame, opts)
     return m
 end
 
+-- Hidden frame registered as a special frame: Escape hides it, which re-locks the UI.
+local escProxy
+local function EscProxy()
+    if escProxy then return escProxy end
+    escProxy = CreateFrame("Frame", "TempusUnlockProxy", UIParent)
+    escProxy:SetSize(1, 1)
+    escProxy:Hide()
+    escProxy:SetScript("OnHide", function()
+        if T.db and not T.db.locked then
+            T.db.locked = true
+            T:ApplySettings()
+            T:Print("frames locked.")
+        end
+    end)
+    tinsert(UISpecialFrames, "TempusUnlockProxy")
+    return escProxy
+end
+
 function M:Refresh()
     local unlocked = T.db and not T.db.locked
+    EscProxy():SetShown(unlocked and true or false)
     for _, m in ipairs(self.list) do
         local on = unlocked and (not m.opts.enabled or m.opts.enabled())
         m:SetShown(on and true or false)

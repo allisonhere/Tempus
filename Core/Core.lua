@@ -214,6 +214,16 @@ function T:CopyProfile(from)
     T:SetProfile(name)
 end
 
+-- Save the active settings under a new name (or overwrite an existing one) and switch to it.
+function T:SaveProfileAs(name)
+    name = strtrim(name or "")
+    if name == "" then return false end
+    if name == T:ProfileName() then return true end
+    TempusDB.profiles[name] = CopyTable(T.db)
+    T:SetProfile(name)
+    return true
+end
+
 function T:ResetProfile()
     local name = T:ProfileName()
     TempusDB.profiles[name] = {}
@@ -842,6 +852,12 @@ SlashCmdList.TEMPUS = function(msg)
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+api") then
         local namespaces, globals = T:RunAPIProbe()
         T:Print(("API dump recorded: %d C_ namespaces, %d global functions. /reload so it is saved to disk."):format(namespaces, globals))
+    elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+swing") then
+        if T:RunSwingProbe() then
+            T:Print("swing probe armed. Fight with Blizzard's swing timer (Edit Mode) shown next to ours, then /reload to save the event log.")
+        else
+            T:Print("swing probe stopped and cleared.")
+        end
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+new") then
         T:RunNewProbe()
         T:Print("probe of newer client features recorded. /reload so it is saved to disk.")

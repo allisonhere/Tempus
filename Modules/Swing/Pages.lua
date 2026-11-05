@@ -8,6 +8,7 @@ T:RegisterPage("general", { key = "swing", label = "Swing timer", order = 6, bui
     p:Check(cfg, "offHand", "Off-hand bar when dual wielding")
     p:Check(cfg, "ranged", "Ranged bar when a ranged weapon is equipped")
     p:Check(cfg, "showTime", "Show time left")
+    p:Check(cfg, "effects", "Spark swell and a flash when the swing is ready")
     p:Dropdown(cfg, "visibility", "Show", { { "COMBAT", "In combat" }, { "ALWAYS", "Always" } })
     p:Slider(cfg, "width", "Width", 80, 400, 1)
     p:Slider(cfg, "height", "Height", 4, 30, 1)

@@ -11,12 +11,15 @@ SW.defaults = {
     width = 220, height = 12, spacing = 3,
     offHand = true, ranged = true,
     showTime = true,
+    effects = true,             -- spark swell and a flash when the swing is ready
     visibility = "COMBAT",      -- COMBAT | ALWAYS
     point = { "CENTER", "UIParent", "CENTER", 0, -215 },
 }
 
 local OUT_OF_RANGE = { 0.85, 0.2, 0.2 }
 local DIM = 0.45
+local FLASH = 0.3           -- seconds the ready flash takes to fade
+local SWELL = 0.25          -- the spark grows during the last quarter second
 
 -- Swing types in display order. Enum.PlayerSwingType: MainHand 0, OffHand 1, Ranged 2.
 local TYPES = {
@@ -82,19 +85,38 @@ local function ColorRow(row)
 end
 
 local function RowOnUpdate(row)
+    local now = GetTime()
+    if row.flashT then
+        local a = 1 - (now - row.flashT) / FLASH
+        if a <= 0 then
+            row.flashT = nil
+            row.flash:Hide()
+        else
+            row.flash:SetAlpha(a * 0.55)
+        end
+    end
     if not row.endT then return end
-    local left = row.endT - GetTime()
+    local left = row.endT - now
     if left <= 0 then
         row.endT = nil
         row.bar:SetValue(0)
         row.time:SetText("")
         row.spark:Hide()
+        if SW.db.effects and not row.outOfRange then
+            row.flashT = now
+            row.flash:SetAlpha(0.55)
+            row.flash:Show()
+        end
         SW:UpdateShown()
         Notify()
         return
     end
     row.bar:SetValue(row.duration - left)
     if SW.db.showTime then row.time:SetFormattedText("%.1f", left) end
+    if SW.db.effects then
+        local k = left < SWELL and (1 - left / SWELL) or 0
+        row.spark:SetSize(10 + 14 * k, row.sparkH * (1 + 0.6 * k))
+    end
 end
 
 local function NewRow(parent, kind)
@@ -114,6 +136,11 @@ local function NewRow(parent, kind)
     local over = CreateFrame("Frame", nil, row)
     over:SetAllPoints(row)
     over:SetFrameLevel(row.bar:GetFrameLevel() + 2)
+    row.flash = over:CreateTexture(nil, "ARTWORK")
+    row.flash:SetColorTexture(1, 1, 1, 1)
+    row.flash:SetPoint("TOPLEFT", 1, -1)
+    row.flash:SetPoint("BOTTOMRIGHT", -1, 1)
+    row.flash:Hide()
     row.label = over:CreateFontString(nil, "OVERLAY")
     row.label:SetPoint("LEFT", 5, 0)
     S.ApplyFont(row.label, 10)   -- a FontString needs a font before SetText; Refresh resizes it
@@ -133,7 +160,10 @@ function SW:Start(swingType, duration)
             row.duration, row.endT = duration, GetTime() + duration
             row.bar:SetMinMaxValues(0, duration)
             row.bar:SetValue(0)
+            row.spark:SetSize(10, row.sparkH or 24)
             row.spark:Show()
+            row.flashT = nil
+            row.flash:Hide()
             self:UpdateShown()
             Notify()
             return
@@ -215,7 +245,8 @@ function SW:Refresh()
             S.ApplyFont(row.time, size)
             row.label:SetShown(db.height >= 10)
             row.time:SetShown(db.showTime)
-            row.spark:SetSize(10, db.height * 2)
+            row.sparkH = db.height * 2
+            row.spark:SetSize(10, row.sparkH)
             ColorRow(row)
         else
             row.endT = nil

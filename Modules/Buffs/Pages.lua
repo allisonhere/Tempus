@@ -226,6 +226,25 @@ PAGES[#PAGES + 1] = { key = "profiles", label = "Profiles", suite = true, build 
     edit:SetScript("OnEnterPressed", function() create:Click() end)
     function newBox:Refresh() end
     p:Add(newBox, 48)
+    local saveBox = CreateFrame("Frame")
+    saveBox:SetSize(COL_W, 48)
+    local saveLabel = Text(saveBox, 12)
+    saveLabel:SetPoint("TOPLEFT")
+    saveLabel:SetText("Save current settings as")
+    local saveEdit = StyledEditBox(saveBox, COL_W - 90, 26)
+    saveEdit:SetPoint("TOPLEFT", 0, -18)
+    local save = FlatButton(saveBox, "Save", 80, 26, function()
+        local name = strtrim(saveEdit:GetText() or "")
+        if name ~= "" and T:SaveProfileAs(name) then
+            T:Print("saved profile |cff%s%s|r.", T.accentHex, name)
+            saveEdit:SetText("")
+            saveEdit:ClearFocus()
+        end
+    end)
+    save:SetPoint("LEFT", saveEdit, "RIGHT", 8, 0)
+    saveEdit:SetScript("OnEnterPressed", function() save:Click() end)
+    function saveBox:Refresh() end
+    p:Add(saveBox, 48)
     p:Add(W.Dropdown("Copy settings from", profiles, function() return "" end, function(v) T:CopyProfile(v) end,
         "Overwrites the active profile with a copy of the chosen one."))
     p:Add(W.Dropdown("Delete a profile", profiles, function() return "" end, function(v) T:DeleteProfile(v) end,

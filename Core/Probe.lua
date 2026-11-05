@@ -804,6 +804,51 @@ chatLogin:SetScript("OnEvent", function()
 end)
 
 ----------------------------------------------------------------------------------------
+-- Swing probe (/tempus probe swing): records every PLAYER_SWING and range event with its
+-- arguments, whether they came back secret, and the player's attack speeds, so the
+-- client's swing timing can be compared against the Tempus bars and Blizzard's own timer
+-- (CVar showSwingTimer, Edit Mode). Also lists the C_SwingTimer members. Armed for this
+-- session only; /reload saves TempusDB.probe.swing. Run it again to stop and clear.
+----------------------------------------------------------------------------------------
+local SWING_EVENTS = { "PLAYER_SWING", "PLAYER_SWING_RANGE_UPDATE", "UNIT_ATTACK_SPEED", "PLAYER_ENTER_COMBAT",
+    "PLAYER_LEAVE_COMBAT", "PLAYER_TARGET_CHANGED", "PLAYER_REGEN_DISABLED", "PLAYER_REGEN_ENABLED" }
+local SWING_MAX = 400
+local swingProbe
+
+local function SwingArg(v)
+    if T.issecret(v) then return "<secret>" end
+    return tostring(v)
+end
+
+function T:RunSwingProbe()
+    TempusDB.probe = TempusDB.probe or {}
+    if swingProbe then
+        swingProbe:UnregisterAllEvents()
+        swingProbe = nil
+        TempusDB.probe.swing = nil
+        return false
+    end
+    local get = (C_CVar and C_CVar.GetCVar) or GetCVar
+    local okC, cvar = pcall(get, "showSwingTimer")
+    local s = { events = {}, api = C_SwingTimer and Keys(C_SwingTimer, true, 40) or "no C_SwingTimer",
+        showSwingTimer = okC and tostring(cvar) or "unreadable", build = select(4, GetBuildInfo()), t0 = GetTime() }
+    TempusDB.probe.swing = s
+    swingProbe = CreateFrame("Frame")
+    swingProbe:SetScript("OnEvent", function(_, event, ...)
+        if #s.events >= SWING_MAX then return end
+        if event == "UNIT_ATTACK_SPEED" and (...) ~= "player" then return end
+        local args = {}
+        for i = 1, select("#", ...) do args[i] = SwingArg((select(i, ...))) end
+        local okS, main, off, ranged = pcall(UnitAttackSpeed, "player")
+        s.events[#s.events + 1] = ("%.3f %s (%s) combat=%s speed=%s/%s/%s"):format(GetTime() - s.t0, event,
+            table.concat(args, ", "), tostring(UnitAffectingCombat("player") and true or false),
+            okS and SwingArg(main) or "err", okS and SwingArg(off) or "-", okS and SwingArg(ranged) or "-")
+    end)
+    for _, e in ipairs(SWING_EVENTS) do pcall(swingProbe.RegisterEvent, swingProbe, e) end
+    return true
+end
+
+----------------------------------------------------------------------------------------
 -- Damage meter probe (/tempus probe meter): the structure of Blizzard's built-in damage
 -- meter windows, so a skin can be written against what this client really has. Lines land
 -- in TempusDB.probe.meter; /reload saves them.

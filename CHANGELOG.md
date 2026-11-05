@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.7.1
+
+### Changed
+- The beta bug-report banner at the top of the settings window is gone.
+
 ## 2.7.0
 
 ### New

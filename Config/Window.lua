@@ -27,7 +27,7 @@ T:RegisterPage("general", { key = "modules", label = "Modules", order = 1, build
     end
     p:Newline()
     p:Add(UI.W.Button("Reload UI", function() ReloadUI() end, "Applies module changes."))
-    p:Section("Layout", "Unlock to see a box for every movable element. Drag to move; right-click a box to open its settings.")
+    p:Section("Layout", "Unlock to see a box for every movable element. Drag a labeled handle to move. Select a frame in the positioning panel and click arrows to nudge; Shift-click moves 10 units. Right-click a box for settings.")
     p:Add(UI.W.Check("Lock frames", function() return T.db.locked end, function(v) T.db.locked = v end))
     p:Add(UI.W.Check("Minimap button", function() return not T.db.minimap.hide end, function(v) T.db.minimap.hide = not v end))
 end })

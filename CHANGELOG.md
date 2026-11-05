@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.7.2
+
+### New
+- Shared positioning panel: select an unlocked frame from the list and use four arrows to nudge it by 1 UI unit, or Shift-click for 10. Protected frames cannot be nudged during combat.
+
+### Changed
+- Larger labeled drag handles make small frames easier to grab. The selected frame is highlighted; Escape locks the layout and hides positioning controls.
+
 ## 2.7.1
 
 ### Changed

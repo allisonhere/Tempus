@@ -455,6 +455,7 @@ local function EachModule(method)
 end
 
 function T:ApplySettings()
+    if T.Layouts then T.Layouts:Cancel() end
     if not T.db then return end
     T:ApplyAccent()
     if T.Style and T.Style.RefreshAccent then T.Style.RefreshAccent() end
@@ -464,6 +465,7 @@ function T:ApplySettings()
     if T.Movers then T.Movers:Refresh() end
     if T.Options and T.Options.Refresh then T.Options:Refresh() end
     if T.UpdateMinimapButton then T:UpdateMinimapButton() end
+    if T.AutoLayouts then T.AutoLayouts:Schedule() end
 end
 
 ----------------------------------------------------------------------------------------

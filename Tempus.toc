@@ -14,9 +14,15 @@ Core\Share.lua
 Core\Changelog.lua
 Core\Style.lua
 Core\Movers.lua
+Core\MoverGroups.lua
+Core\Layouts.lua
+Core\AutoLayouts.lua
 Core\Probe.lua
 Core\FPSTest.lua
 Config\Widgets.lua
+Config\Search.lua
+Config\LayoutPresets.lua
+Config\AutoLayouts.lua
 Config\Share.lua
 
 Modules\Buffs\Auras.lua

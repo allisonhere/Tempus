@@ -12,6 +12,43 @@ T.Options = O
 
 local win, scroll, thumb, nav
 local expanded = {}          -- section key -> open in the sidebar
+local SPELLPOWER_URL = "https://www.curseforge.com/wow/addons/spellpower"
+local SPELLPOWER_DESCRIPTION = "SpellPower adds live spell checking and lightweight grammar suggestions to your chat box. It recognizes WoW vocabulary and never sends messages for you."
+local OPTIONAL_GREY = {0.45, 0.45, 0.45}
+local function OptionalTooltip(owner)
+    if not GameTooltip then return end
+    GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+    GameTooltip:SetText("SpellPower (optional addon)", 0.8, 0.8, 0.8)
+    GameTooltip:AddLine(SPELLPOWER_DESCRIPTION, 0.85, 0.85, 0.85, true)
+    GameTooltip:AddLine("Install or enable SpellPower, then reload to use its settings.", 0.7, 0.7, 0.7, true)
+    GameTooltip:AddLine(SPELLPOWER_URL, 0.4, 0.75, 1, true)
+    GameTooltip:AddLine("Right-click for a copyable link.", 0.7, 0.7, 0.7, true)
+    GameTooltip:Show()
+end
+function O:ShowSpellPowerLink()
+    if GameTooltip then GameTooltip:Hide() end
+    local dialog = self.spellPowerLink
+    if not dialog then
+        dialog = CreateFrame("Frame", "TempusSpellPowerLink", win)
+        dialog:SetSize(500, 148); dialog:SetPoint("CENTER", win, "CENTER")
+        dialog:SetFrameStrata("FULLSCREEN_DIALOG"); dialog:EnableMouse(true)
+        local bg = Tex(dialog, "BACKGROUND", C.bg); bg:SetAllPoints(); Border(dialog)
+        local title = Text(dialog, 13, C.text); title:SetPoint("TOPLEFT", 16, -12); title:SetText("SpellPower on CurseForge")
+        dialog.url = UI.StyledEditBox(dialog, 468, 26); dialog.url:SetPoint("TOPLEFT", 16, -38)
+        local hint = Text(dialog, 11, C.muted); hint:SetPoint("TOPLEFT", 16, -74)
+        hint:SetText("Press Ctrl+C to copy, then open the link in your browser.")
+        local close = FlatButton(dialog, "Close", 100, 26, function() dialog:Hide() end)
+        close:SetPoint("BOTTOMRIGHT", -16, 14)
+        dialog.url:SetScript("OnEscapePressed", function()
+            dialog:Hide()
+            win.escapePreviewConsumed = true
+            win:SetPropagateKeyboardInput(false)
+        end)
+        dialog:SetScript("OnHide", function() dialog.url:ClearFocus() end)
+        self.spellPowerLink = dialog
+    end
+    dialog:Show(); dialog.url:SetText(SPELLPOWER_URL); dialog.url:SetFocus(); dialog.url:HighlightText()
+end
 
 ----------------------------------------------------------------------------------------
 -- Suite-level pages
@@ -27,7 +64,7 @@ T:RegisterPage("general", { key = "modules", label = "Modules", order = 1, build
     end
     p:Newline()
     p:Add(UI.W.Button("Reload UI", function() ReloadUI() end, "Applies module changes."))
-    p:Section("Layout", "Unlock to see a box for every movable element. Drag a labeled handle to move. Select a frame in the positioning panel and click arrows to nudge; Shift-click moves 10 units. Right-click a box for settings.")
+    p:Section("Layout", "Unlock to see a box for every movable element. Drag a labeled handle to move and snap to nearby edges or centers; hold Alt to bypass snapping. Shift-click frames or toggle them in the positioning panel to select a group. Drag or nudge them together, align edges/centers, or distribute equal gaps. Shift-click arrows moves 10 units. Right-click a box for settings.")
     p:Add(UI.W.Check("Lock frames", function() return T.db.locked end, function(v) T.db.locked = v end))
     p:Add(UI.W.Check("Minimap button", function() return not T.db.minimap.hide end, function(v) T.db.minimap.hide = not v end))
 end })
@@ -36,6 +73,8 @@ end })
 -- the same widget API, so they are listed in the sidebar and rendered in this window.
 -- An older SpellPower without the page list gets a button that opens its own window.
 local SP = _G.SpellPower
+local spellPowerLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("SpellPower"))
+    or (IsAddOnLoaded and IsAddOnLoaded("SpellPower")) or SP ~= nil
 if SP and SP.Settings and SP.Settings.pages and SP.Settings.Mixin then
     local rank = {}
     for i, section in ipairs(SP.Settings.sections or {}) do rank[section.key] = i end
@@ -49,7 +88,7 @@ if SP and SP.Settings and SP.Settings.pages and SP.Settings.Mixin then
             end,
         })
     end
-elseif C_AddOns and C_AddOns.IsAddOnLoaded("SpellPower") then
+elseif spellPowerLoaded then
     T:RegisterPage("spellpower", { key = "spellpower", label = "SpellPower", order = 1, build = function(p)
         p:Section("SpellPower", "Live spell checking and grammar hints in the chat box. It has its own settings window.")
         p:Add(UI.W.Button("Open SpellPower settings", function()
@@ -58,6 +97,10 @@ elseif C_AddOns and C_AddOns.IsAddOnLoaded("SpellPower") then
             if win then win:Hide() end
         end, nil, 200))
     end })
+else
+    -- Informational only: it appears in navigation/search but never builds a settings page.
+    T:RegisterPage("spellpower", {key = "spellpower", label = "SpellPower", order = 1,
+        unavailable = true, search = SPELLPOWER_DESCRIPTION .. " Optional addon CurseForge"})
 end
 
 ----------------------------------------------------------------------------------------
@@ -81,29 +124,80 @@ local function FindPage(key)
     end
 end
 
-function O:Select(key)
-    local def = FindPage(key) or FindPage("modules")
-    key = def.key
-    for _, other in ipairs(T.pages) do
-        local page = O.pages[other.key]
-        if page then page.frame:SetShown(other.key == key) end
-    end
-    local page = O.pages[key]
+function O:EnsurePage(def, indexing)
+    if def.unavailable then return end
+    local page = self.pages[def.key]
     if not page then
         page = UI.NewPage(scroll)
+        page.frame:Hide()
         local ok, err = pcall(def.build, page)
-        if not ok then T:ReportError("settings page " .. key .. ": " .. tostring(err)) end
+        if not ok then page.buildError = tostring(err) end
         page:Finish()
-        O.pages[key] = page
+        self.pages[def.key] = page
     end
+    if page.buildError and not indexing and not page.errorReported then
+        T:ReportError("settings page " .. def.key .. ": " .. page.buildError)
+        page.errorReported = true
+    end
+    return page
+end
+function O:SetSearch(query)
+    self.searchQuery = query or ""
+    if not nav then return end
+    if #T.SettingsSearch.Normalize(self.searchQuery) >= 2 and not InCombatLockdown() then
+        for _, def in ipairs(T.pages) do
+            local module = T.modules and T.modules[def.section]
+            if not def.unavailable and not def.pinned and (not module or module.enabled) then self:EnsurePage(def, true) end
+        end
+    end
+    self.searchResults, self.searchTotal = T.SettingsSearch.Results(T.pages, self.pages, T.pageSections, self.searchQuery)
+    self.searchPicked = nil
+    nav:SetVerticalScroll(0)
+    self:LayoutNav()
+end
+function O:Select(key)
+    local def = FindPage(key) or FindPage("modules")
+    if not def then return end
+    if def.unavailable then def = FindPage("modules") end
+    if not def then return end
+    key = def.key
+    if self.highlight then self.highlight:Hide(); self.highlight = nil end
+    for _, other in ipairs(T.pages) do
+        local page = self.pages[other.key]
+        if page then page.frame:SetShown(other.key == key) end
+    end
+    local page = self:EnsurePage(def)
     scroll:SetScrollChild(page.frame)
     page.frame:Show()
     page:Refresh()
-    O.current = key
+    self.current = key
     if not def.pinned then expanded[def.section] = true end
-    O:LayoutNav()
+    self:LayoutNav()
     scroll:SetVerticalScroll(0)
     UpdateScrollbar()
+end
+function O:OpenSearchResult(result)
+    if result.unavailable then return end
+    self.searchPicked = result
+    self:Select(result.page)
+    local page = self.pages[self.current]
+    local range = math.max(0, page.frame:GetHeight() - scroll:GetHeight())
+    scroll:SetVerticalScroll(math.max(0, math.min(range, -result.y - 12)))
+    UpdateScrollbar()
+    if result.widget then
+        local widget = result.widget
+        if not widget.searchHighlight then
+            widget.searchHighlight = S.Accent(Tex(widget, "OVERLAY"), 0.16)
+            widget.searchHighlight:SetAllPoints()
+        end
+        self.highlight = widget.searchHighlight
+        self.highlight:Show()
+        self.highlightId = (self.highlightId or 0) + 1
+        local id = self.highlightId
+        if C_Timer and C_Timer.After then C_Timer.After(1.5, function()
+            if self.highlightId == id and self.highlight then self.highlight:Hide(); self.highlight = nil end
+        end) end
+    end
 end
 
 function O:Refresh()
@@ -115,6 +209,30 @@ function O:Refresh()
     if T.Display then win.testBtn:SetActive(T.Display.testMode) end
     win.profile:SetText("Profile: |cffffffff" .. T:ProfileName() .. "|r")
     win.reload:SetShown(O.needsReload and true or false)
+end
+
+-- Escape dismisses the preview layer before the normal special-frame close binding.
+-- Explicit close buttons still close settings immediately; they do not re-lock movers.
+function O:DismissPreview(includeUnlocked)
+    local active, apply = false, false
+    if T.Layouts and T.Layouts.pending then T.Layouts:Cancel(); active = true end
+    if T.Display and T.Display.testMode then T.Display:SetTestMode(false); active = true end
+    local GF = T.GroupFrames
+    if GF and GF.showSamples then
+        GF.showSamples = nil
+        if GF.UpdateTestFrames then GF:UpdateTestFrames() end
+        active = true
+    end
+    if T.db and T.db.combatpulse and T.db.combatpulse.test then
+        T.db.combatpulse.test = false
+        active, apply = true, true
+    end
+    if includeUnlocked and T.db and not T.db.locked then
+        T.db.locked = true
+        active, apply = true, true
+    end
+    if apply then T:ApplySettings() elseif active then self:Refresh() end
+    return active
 end
 
 ----------------------------------------------------------------------------------------
@@ -139,13 +257,26 @@ local function NavItem(parent)
     b.bar:SetPoint("LEFT", 0, 0)
     b.text = Text(b, 12, C.muted)
     b.text:SetPoint("LEFT", 22, 0)
-    b:SetScript("OnEnter", function(self) if not self.selected then self.bg:SetVertexColor(1, 1, 1, 0.03) end end)
-    b:SetScript("OnLeave", function(self) if not self.selected then self.bg:SetVertexColor(1, 1, 1, 0) end end)
+    b.text:SetWidth(SIDE_W - 42)
+    b.text:SetWordWrap(false)
+    b.sub = Text(b, 9, C.muted)
+    b.sub:SetPoint("BOTTOMLEFT", 22, 3)
+    b.sub:SetWidth(SIDE_W - 42); b.sub:SetWordWrap(false); b.sub:Hide()
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:SetScript("OnEnter", function(self)
+        if self.unavailable then OptionalTooltip(self)
+        elseif not self.selected then self.bg:SetVertexColor(1, 1, 1, 0.03) end
+    end)
+    b:SetScript("OnLeave", function(self)
+        if not self.selected then self.bg:SetVertexColor(1, 1, 1, 0) end
+        if GameTooltip then GameTooltip:Hide() end
+    end)
     function b:SetSelected(on)
+        on = on and not self.unavailable
         self.selected = on
         self.bar:SetShown(on)
         self.bg:SetVertexColor(1, 1, 1, on and 0.06 or 0)
-        local c = on and C.text or C.muted
+        local c = self.unavailable and OPTIONAL_GREY or (on and C.text or C.muted)
         self.text:SetTextColor(c[1], c[2], c[3])
     end
     return b
@@ -162,12 +293,51 @@ local function NavHeader(parent)
     b.line:SetHeight(1)
     b.line:SetPoint("BOTTOMLEFT", 8, 0)
     b.line:SetPoint("BOTTOMRIGHT", -8, 0)
-    b:SetScript("OnEnter", function(self) self.text:SetTextColor(1, 1, 1) end)
-    b:SetScript("OnLeave", function(self) self.text:SetTextColor(AC[1], AC[2], AC[3]) end)
+    b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    b:SetScript("OnEnter", function(self)
+        if self.unavailable then OptionalTooltip(self) else self.text:SetTextColor(1, 1, 1) end
+    end)
+    b:SetScript("OnLeave", function(self)
+        local color = self.unavailable and OPTIONAL_GREY or AC
+        self.text:SetTextColor(color[1], color[2], color[3])
+        if GameTooltip then GameTooltip:Hide() end
+    end)
     return b
 end
 
 function O:LayoutNav()
+    if not nav then return end
+    nav.message:Hide()
+    if self.searchQuery and self.searchQuery:match("%S") then
+        local results = self.searchResults or {}
+        local y = -8
+        for i, result in ipairs(results) do
+            local b = nav.items[i] or NavItem(nav.child)
+            nav.items[i] = b
+            b:ClearAllPoints(); b:SetHeight(42)
+            b:SetPoint("TOPLEFT", 8, y); b:SetPoint("RIGHT", nav.child, "RIGHT", -8, 0)
+            b.text:ClearAllPoints(); b.text:SetPoint("TOPLEFT", 22, -3)
+            b.text:SetText(result.label)
+            b.sub:SetText(result.breadcrumb); b.sub:Show()
+            b.unavailable = result.unavailable
+            b:SetSelected(self.searchPicked == result)
+            b:SetScript("OnClick", function(_, button)
+                if result.unavailable then
+                    if button == "RightButton" then self:ShowSpellPowerLink() end
+                elseif button ~= "RightButton" then self:OpenSearchResult(result) end
+            end)
+            b:Show(); y = y - 44
+        end
+        for _, h in ipairs(nav.headers) do h:Hide() end
+        for i = #results + 1, #nav.items do nav.items[i]:Hide() end
+        if #results == 0 then
+            nav.message:SetText(#T.SettingsSearch.Normalize(self.searchQuery) < 2 and "Type at least 2 characters." or
+                (InCombatLockdown() and "No matches. Full indexing resumes after combat." or "No matching settings."))
+            nav.message:Show(); y = -80
+        end
+        nav.child:SetHeight(-y + 8)
+        return
+    end
     local y = -8
     local hi, ii = 0, 0
     -- Pinned pages (What's new) sit above every section, always visible.
@@ -179,10 +349,13 @@ function O:LayoutNav()
             b:ClearAllPoints()
             b:SetPoint("TOPLEFT", 8, y)
             b:SetPoint("RIGHT", nav.child, "RIGHT", -8, 0)
+            b:SetHeight(26); b.sub:Hide()
+            b.text:ClearAllPoints(); b.text:SetPoint("LEFT", 22, 0)
             b.text:SetText(def.label)
+            b.unavailable = def.unavailable
             b:SetSelected(def.key == O.current)
             if not b.selected then b.text:SetTextColor(AC[1], AC[2], AC[3]) end
-            b:SetScript("OnClick", function() O:Select(def.key) end)
+            b:SetScript("OnClick", function(_, button) if button ~= "RightButton" then O:Select(def.key) end end)
             b:Show()
             y = y - 31
         end
@@ -197,11 +370,19 @@ function O:LayoutNav()
             h:SetPoint("TOPLEFT", 8, y)
             h:SetPoint("RIGHT", nav.child, "RIGHT", -8, 0)
             h.text:SetText(section.label:upper())
-            local open = expanded[section.key]
-            h.arrow:SetText(open and "-" or "+")
-            h:SetScript("OnClick", function()
-                expanded[section.key] = not expanded[section.key]
-                O:LayoutNav()
+            local unavailable = section.key == "spellpower" and not spellPowerLoaded
+            h.unavailable = unavailable
+            local color = unavailable and OPTIONAL_GREY or AC
+            h.text:SetTextColor(color[1], color[2], color[3])
+            local open = not unavailable and expanded[section.key]
+            h.arrow:SetText(unavailable and "" or (open and "-" or "+"))
+            h:SetScript("OnClick", function(_, button)
+                if unavailable then
+                    if button == "RightButton" then O:ShowSpellPowerLink() end
+                elseif button ~= "RightButton" then
+                    expanded[section.key] = not expanded[section.key]
+                    O:LayoutNav()
+                end
             end)
             h:Show()
             y = y - 30
@@ -213,9 +394,12 @@ function O:LayoutNav()
                     b:ClearAllPoints()
                     b:SetPoint("TOPLEFT", 8, y)
                     b:SetPoint("RIGHT", nav.child, "RIGHT", -8, 0)
+                    b:SetHeight(26); b.sub:Hide()
+                    b.text:ClearAllPoints(); b.text:SetPoint("LEFT", 22, 0)
                     b.text:SetText(def.label)
+                    b.unavailable = def.unavailable
                     b:SetSelected(def.key == O.current)
-                    b:SetScript("OnClick", function() O:Select(def.key) end)
+                    b:SetScript("OnClick", function(_, button) if button ~= "RightButton" then O:Select(def.key) end end)
                     b:Show()
                     y = y - 27
                 end
@@ -246,15 +430,26 @@ local function CreateWindow()
     win:RegisterForDrag("LeftButton")
     win:SetScript("OnDragStart", win.StartMoving)
     win:SetScript("OnDragStop", win.StopMovingOrSizing)
-    -- Previews started from the settings end when the settings close.
+    win:EnableKeyboard(true)
+    win:SetPropagateKeyboardInput(true)
+    win:SetScript("OnKeyDown", function(self, key)
+        local link = O.spellPowerLink
+        local linkOpen = key == "ESCAPE" and link and link:IsShown()
+        if linkOpen then link:Hide() end
+        local consumed = key == "ESCAPE" and (self.escapePreviewConsumed or linkOpen or O:DismissPreview(true))
+        if consumed then self.escapePreviewConsumed = true end
+        self:SetPropagateKeyboardInput(not consumed)
+    end)
+    win:SetScript("OnKeyUp", function(self, key)
+        local consumed = key == "ESCAPE" and self.escapePreviewConsumed
+        if key == "ESCAPE" then self.escapePreviewConsumed = nil end
+        self:SetPropagateKeyboardInput(not consumed)
+    end)
+    -- Previews also end when settings are closed by the close button or normal Escape.
     win:SetScript("OnHide", function()
         CloseMenu()
-        if T.Display and T.Display.testMode then T.Display:SetTestMode(false) end
-        local GF = T.GroupFrames
-        if GF and GF.showSamples then
-            GF.showSamples = nil
-            if GF.UpdateTestFrames then GF:UpdateTestFrames() end
-        end
+        if O.spellPowerLink then O.spellPowerLink:Hide() end
+        O:DismissPreview(false)
     end)
     tinsert(UISpecialFrames, "TempusOptionsFrame")
 
@@ -313,6 +508,7 @@ local function CreateWindow()
         O:Refresh()
     end)
     win.testBtn:SetPoint("RIGHT", win.lockBtn, "LEFT", -8, 0)
+    UI.Tooltip(win.testBtn, "Preview", "Escape ends previews and keeps Tempus open. Press Escape again to close settings.")
     win.reload = FlatButton(header, "Reload to apply", 120, 26, function() ReloadUI() end)
     win.reload:SetPoint("RIGHT", win.testBtn, "LEFT", -8, 0)
     win.reload:SetActive(true)
@@ -328,13 +524,37 @@ local function CreateWindow()
     sline:SetWidth(1)
     sline:SetPoint("TOPRIGHT")
     sline:SetPoint("BOTTOMRIGHT")
+    win.search = UI.StyledEditBox(side, SIDE_W - 46, 26)
+    win.search:SetPoint("TOPLEFT", 10, -8)
+    win.search:SetMaxLetters(80)
+    local searchHint = Text(win.search, 10, C.muted)
+    searchHint:SetPoint("LEFT", 8, 0); searchHint:SetText("Search settings...")
+    win.search:SetScript("OnTextChanged", function(self)
+        searchHint:SetShown(self:GetText() == "")
+        O:SetSearch(self:GetText())
+    end)
+    win.search:SetScript("OnEnterPressed", function(self)
+        if O.searchResults and O.searchResults[1] then O:OpenSearchResult(O.searchResults[1]) end
+        self:ClearFocus()
+    end)
+    win.search:SetScript("OnEscapePressed", function(self)
+        if not O:DismissPreview(true) then self:SetText("") end
+        self:ClearFocus()
+        -- The same physical Escape must not also reach the window close binding.
+        win.escapePreviewConsumed = true
+        win:SetPropagateKeyboardInput(false)
+    end)
+    local clearSearch = FlatButton(side, "x", 22, 26, function() win.search:SetText(""); win.search:ClearFocus() end)
+    clearSearch:SetPoint("TOPRIGHT", -8, -8)
     nav = CreateFrame("ScrollFrame", nil, side)
-    nav:SetPoint("TOPLEFT", 0, -2)
+    nav:SetPoint("TOPLEFT", 0, -42)
     nav:SetPoint("BOTTOMRIGHT", 0, 40)
     nav.child = CreateFrame("Frame", nil, nav)
     nav.child:SetSize(SIDE_W, 10)
     nav:SetScrollChild(nav.child)
     nav.headers, nav.items = {}, {}
+    nav.message = Text(nav.child, 11, C.muted)
+    nav.message:SetPoint("TOPLEFT", 12, -8); nav.message:SetWidth(SIDE_W - 24); nav.message:Hide()
     nav:EnableMouseWheel(true)
     nav:SetScript("OnMouseWheel", function(self, delta)
         local range = math.max(0, nav.child:GetHeight() - self:GetHeight())
@@ -360,13 +580,22 @@ local function CreateWindow()
     thumb = S.Accent(Tex(win, "OVERLAY"), 0.5)
     thumb:SetWidth(3)
 
-    win:SetScript("OnShow", function() O:Refresh() end)
+    win:RegisterEvent("PLAYER_REGEN_ENABLED")
+    win:SetScript("OnEvent", function()
+        if win:IsShown() and O.searchQuery and O.searchQuery:match("%S") then O:SetSearch(O.searchQuery) end
+    end)
+    win:SetScript("OnShow", function(self)
+        self.escapePreviewConsumed = nil
+        self:SetPropagateKeyboardInput(true)
+        O:Refresh()
+    end)
     win:Hide()
 end
 
 function O:Open(key)
     if not win then CreateWindow() end
     win:Show()
+    if key then win.search:SetText("") end
     O:Select(key or O.current or "modules")
     -- Opened plainly (slash command, minimap button): every sidebar section starts closed.
     -- Opened to a page (a mover's right-click), that page's section stays open.

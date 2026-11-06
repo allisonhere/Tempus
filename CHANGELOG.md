@@ -1,13 +1,31 @@
 # Changelog
 
-## Unreleased
+## 2.8.0
 
 ### New
-- **Next-swing cue**: each swing bar gets a gold tick near its end, and the bar turns gold for the last moments before the swing lands, so you can time on-next-swing abilities (Heroic Strike, Maul). The window is a lead time you choose plus, optionally, your latency; an optional sound plays when it starts (Swing timer settings).
+- **Next-swing cue**: each swing bar gets a tick near its end, and the bar turns soft teal for the last moments before the swing lands, so you can time on-next-swing abilities (Heroic Strike, Maul). The window is a lead time you choose plus, optionally, your latency; an optional sound plays when it starts (Swing timer settings).
 - **Fight summary**: when combat ends, a line under the swing timer shows how much of the fight you spent swinging, out of range or idle (`/tempus swing` repeats it; Swing timer settings turn it off).
 - Escape locks the UI again after unlocking it, and the Profiles page can save your current settings under a new name.
 - Swing timer: the spark swells and the bar flashes when a swing is ready (optional).
 - `/tempus probe swing` records swing and range events for comparison with Blizzard's swing timer.
+- **Discoverable SpellPower integration**: when the optional addon is missing or disabled, keep its sidebar entry visible in grey. Hover for a description of its chat spelling/grammar help and its CurseForge link; right-click for a copyable URL. The missing entry is searchable without opening settings. Installed and older standalone integrations keep their existing behavior.
+- **Automatic layouts**: opt in under General > Automatic layouts and assign position presets to Solo, Party and Raid. Switching waits for combat to end, locked frames, and editing/previews to finish, then uses the latest group/profile. Manual position changes and Undo/Redo take precedence for the current group type; Pause keeps manual control across group changes. Rules persist per profile; renamed presets keep their assignments. Each automatic switch is one undo action.
+- **Settings search**: type in the sidebar to find page names, control labels and help text across eligible settings pages. Click a match to open the page, scroll to its control and highlight it. Enter opens the first match; Escape or x clears the query. Search uses literal, case-insensitive word matching and never activates controls. Full indexing waits until out of combat.
+- **Group frame editing**: Shift-click frames or toggle them in the positioning panel's selector to move them together. Align edges/centers, distribute equal visible gaps across three or more frames, or center a group on screen. Group dragging snaps its outer bounds; Alt bypasses snapping and arrows remain unsnapped. Mixed-scale frames preserve spacing, screen edges clamp the whole group, and each group change is one Undo/Redo step. Group editing is blocked during combat, resizing and pending drag saves. Selection is temporary and clears on lock/profile change/reload.
+- **Position Undo/Redo** in the unlocked positioning panel and Layout presets page: reverse drags, arrow nudges, applied presets and default-position restores. Each completed edit is one step, with up to 50 steps per profile until reload/logout. A new edit clears redo; no-ops preserve it. Combat and active dragging/resizing disable history controls. Sizes, colors and saved preset definitions stay unchanged.
+- **Layout presets** under General: save position-only layouts in the current profile, duplicate and rename them, preview ghost frames before applying, cancel safely, and preview/restore module default positions without resetting other settings. Combat and active dragging block layout switching. Names never silently overwrite existing presets.
+- **Frame snapping and alignment guides**: drag near frame or screen edges and centers to snap within 8 UI units; hold Alt to move freely. Arrow nudges remain unsnapped.
+- Complete positioning, preset, storage and testing documentation in `docs/layouts.md`.
+- **Swing timer diagram**: the Swing timer settings page shows a labelled drawing of the bar, explaining the spark, cue tick, time left and the out-of-range look.
+- **Empty a bag**: right-click a bag on the bag bar to move everything in it into your other bags (quivers and other special bags only get items they hold), then take the empty bag off into a free slot.
+- **Drag bags on and off the bag bar**: drag a bag from the bar to an inventory slot to take it off, or drop a bag on a bar slot to equip or swap it. Hovering a bag shows its slot count, used and free.
+- **Quest progress on nameplates**: quest mobs show how many you still need ("4/10") beside the quest marker, read from the tooltip or your quest log (Nameplates > General).
+- **Second colour**: an optional second colour for the settings window, used for the selected-page marker, ticked checkboxes, slider fills and the lines beside section titles (Appearance).
+
+### Changed
+- **Preview-first Escape**: while Tempus settings is open, Escape ends layout ghosts, test auras, group samples, Combat Pulse test mode and unlocked editing without closing settings. Press Escape again to close Tempus. Holding the key does not skip this step, and focused search gives active previews priority. The close button still closes immediately.
+- Bags grid view always shows your real bag slots, so dragging one item onto another visibly swaps them. Display sorting now applies to Sections view only.
+- Swing bar text switches between black and white to stay readable on any bar colour; the cue tick is warm white.
 
 ## 2.7.2
 

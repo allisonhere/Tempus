@@ -217,6 +217,8 @@ local W = {}
 
 function W.Check(label, get, set, tip)
     local f = CreateFrame("Button", nil, nil)
+    f.searchLabel = label
+    f.searchText = (label or "") .. " " .. (tip or "")
     f:SetSize(COL_W, 24)
     local box = CreateFrame("Frame", nil, f)
     box:SetSize(18, 18)
@@ -245,6 +247,8 @@ end
 
 function W.Slider(label, minV, maxV, step, get, set, fmt, tip)
     local f = CreateFrame("Frame", nil, nil)
+    f.searchLabel = label
+    f.searchText = (label or "") .. " " .. (tip or "")
     f:SetSize(COL_W, 42)
     local text = Text(f, 12)
     text:SetPoint("TOPLEFT")
@@ -270,7 +274,7 @@ function W.Slider(label, minV, maxV, step, get, set, fmt, tip)
     local fillT = Tex(s, "BORDER", { 1, 1, 1, 1 })
     fillT:SetPoint("LEFT", track, "LEFT")
     local function PaintFill(v)
-        local a, c2 = AC, T:SecondColor()
+        local a, c2 = AC, (T.SecondColor and T:SecondColor())
         if not c2 then
             S.SetGradient(fillT, "HORIZONTAL", a[1], a[2], a[3], 1, a[1], a[2], a[3], 1)
             return
@@ -322,6 +326,8 @@ end
 
 function W.Dropdown(label, items, get, set, tip)
     local f = CreateFrame("Frame", nil, nil)
+    f.searchLabel = label
+    f.searchText = (label or "") .. " " .. (tip or "")
     f:SetSize(COL_W, 48)
     local text = Text(f, 12)
     text:SetPoint("TOPLEFT")
@@ -383,6 +389,8 @@ end
 
 function W.Color(label, get, tip)
     local f = CreateFrame("Button", nil, nil)
+    f.searchLabel = label
+    f.searchText = (label or "") .. " " .. (tip or "")
     f:SetSize(COL_W, 24)
     local sw = CreateFrame("Frame", nil, f)
     sw:SetSize(30, 18)
@@ -406,6 +414,8 @@ end
 
 function W.Button(label, onClick, tip, width)
     local f = CreateFrame("Frame", nil, nil)
+    f.searchLabel = label
+    f.searchText = (label or "") .. " " .. (tip or "")
     f:SetSize(COL_W, 28)
     local b = FlatButton(f, label, width or 150, 26, onClick)
     b:SetPoint("LEFT")
@@ -418,6 +428,8 @@ end
 -- Editable name list with add box, optional "pick from active buffs", and remove buttons.
 function W.List(listKey, placeholder)
     local f = CreateFrame("Frame", nil, nil)
+    f.searchLabel = placeholder or listKey
+    f.searchText = listKey .. " " .. (placeholder or "")
     local width = COL_W * 2 + COL_GAP
     f:SetSize(width, 236)
     local input = StyledEditBox(f, width - 250, 26)
@@ -511,7 +523,7 @@ local Page = {}
 Page.__index = Page
 
 local function NewPage(parent)
-    local p = setmetatable({ widgets = {}, y = -18, col = 0, rowH = 0 }, Page)
+    local p = setmetatable({ widgets = {}, searchEntries = {}, y = -18, col = 0, rowH = 0 }, Page)
     p.frame = CreateFrame("Frame", nil, parent)
     p.frame:SetSize(CONTENT_W - 20, 10)
     return p
@@ -527,8 +539,10 @@ end
 function Page:Add(widget, height, full)
     widget:SetParent(self.frame)
     widget:ClearAllPoints()
+    local entryY = self.y
     if full then
         self:Newline()
+        entryY = self.y
         widget:SetPoint("TOPLEFT", self.frame, "TOPLEFT", MARGIN, self.y)
         self.y = self.y - height - 12
     else
@@ -538,11 +552,28 @@ function Page:Add(widget, height, full)
         if self.col == 2 then self:Newline() end
     end
     self.widgets[#self.widgets + 1] = widget
+    local label, text = widget.searchLabel, widget.searchText
+    if not label and widget.GetRegions then
+        local labels = {}
+        for _, region in ipairs({widget:GetRegions()}) do
+            if region.GetText then
+                local value = region:GetText()
+                if type(value) == "string" and value ~= "" then labels[#labels + 1] = value end
+            end
+        end
+        label = table.concat(labels, " "); text = label
+    end
+    if label and label ~= "" then
+        self.searchEntries[#self.searchEntries + 1] = {label = label, text = text or label,
+            section = self.searchSection, y = entryY, widget = widget}
+    end
     return widget
 end
 
 function Page:Section(title, desc)
     self:Newline()
+    self.searchSection = title
+    self.searchEntries[#self.searchEntries + 1] = {label = title, text = title .. " " .. (desc or ""), y = self.y}
     if self.y < -20 then self.y = self.y - 10 end
     local t = Text(self.frame, 14, AC)
     t:SetPoint("TOPLEFT", MARGIN, self.y)
@@ -553,7 +584,7 @@ function Page:Section(title, desc)
     line:SetPoint("RIGHT", self.frame, "RIGHT", -MARGIN, 0)
     -- With a second colour picked, the rule runs from the accent into it and fades out.
     S.OnAccent(function()
-        local a, c2, l = AC, T:SecondColor(), C.line
+        local a, c2, l = AC, (T.SecondColor and T:SecondColor()), C.line
         if c2 then
             S.SetGradient(line, "HORIZONTAL", a[1], a[2], a[3], 0.6, c2[1], c2[2], c2[3], 0.05)
         else
@@ -575,6 +606,9 @@ end
 -- A wrapped line of text at full page width, indented by `indent` pixels.
 function Page:Paragraph(text, indent, color, size, gap)
     self:Newline()
+    if text and text:match("%S") then
+        self.searchEntries[#self.searchEntries + 1] = {label = text:sub(1, 80), text = text, section = self.searchSection, y = self.y}
+    end
     indent = indent or 0
     local t = Text(self.frame, size or 12, color or C.text)
     t:SetPoint("TOPLEFT", MARGIN + indent, self.y)

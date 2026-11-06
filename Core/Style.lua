@@ -124,7 +124,7 @@ local accented = setmetatable({}, { __mode = "k" })
 local accentFns = {}
 
 local function PaintAccent(obj, spec)
-    local c = spec.second and T:SecondColor() or T.accent
+    local c = spec.second and T.SecondColor and T:SecondColor() or T.accent
     local m = spec.mul or 1
     if spec.text then obj:SetTextColor(c[1] * m, c[2] * m, c[3] * m)
     else obj:SetVertexColor(c[1] * m, c[2] * m, c[3] * m, spec.alpha or 1) end

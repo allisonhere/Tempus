@@ -84,3 +84,40 @@ The settings window also has a **What's new** page with the changelog.
 ## License
 
 Copyright (c) 2026 Allison Bayless. All rights reserved. You're welcome to download and play with Tempus UI; copying, re-uploading or reusing its code or artwork needs permission. See [LICENSE](LICENSE).
+
+## Frame positioning and layout presets
+
+Use `/tempus unlock` for labeled drag handles, a frame selector, arrow nudges,
+edge/center snapping and alignment guides. Hold Alt for free dragging.
+Open **General > Layout presets** to save, duplicate, rename, preview and apply
+position-only layouts, or preview and restore default positions. Undo/Redo in the
+positioning panel and Layout presets page recover the last 50 position changes
+per profile during the current session. Shift-click frames or toggle them in the
+selector to edit a group: drag/nudge together, align edges or centers, distribute
+equal gaps, or center the group on screen. Each group operation is one undo step.
+See [the complete layout guide](docs/layouts.md) for controls, safeguards, storage
+and testing instructions.
+
+## Automatic layouts and settings search
+
+Under **General > Automatic layouts**, optionally assign saved presets to solo,
+party and raid play. Switching waits for combat to end and editing to finish.
+Manual adjustments take precedence for the current group type; Pause keeps manual
+control across group changes. The feature is off by default.
+
+The sidebar's **Search settings...** box finds labels and help across settings
+pages. Click a match to open and highlight its control; Enter opens the first
+result, and Escape clears the search.
+
+See [setup, behavior and testing](docs/automatic-layouts-and-search.md).
+
+While settings is open, **Escape** ends active previews first and keeps Tempus
+open; press it again to close settings. The close button closes immediately.
+
+## Optional SpellPower integration
+
+SpellPower remains visible in the left menu when it is missing or disabled, with
+a grey entry. Hover for its chat spell-checking/grammar description and
+[CurseForge link](https://www.curseforge.com/wow/addons/spellpower). Right-click
+the entry to open a selected, copyable URL (Ctrl+C). Install or enable SpellPower
+and reload to access its settings; Tempus works without it.

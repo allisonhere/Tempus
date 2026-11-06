@@ -1,19 +1,28 @@
-# Tempus Royal UI — redesign branch
+# Tempus Royal UI — work-in-progress visual rebuild
 
-This is an **in-progress visual redesign** of the existing addon configuration screen, not a replacement for the addon. Main remains unchanged.
+This branch replaces the **Swing Timer settings presentation** with the illustrated Royal UI composition. The existing swing-timer combat implementation, SavedVariables keys, and callbacks are retained.
 
-## Implemented
-- A self-contained Royal rendering layer for the settings window, framing, header, sidebar, and selected nav item.
-- Uses native WoW texture regions and existing frame structure; no new dependencies or changed SavedVariables.
-- The existing page builders, options, and combat logic are preserved.
+## Currently implemented
 
-## Artwork
-The `artwork/source/` directory contains vector source artwork and design notes. SVG is **source only**, not a directly loadable WoW texture. Export it to lossless RGBA TGA or BLP before referencing in Lua. The ornate reference mockup is a *visual target*, not an exact in-game rendering yet.
+- Full Swing Timer page composition with a hero header, a gold/violet clock dial, four dedicated cards, and a bottom preview strip.
+- Native WoW TGA textures in `media/royal/`: `panel`, `frame`, `hero`, `emblem`, `dial`, `toggle-on`, `toggle-off`, and `slider-jewel`.
+- Shared settings toggle and slider graphics plus Royal window framing and branding.
+- Original Swing module keys remain: `enabled`, `offHand`, `ranged`, `showTime`, `visibility`, `width`, `height`, and `spacing`.
+- Page search and widget refresh still use `Config/Widgets.lua` and `UI.NewPage`.
 
-## Next iteration
-1. Export original individual artwork (not a crop of the complete UI screenshot) into `media/royal/`.
-2. Replace procedural ornamentation with texture-backed nine-slice panels; test scaling at the 860×600 configuration window size.
-3. Reskin shared Config/Widgets.lua controls without changing get/set/Refresh callbacks.
-4. Review in WoW and run `tools/check.sh` before opening a final PR.
+## Important visual limitations
 
-Do not change swing timer math, module registrations, default profile values, navigation semantics, slash commands, or combat restrictions.
+These first-pass TGA files are **programmatically drawn**, not extracted final-quality illustrated assets. They are not equivalent to the original concept illustration's intricate metallic sculpting, texture richness, character imagery, or typography. The current implementation should not be represented as a pixel-perfect reproduction.
+
+The clock readout and swing timeline in the settings window are **decorative previews**, not live combat values. The real swing bar module behavior remains unchanged.
+
+## Required in-game review
+
+1. Install this branch in WoW; open `/tempus` then select **Swing timer**.
+2. Confirm the TGA textures load rather than displaying green squares, including under the current client graphics API.
+3. Inspect the 860 × 600 settings window at 100% UI scale and at other scales. Verify header, nav, card borders, hero clock, all controls, and scrollbar don't overlap or clip.
+4. Confirm the four switches, three sliders, visibility dropdown, saved settings, nav search, profile switching, and reload retain their previous behavior.
+5. Compare the result side by side with the original illustrated prototype and revise the artwork itself, not only colors.
+6. Run `tools/check.sh`; do not merge PR until in-game appearance and functionality are approved.
+
+The `artwork/source/` SVGs are editable sources, **not** directly loadable WoW textures.

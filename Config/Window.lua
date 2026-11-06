@@ -263,6 +263,7 @@ local function NavItem(parent)
     b.sub:SetPoint("BOTTOMLEFT", 22, 3)
     b.sub:SetWidth(SIDE_W - 42); b.sub:SetWordWrap(false); b.sub:Hide()
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    if UI.Royal then UI.Royal.NavItem(b) end
     b:SetScript("OnEnter", function(self)
         if self.unavailable then OptionalTooltip(self)
         elseif not self.selected then self.bg:SetVertexColor(1, 1, 1, 0.03) end
@@ -278,6 +279,7 @@ local function NavItem(parent)
         self.bg:SetVertexColor(1, 1, 1, on and 0.06 or 0)
         local c = self.unavailable and OPTIONAL_GREY or (on and C.text or C.muted)
         self.text:SetTextColor(c[1], c[2], c[3])
+        if UI.Royal then UI.Royal.NavSelected(self, on) end
     end
     return b
 end
@@ -589,6 +591,7 @@ local function CreateWindow()
         self:SetPropagateKeyboardInput(true)
         O:Refresh()
     end)
+    if UI.Royal then UI.Royal.Apply(win, header, side, scroll) end
     win:Hide()
 end
 

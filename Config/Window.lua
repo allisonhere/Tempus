@@ -263,6 +263,7 @@ local function NavItem(parent)
     b.sub:SetPoint("BOTTOMLEFT", 22, 3)
     b.sub:SetWidth(SIDE_W - 42); b.sub:SetWordWrap(false); b.sub:Hide()
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    if UI.Royal then UI.Royal.NavItem(b) end
     b:SetScript("OnEnter", function(self)
         if self.unavailable then OptionalTooltip(self)
         elseif not self.selected then self.bg:SetVertexColor(1, 1, 1, 0.03) end
@@ -278,6 +279,7 @@ local function NavItem(parent)
         self.bg:SetVertexColor(1, 1, 1, on and 0.06 or 0)
         local c = self.unavailable and OPTIONAL_GREY or (on and C.text or C.muted)
         self.text:SetTextColor(c[1], c[2], c[3])
+        if UI.Royal then UI.Royal.NavSelected(self, on) end
     end
     return b
 end
@@ -294,6 +296,7 @@ local function NavHeader(parent)
     b.line:SetPoint("BOTTOMLEFT", 8, 0)
     b.line:SetPoint("BOTTOMRIGHT", -8, 0)
     b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    if UI.Royal then UI.Royal.NavHeader(b) end
     b:SetScript("OnEnter", function(self)
         if self.unavailable then OptionalTooltip(self) else self.text:SetTextColor(1, 1, 1) end
     end)
@@ -370,6 +373,7 @@ function O:LayoutNav()
             h:SetPoint("TOPLEFT", 8, y)
             h:SetPoint("RIGHT", nav.child, "RIGHT", -8, 0)
             h.text:SetText(section.label:upper())
+            if UI.Royal then h.text:SetTextColor(0.94,0.72,0.43) end
             local unavailable = section.key == "spellpower" and not spellPowerLoaded
             h.unavailable = unavailable
             local color = unavailable and OPTIONAL_GREY or AC
@@ -475,17 +479,21 @@ local function CreateWindow()
     hline:SetPoint("BOTTOMLEFT")
     hline:SetPoint("BOTTOMRIGHT")
     local logo = header:CreateTexture(nil, "ARTWORK")
-    logo:SetSize(34, 34)
+    logo:SetSize(48, 48)
     logo:SetPoint("LEFT", 14, 0)
-    logo:SetTexture(T.LOGO)
-    local title = Text(header, 20, AC, "")
+    logo:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\emblem.tga")
+    local title = Text(header, 22, { 0.98, 0.83, 0.59 }, "")
+    title:SetFont("Fonts\\FRIZQT__.TTF", 22, "")
     title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 12, 0)
-    title:SetText("Tempus UI")
+    title:SetText("TEMPUS UI")
     local sub = Text(header, 10, C.muted)
     sub:SetPoint("BOTTOMLEFT", logo, "BOTTOMRIGHT", 12, 1)
-    sub:SetText("INTERFACE SUITE  ·  v" .. T.version)
-    win.profile = Text(header, 11, C.muted)
+    sub:SetText("C O M B A T   T I M I N G   S U I T E  ·  v" .. T.version)
+    win.profile = Text(header, 11, {0.83,0.74,0.67})
     win.profile:SetPoint("LEFT", title, "RIGHT", 18, -1)
+    local divider = Tex(header,"ARTWORK",{0.83,0.59,0.30,0.8})
+    divider:SetSize(1,29)
+    divider:SetPoint("LEFT",title,"RIGHT",9,-3)
 
     local close = CreateFrame("Button", nil, header)
     close:SetSize(28, 28)
@@ -589,6 +597,7 @@ local function CreateWindow()
         self:SetPropagateKeyboardInput(true)
         O:Refresh()
     end)
+    if UI.Royal then UI.Royal.Apply(win, header, side, scroll) end
     win:Hide()
 end
 

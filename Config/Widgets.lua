@@ -10,7 +10,7 @@ local AC = T.accent
 local C = S.C
 UI.WIN_W, UI.WIN_H, UI.SIDE_W = 860, 600, 196
 local CONTENT_W = UI.WIN_W - UI.SIDE_W - 14
-local COL_W, COL_GAP, MARGIN = 280, 22, 22
+local COL_W, COL_GAP, MARGIN = 280, 22, 20
 UI.COL_W = COL_W
 
 ----------------------------------------------------------------------------------------
@@ -62,23 +62,41 @@ end
 local function FlatButton(parent, label, w, h, onClick)
     local b = CreateFrame("Button", nil, parent)
     b:SetSize(w or 120, h or 24)
-    b.bg = Tex(b, "BACKGROUND", C.card)
+    local royalButtons = "Interface\\AddOns\\Tempus\\media\\royal\\"
+    b.bg = Tex(b, "BACKGROUND", {1,1,1,1})
+    b.bg:SetTexture(royalButtons .. "button-normal.tga")
     b.bg:SetAllPoints()
-    b.border = Border(b, { 1, 1, 1, 0.1 })
+    if b.bg.SetTextureSliceMargins then
+        pcall(b.bg.SetTextureSliceMargins,b.bg,16,12,16,12)
+    end
+    b.border = Border(b, { 0.63, 0.47, 0.28, 0.8 })
+    local topLine = Tex(b, "BORDER", { 0.94, 0.72, 0.42, 0.4 })
+    topLine:SetHeight(1)
+    topLine:SetPoint("TOPLEFT", 3, -2)
+    topLine:SetPoint("TOPRIGHT", -3, -2)
+    local lowerSheen = Tex(b, "BACKGROUND", {0.32, 0.15, 0.45, 0.28})
+    lowerSheen:SetPoint("TOPLEFT", 2, -2)
+    lowerSheen:SetPoint("BOTTOMRIGHT", -2, 2)
     b.text = Text(b, 11, C.text)
     b.text:SetPoint("CENTER")
     b.text:SetJustifyH("CENTER")
     b.text:SetText(label)
     b:SetScript("OnEnter", function(self)
-        self.bg:SetVertexColor(C.cardHi[1], C.cardHi[2], C.cardHi[3])
-        self.border:SetColor(AC[1], AC[2], AC[3], 0.8)
+        self.bg:SetTexture(royalButtons .. "button-hover.tga")
+        self.border:SetColor(0.95, 0.75, 0.43, 1)
     end)
     b:SetScript("OnLeave", function(self)
-        self.bg:SetVertexColor(C.card[1], C.card[2], C.card[3])
-        if not self.active then self.border:SetColor(1, 1, 1, 0.1) end
+        self.bg:SetTexture(royalButtons .. "button-normal.tga")
+        if not self.active then self.border:SetColor(0.63, 0.47, 0.28, 0.8) end
     end)
-    b:SetScript("OnMouseDown", function(self) self.text:SetPoint("CENTER", 1, -1) end)
-    b:SetScript("OnMouseUp", function(self) self.text:SetPoint("CENTER", 0, 0) end)
+    b:SetScript("OnMouseDown", function(self)
+        self.bg:SetTexture(royalButtons .. "button-pressed.tga")
+        self.text:SetPoint("CENTER", 1, -1)
+    end)
+    b:SetScript("OnMouseUp", function(self)
+        self.bg:SetTexture(royalButtons .. "button-hover.tga")
+        self.text:SetPoint("CENTER", 0, 0)
+    end)
     b:SetScript("OnClick", function(self, ...)
         PlaySound(SOUNDKIT and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON or 856)
         if onClick then onClick(self, ...) end
@@ -86,10 +104,10 @@ local function FlatButton(parent, label, w, h, onClick)
     function b:SetActive(on)
         self.active = on
         if on then
-            self.border:SetColor(AC[1], AC[2], AC[3], 1)
-            self.text:SetTextColor(AC[1], AC[2], AC[3])
+            self.border:SetColor(0.95, 0.75, 0.43, 1)
+            self.text:SetTextColor(0.98, 0.87, 0.68)
         else
-            self.border:SetColor(1, 1, 1, 0.1)
+            self.border:SetColor(0.63, 0.47, 0.28, 0.8)
             self.text:SetTextColor(C.text[1], C.text[2], C.text[3])
         end
     end
@@ -103,11 +121,11 @@ local function StyledEditBox(parent, w, h)
     e:SetFont(FONT, 12, "")
     e:SetTextColor(C.text[1], C.text[2], C.text[3])
     e:SetTextInsets(8, 8, 0, 0)
-    local bg = Tex(e, "BACKGROUND", { 0.03, 0.035, 0.045, 1 })
+    local bg = Tex(e, "BACKGROUND", { 0.095, 0.06, 0.12, 1 })
     bg:SetAllPoints()
-    local border = Border(e, { 1, 1, 1, 0.12 })
+    local border = Border(e, { 0.57, 0.42, 0.25, 0.75 })
     e:SetScript("OnEditFocusGained", function() border:SetColor(AC[1], AC[2], AC[3], 0.9) end)
-    e:SetScript("OnEditFocusLost", function() border:SetColor(1, 1, 1, 0.12) end)
+    e:SetScript("OnEditFocusLost", function() border:SetColor(0.57,0.42,0.25,0.75) end)
     e:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     return e
 end
@@ -219,30 +237,36 @@ function W.Check(label, get, set, tip)
     local f = CreateFrame("Button", nil, nil)
     f.searchLabel = label
     f.searchText = (label or "") .. " " .. (tip or "")
-    f:SetSize(COL_W, 24)
+    f:SetSize(COL_W, 28)
+    -- Full illustrated states; the button and its original callbacks stay native.
     local box = CreateFrame("Frame", nil, f)
-    box:SetSize(18, 18)
-    box:SetPoint("LEFT")
-    local bg = Tex(box, "BACKGROUND", { 0.03, 0.035, 0.045, 1 })
-    bg:SetAllPoints()
-    local border = Border(box, { 1, 1, 1, 0.18 })
-    local fill = Tex(box, "ARTWORK", AC)
-    fill:SetPoint("TOPLEFT", 4, -4)
-    fill:SetPoint("BOTTOMRIGHT", -4, 4)
+    box:SetSize(38, 20)
+    box:SetPoint("LEFT", 0, 0)
+    local bg = box:CreateTexture(nil, "ARTWORK")
+    bg:SetAllPoints(box)
+    bg:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\toggle-off.tga")
+    local hover = box:CreateTexture(nil, "OVERLAY")
+    hover:SetAllPoints(box)
+    hover:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\toggle-on.tga")
+    hover:SetAlpha(0.20)
+    hover:Hide()
     local text = Text(f, 12)
-    text:SetPoint("LEFT", box, "RIGHT", 9, 0)
+    text:SetPoint("LEFT", box, "RIGHT", 10, 0)
     text:SetPoint("RIGHT", f, "RIGHT")
     text:SetText(label)
-    f:SetScript("OnEnter", function() border:SetColor(AC[1], AC[2], AC[3], 0.9) end)
-    f:SetScript("OnLeave", function() border:SetColor(1, 1, 1, 0.18) end)
+    f:SetScript("OnEnter", function() hover:Show() end)
+    f:SetScript("OnLeave", function() hover:Hide() end)
     f:SetScript("OnClick", function()
         set(not get())
         PlaySound(get() and 856 or 857)
         Changed()
     end)
-    function f:Refresh() fill:SetShown(get() and true or false) end
+    function f:Refresh()
+        bg:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\" ..
+            (get() and "toggle-on.tga" or "toggle-off.tga"))
+    end
     Tooltip(f, label, tip)
-    return f, 24
+    return f, 28
 end
 
 function W.Slider(label, minV, maxV, step, get, set, fmt, tip)
@@ -272,10 +296,10 @@ function W.Slider(label, minV, maxV, step, get, set, fmt, tip)
     local fillT = Tex(s, "BORDER", AC)
     fillT:SetPoint("LEFT", track, "LEFT")
     fillT:SetHeight(4)
-    s:SetThumbTexture(WHITE)
+    s:SetThumbTexture("Interface\\AddOns\\Tempus\\media\\royal\\slider-jewel.tga")
     local thumb = s:GetThumbTexture()
-    thumb:SetSize(10, 14)
-    thumb:SetVertexColor(0.92, 0.95, 1)
+    thumb:SetSize(25, 25)
+    thumb:SetVertexColor(1, 1, 1)
     fillT:SetPoint("RIGHT", thumb, "CENTER")
     local function Show(v)
         if fmt then value:SetText(fmt(v)) else value:SetText(tostring(v)) end
@@ -321,17 +345,29 @@ function W.Dropdown(label, items, get, set, tip)
     btn:SetPoint("TOPLEFT", 0, -18)
     btn:SetPoint("TOPRIGHT", 0, -18)
     btn:SetHeight(26)
-    local bg = Tex(btn, "BACKGROUND", C.card)
+    local bg = Tex(btn, "BACKGROUND", {0.105,0.072,0.14,1})
     bg:SetAllPoints()
-    local border = Border(btn, { 1, 1, 1, 0.12 })
+    local border = Border(btn, {0.67,0.49,0.29,0.85})
+    local bevel=Tex(btn,"ARTWORK",{0.96,0.74,0.42,0.45})
+    bevel:SetHeight(1)
+    bevel:SetPoint("TOPLEFT",3,-2)
+    bevel:SetPoint("TOPRIGHT",-3,-2)
     local cur = Text(btn, 12)
     cur:SetPoint("LEFT", 10, 0)
     local arrow = btn:CreateTexture(nil, "ARTWORK")
-    arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
-    arrow:SetSize(20, 20)
-    arrow:SetPoint("RIGHT", -3, 0)
-    btn:SetScript("OnEnter", function() border:SetColor(AC[1], AC[2], AC[3], 0.8) end)
-    btn:SetScript("OnLeave", function() border:SetColor(1, 1, 1, 0.12) end)
+    arrow:SetTexture(WHITE)
+    arrow:SetVertexColor(0.97,0.77,0.43)
+    arrow:SetSize(9,2)
+    arrow:SetPoint("RIGHT",-12,-1)
+    arrow:SetRotation(math.pi/4)
+    local arrowOther=btn:CreateTexture(nil,"ARTWORK")
+    arrowOther:SetTexture(WHITE)
+    arrowOther:SetVertexColor(0.97,0.77,0.43)
+    arrowOther:SetSize(9,2)
+    arrowOther:SetPoint("LEFT",arrow,"RIGHT",-2,0)
+    arrowOther:SetRotation(-math.pi/4)
+    btn:SetScript("OnEnter", function() border:SetColor(0.98,0.81,0.52,1) end)
+    btn:SetScript("OnLeave", function() border:SetColor(0.67,0.49,0.29,0.85) end)
     local function List() return type(items) == "function" and items() or items end
     btn:SetScript("OnClick", function(self)
         OpenMenu(self, List(), function(v) set(v); Changed() end, get())
@@ -402,7 +438,8 @@ function W.Button(label, onClick, tip, width)
     f.searchLabel = label
     f.searchText = (label or "") .. " " .. (tip or "")
     f:SetSize(COL_W, 28)
-    local b = FlatButton(f, label, width or 150, 26, onClick)
+    -- Default actions fill their column; callers can still request a compact width.
+    local b = FlatButton(f, label, width or COL_W, 26, onClick)
     b:SetPoint("LEFT")
     function f:Refresh() end
     Tooltip(b, label, tip)
@@ -516,7 +553,7 @@ end
 
 function Page:Newline()
     if self.col > 0 then
-        self.y = self.y - self.rowH - 12
+        self.y = self.y - self.rowH - 7
         self.col, self.rowH = 0, 0
     end
 end
@@ -529,7 +566,7 @@ function Page:Add(widget, height, full)
         self:Newline()
         entryY = self.y
         widget:SetPoint("TOPLEFT", self.frame, "TOPLEFT", MARGIN, self.y)
-        self.y = self.y - height - 12
+        self.y = self.y - height - 7
     else
         widget:SetPoint("TOPLEFT", self.frame, "TOPLEFT", MARGIN + self.col * (COL_W + COL_GAP), self.y)
         self.rowH = math.max(self.rowH, height)
@@ -555,17 +592,52 @@ function Page:Add(widget, height, full)
     return widget
 end
 
+-- The same engraved card treatment applies to every module's settings sections.
+-- Cards are decorative BACKGROUND textures: existing widgets retain mouse input.
+local function FinishRoyalCard(page)
+    local card = page.royalCard
+    if not card then return end
+    -- End the frame just below the last content row. The old +10 formula
+    -- extended panels into the following section and caused overlapping trim.
+    local h = math.max(50, card.top - page.y - 2)
+    card.bg:SetHeight(h)
+    card.rim:SetHeight(h)
+    page.royalCard = nil
+end
+
 function Page:Section(title, desc)
     self:Newline()
+    if self.royalCard then
+        FinishRoyalCard(self)
+        -- One explicit inter-card gap; don't stack it with widget-row margins.
+        self.y = self.y - 16
+    end
+    local top = self.y + 10
+    local cardBg = self.frame:CreateTexture(nil, "BACKGROUND", nil, -7)
+    cardBg:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\panel.tga")
+    cardBg:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, top)
+    cardBg:SetWidth(COL_W * 2 + COL_GAP + 24)
+    local cardRim = self.frame:CreateTexture(nil, "BACKGROUND", nil, -6)
+    cardRim:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\frame.tga")
+    cardRim:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, top)
+    cardRim:SetWidth(COL_W * 2 + COL_GAP + 24)
+    if cardRim.SetTextureSliceMargins then
+        pcall(cardRim.SetTextureSliceMargins, cardRim, 30, 30, 30, 30)
+    end
+    self.royalCard = {top=top, bg=cardBg, rim=cardRim}
     self.searchSection = title
     self.searchEntries[#self.searchEntries + 1] = {label = title, text = title .. " " .. (desc or ""), y = self.y}
-    if self.y < -20 then self.y = self.y - 10 end
-    local t = Text(self.frame, 14, AC)
-    t:SetPoint("TOPLEFT", MARGIN, self.y)
+    if self.y < -20 then self.y = self.y - 5 end
+    local jewel = Tex(self.frame, "ARTWORK", {0.94,0.73,0.43,1})
+    jewel:SetSize(7,7)
+    jewel:SetPoint("TOPLEFT", MARGIN+2, self.y-4)
+    jewel:SetRotation(math.pi / 4)
+    local t = Text(self.frame, 14, {0.97,0.84,0.65})
+    t:SetPoint("TOPLEFT", MARGIN+18, self.y)
     t:SetText(title)
-    local line = Tex(self.frame, "ARTWORK", C.line)
+    local line = Tex(self.frame, "ARTWORK", {0.75,0.54,0.29,0.48})
     line:SetHeight(1)
-    line:SetPoint("LEFT", t, "RIGHT", 10, 0)
+    line:SetPoint("LEFT", t, "RIGHT", 12, 0)
     line:SetPoint("RIGHT", self.frame, "RIGHT", -MARGIN, 0)
     self.y = self.y - 22
     if desc then
@@ -574,9 +646,9 @@ function Page:Section(title, desc)
         d:SetWidth(COL_W * 2 + COL_GAP)
         d:SetText(desc)
         d:SetSpacing(2)
-        self.y = self.y - d:GetStringHeight() - 10
+        self.y = self.y - d:GetStringHeight() - 6
     end
-    self.y = self.y - 4
+    self.y = self.y - 2
 end
 
 -- A wrapped line of text at full page width, indented by `indent` pixels.
@@ -597,6 +669,7 @@ end
 
 function Page:Finish()
     self:Newline()
+    FinishRoyalCard(self)
     self.frame:SetHeight(-self.y + 20)
 end
 

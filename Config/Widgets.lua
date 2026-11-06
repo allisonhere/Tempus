@@ -10,7 +10,7 @@ local AC = T.accent
 local C = S.C
 UI.WIN_W, UI.WIN_H, UI.SIDE_W = 860, 600, 196
 local CONTENT_W = UI.WIN_W - UI.SIDE_W - 14
-local COL_W, COL_GAP, MARGIN = 280, 22, 22
+local COL_W, COL_GAP, MARGIN = 280, 22, 20
 UI.COL_W = COL_W
 
 ----------------------------------------------------------------------------------------
@@ -541,7 +541,7 @@ end
 
 function Page:Newline()
     if self.col > 0 then
-        self.y = self.y - self.rowH - 12
+        self.y = self.y - self.rowH - 7
         self.col, self.rowH = 0, 0
     end
 end
@@ -554,7 +554,7 @@ function Page:Add(widget, height, full)
         self:Newline()
         entryY = self.y
         widget:SetPoint("TOPLEFT", self.frame, "TOPLEFT", MARGIN, self.y)
-        self.y = self.y - height - 12
+        self.y = self.y - height - 7
     else
         widget:SetPoint("TOPLEFT", self.frame, "TOPLEFT", MARGIN + self.col * (COL_W + COL_GAP), self.y)
         self.rowH = math.max(self.rowH, height)
@@ -609,7 +609,7 @@ function Page:Section(title, desc)
     self.royalCard = {top=top, bg=cardBg, rim=cardRim}
     self.searchSection = title
     self.searchEntries[#self.searchEntries + 1] = {label = title, text = title .. " " .. (desc or ""), y = self.y}
-    if self.y < -20 then self.y = self.y - 10 end
+    if self.y < -20 then self.y = self.y - 5 end
     local jewel = Tex(self.frame, "ARTWORK", {0.94,0.73,0.43,1})
     jewel:SetSize(7,7)
     jewel:SetPoint("TOPLEFT", MARGIN+2, self.y-4)
@@ -628,9 +628,9 @@ function Page:Section(title, desc)
         d:SetWidth(COL_W * 2 + COL_GAP)
         d:SetText(desc)
         d:SetSpacing(2)
-        self.y = self.y - d:GetStringHeight() - 10
+        self.y = self.y - d:GetStringHeight() - 6
     end
-    self.y = self.y - 4
+    self.y = self.y - 2
 end
 
 -- A wrapped line of text at full page width, indented by `indent` pixels.

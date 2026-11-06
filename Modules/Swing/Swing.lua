@@ -12,6 +12,10 @@ SW.defaults = {
     offHand = true, ranged = true,
     showTime = true,
     effects = true,             -- spark swell and a flash when the swing is ready
+    cue = true,                 -- a tick and a gold bar for the last moments: press on-next-swing moves now
+    cueWindow = 0.4,            -- seconds before the swing lands that the cue starts
+    cueLatency = true,          -- widen the cue by your home latency so the press lands in time
+    cueSound = false,           -- a short sound when the cue starts
     visibility = "COMBAT",      -- COMBAT | ALWAYS
     point = { "CENTER", "UIParent", "CENTER", 0, -215 },
 }
@@ -19,6 +23,7 @@ SW.defaults = {
 local OUT_OF_RANGE = { 0.85, 0.2, 0.2 }
 local DIM = 0.45
 local FLASH = 0.3           -- seconds the ready flash takes to fade
+local CUE_COLOR = { 1, 0.82, 0.2 }
 local SWELL = 0.25          -- the spark grows during the last quarter second
 
 -- Swing types in display order. Enum.PlayerSwingType: MainHand 0, OffHand 1, Ranged 2.
@@ -44,6 +49,16 @@ end
 function SW.OutOfRange(isInRange, checksRange)
     if checksRange == false then return false end
     return isInRange == false
+end
+
+-- Seconds before a swing lands that the cue opens. An on-next-swing ability has to reach
+-- the server before the swing does, so the window is the chosen lead plus (optionally)
+-- the round-trip delay, and never longer than most of the swing itself.
+function SW.CueWindow(db, latencyMs, duration)
+    local w = (T.Num(db.cueWindow) and db.cueWindow or 0.4)
+    if db.cueLatency and T.Num(latencyMs) and latencyMs > 0 then w = w + latencyMs / 1000 end
+    if T.Num(duration) and duration > 0 then w = math.min(w, duration * 0.6) end
+    return math.max(w, 0)
 end
 
 -- The swing to show on a single strip: the first running one, main hand first. Returns nil
@@ -74,7 +89,7 @@ local function RangeAPI()
 end
 
 local function ColorRow(row)
-    local c = row.outOfRange and OUT_OF_RANGE or (row.type.key == "main" and T.accent)
+    local c = row.outOfRange and OUT_OF_RANGE or (row.cueing and CUE_COLOR) or (row.type.key == "main" and T.accent)
         or (row.type.key == "off" and { T.accent[1] * 0.7, T.accent[2] * 0.7, T.accent[3] * 0.7 })
         or { 0.4, 0.8, 0.45 }
     row.bar:SetStatusBarColor(c[1], c[2], c[3])
@@ -102,6 +117,9 @@ local function RowOnUpdate(row)
         row.bar:SetValue(0)
         row.time:SetText("")
         row.spark:Hide()
+        row.cueing, row.cueAt = false, nil
+        row.tick:Hide()
+        ColorRow(row)
         if SW.db.effects and not row.outOfRange then
             row.flashT = now
             row.flash:SetAlpha(0.55)
@@ -112,6 +130,16 @@ local function RowOnUpdate(row)
         return
     end
     row.bar:SetValue(row.duration - left)
+    if row.cueAt then
+        local cueing = left <= row.cueAt
+        if cueing ~= row.cueing then
+            row.cueing = cueing
+            ColorRow(row)
+            if cueing and SW.db.cueSound and not row.outOfRange and PlaySound and SOUNDKIT and SOUNDKIT.UI_BNET_TOAST then
+                pcall(PlaySound, SOUNDKIT.UI_BNET_TOAST)
+            end
+        end
+    end
     if SW.db.showTime then row.time:SetFormattedText("%.1f", left) end
     if SW.db.effects then
         local k = left < SWELL and (1 - left / SWELL) or 0
@@ -136,6 +164,10 @@ local function NewRow(parent, kind)
     local over = CreateFrame("Frame", nil, row)
     over:SetAllPoints(row)
     over:SetFrameLevel(row.bar:GetFrameLevel() + 2)
+    row.tick = over:CreateTexture(nil, "ARTWORK")
+    row.tick:SetColorTexture(CUE_COLOR[1], CUE_COLOR[2], CUE_COLOR[3], 0.9)
+    row.tick:SetWidth(2)
+    row.tick:Hide()
     row.flash = over:CreateTexture(nil, "ARTWORK")
     row.flash:SetColorTexture(1, 1, 1, 1)
     row.flash:SetPoint("TOPLEFT", 1, -1)
@@ -162,6 +194,22 @@ function SW:Start(swingType, duration)
             row.bar:SetValue(0)
             row.spark:SetSize(10, row.sparkH or 24)
             row.spark:Show()
+            row.cueing, row.cueAt = false, nil
+            row.tick:Hide()
+            if self.db.cue then
+                local _, _, _, home = GetNetStats()
+                local w = SW.CueWindow(self.db, home, duration)
+                if w > 0 then
+                    row.cueAt = w
+                    local barW = row.bar:GetWidth()
+                    if not T.Num(barW) or barW <= 0 then barW = self.db.width - 2 end
+                    row.tick:ClearAllPoints()
+                    row.tick:SetPoint("TOP", row.bar, "TOPLEFT", barW * (1 - w / duration), 0)
+                    row.tick:SetPoint("BOTTOM", row.bar, "BOTTOMLEFT", barW * (1 - w / duration), 0)
+                    row.tick:Show()
+                end
+            end
+            ColorRow(row)
             row.flashT = nil
             row.flash:Hide()
             self:UpdateShown()
@@ -250,6 +298,8 @@ function SW:Refresh()
             ColorRow(row)
         else
             row.endT = nil
+            row.cueing, row.cueAt = false, nil
+            row.tick:Hide()
         end
     end
     f:SetSize(db.width, math.max(n * db.height + (n - 1) * db.spacing, db.height))

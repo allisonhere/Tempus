@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Next-swing cue**: each swing bar gets a gold tick near its end, and the bar turns gold for the last moments before the swing lands, so you can time on-next-swing abilities (Heroic Strike, Maul). The window is a lead time you choose plus, optionally, your latency; an optional sound plays when it starts (Swing timer settings).
+- Escape locks the UI again after unlocking it, and the Profiles page can save your current settings under a new name.
+- Swing timer: the spark swells and the bar flashes when a swing is ready (optional).
+- `/tempus probe swing` records swing and range events for comparison with Blizzard's swing timer.
+
 ## 2.7.2
 
 ### New

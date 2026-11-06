@@ -133,7 +133,7 @@ GetTime = function() return 100 end
 local heard = 0
 SW.listener = function() heard = heard + 1 end
 SW.db.enabled = true
-local row = setmetatable({ wanted = true, type = { id = 0, key = "main" }, bar = noop, spark = noop,
+local row = setmetatable({ wanted = true, type = { id = 0, key = "main" }, bar = noop, spark = noop, tick = noop, flash = noop,
     label = noop, time = noop }, { __index = function(_, k) if k:match("^%u") then return function() end end end })
 SW.rows = { main = row }
 ST.accent = { 0, 0.7, 1 }

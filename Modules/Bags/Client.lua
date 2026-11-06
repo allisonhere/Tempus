@@ -61,6 +61,141 @@ function Client:BagFamily(container)
     return T.Num(family) and family or 0
 end
 
+-- What sits in one slot: itemID (nil when empty) and whether it is locked mid-move.
+function Client:SlotItem(container, slot)
+    local env, C = self.env, self.env.C_Container
+    if C and C.GetContainerItemInfo then
+        local info = Call(C.GetContainerItemInfo, container, slot)
+        if type(info) ~= "table" then return nil end
+        return info.itemID or info.hyperlink, info.isLocked and true or false
+    end
+    local icon, _, locked, _, _, _, link, _, _, itemID = Call(env.GetContainerItemInfo, container, slot)
+    if not (icon or link or itemID) then return nil end
+    return itemID or link or icon, locked and true or false
+end
+
+local function Band(a, b)
+    local bit = _G.bit
+    if bit and bit.band then return bit.band(a, b) end
+    local r, p = 0, 1
+    while a > 0 and b > 0 do
+        if a % 2 == 1 and b % 2 == 1 then r = r + p end
+        a, b, p = math.floor(a / 2), math.floor(b / 2), p * 2
+    end
+    return r
+end
+
+-- Moves that empty one carried bag into free slots of the others: { from = {c, s}, to = {c, s} }.
+-- A special bag (quiver, soul bag, herb bag...) only takes items of its kind, and gets first
+-- pick of those; plain bags take anything. Returns the moves and how many items found no room.
+function Client:PlanEmpty(container)
+    local env = self.env
+    local familyFn = env.GetItemFamily or (env.C_Item and env.C_Item.GetItemFamily)
+    local special, plain = {}, {}
+    for _, id in ipairs(self:ContainerIDs("CARRIED")) do
+        if id ~= container and id >= (env.BACKPACK_CONTAINER or 0) then
+            local family = self:BagFamily(id)
+            for slot = 1, self:SlotCount(id) do
+                if self:SlotItem(id, slot) == nil then
+                    local list = family ~= 0 and special or plain
+                    list[#list + 1] = { id, slot, family = family }
+                end
+            end
+        end
+    end
+    local moves, left = {}, 0
+    for slot = 1, self:SlotCount(container) do
+        local item = self:SlotItem(container, slot)
+        if item ~= nil then
+            local itemFamily = Call(familyFn, item)
+            itemFamily = T.Num(itemFamily) and itemFamily or 0
+            local dest
+            for i, s in ipairs(special) do
+                if itemFamily > 0 and Band(itemFamily, s.family) > 0 then dest = table.remove(special, i) break end
+            end
+            dest = dest or table.remove(plain, 1)
+            if dest then moves[#moves + 1] = { from = { container, slot }, to = { dest[1], dest[2] } }
+            else left = left + 1 end
+        end
+    end
+    return moves, left
+end
+
+-- True once nothing is left in a container and no slot of it is still locked mid-move.
+function Client:IsEmpty(container)
+    for slot = 1, self:SlotCount(container) do
+        if self:SlotItem(container, slot) ~= nil then return false end
+    end
+    return true
+end
+
+-- Take an empty equipped bag off and put it in a free plain-bag slot (a bag cannot go into
+-- a quiver or soul bag). The backpack cannot come off. Returns true, or false and why.
+function Client:UnequipBag(container)
+    local env, C = self.env, self.env.C_Container
+    if container == (env.BACKPACK_CONTAINER or 0) then return false, "the backpack cannot be taken off" end
+    local invSlot = Call(C and C.ContainerIDToInventoryID or env.ContainerIDToInventoryID, container)
+    local pickBag = env.PickupBagFromSlot
+    local pickup = C and C.PickupContainerItem or env.PickupContainerItem
+    if not (T.Num(invSlot) and type(pickBag) == "function" and type(pickup) == "function") then
+        return false, "this client cannot move bags"
+    end
+    if env.CursorHasItem and Call(env.CursorHasItem) then return false, "your cursor is holding something" end
+    for _, id in ipairs(self:ContainerIDs("CARRIED")) do
+        if id ~= container and id >= (env.BACKPACK_CONTAINER or 0) and self:BagFamily(id) == 0 then
+            for slot = 1, self:SlotCount(id) do
+                if self:SlotItem(id, slot) == nil then
+                    Call(pickBag, invSlot)
+                    Call(pickup, id, slot)
+                    if env.CursorHasItem and Call(env.CursorHasItem) and env.ClearCursor then Call(env.ClearCursor) end
+                    return true
+                end
+            end
+        end
+    end
+    return false, "no free slot left for the bag itself"
+end
+
+-- Pick an equipped bag up onto the cursor, to drop on an inventory slot (or another bag slot).
+function Client:PickupBag(container)
+    local env, C = self.env, self.env.C_Container
+    if container == (env.BACKPACK_CONTAINER or 0) then return false end
+    local invSlot = Call(C and C.ContainerIDToInventoryID or env.ContainerIDToInventoryID, container)
+    if not T.Num(invSlot) or type(env.PickupBagFromSlot) ~= "function" then return false end
+    Call(env.PickupBagFromSlot, invSlot)
+    return true
+end
+
+-- Drop whatever the cursor holds on a bag slot: a bag gets equipped there (swapping with the
+-- one already in it), any other item goes into that bag. False when the cursor is empty.
+function Client:DropOnBag(container)
+    local env, C = self.env, self.env.C_Container
+    if not (env.CursorHasItem and Call(env.CursorHasItem)) then return false end
+    if container == (env.BACKPACK_CONTAINER or 0) then
+        Call(env.PutItemInBackpack)
+        return true
+    end
+    local invSlot = Call(C and C.ContainerIDToInventoryID or env.ContainerIDToInventoryID, container)
+    if not T.Num(invSlot) then return false end
+    Call(env.PutItemInBag, invSlot)
+    return true
+end
+
+-- Pick up an item and drop it in another slot. False when the cursor is busy or either slot is locked.
+function Client:MoveItem(from, to)
+    local env, C = self.env, self.env.C_Container
+    local pickup = C and C.PickupContainerItem or env.PickupContainerItem
+    if type(pickup) ~= "function" then return false end
+    if env.CursorHasItem and Call(env.CursorHasItem) then return false end
+    local _, lockedFrom = self:SlotItem(from[1], from[2])
+    local destItem, lockedTo = self:SlotItem(to[1], to[2])
+    if lockedFrom or lockedTo or destItem ~= nil then return false end
+    Call(pickup, from[1], from[2])
+    Call(pickup, to[1], to[2])
+    if env.CursorHasItem and Call(env.CursorHasItem) and env.ClearCursor then Call(env.ClearCursor) end
+    return true
+end
+
 -- Container ids moved from globals to Enum.BagIndex on newer clients.
 function Client:Index(global, enumKey)
     local env = self.env

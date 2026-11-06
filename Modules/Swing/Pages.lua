@@ -10,7 +10,9 @@ local FILL, CUE = 0.88, 0.84            -- how far the swing is, where the cue t
 local function SwingDiagram()
     local UI, S, SW = T.UI, T.Style, T.Swing
     local Tex, Text, C = UI.Tex, UI.Text, S.C
-    local gold = SW and SW.CUE_COLOR or { 1, 0.82, 0.2 }
+    local cueC = SW and SW.CUE_COLOR or { 0.42, 0.85, 0.82 }
+    local tickC = SW and SW.TICK_COLOR or { 1, 0.96, 0.88 }
+    local barText = SW and SW.TextOn(cueC) or { 0.06, 0.06, 0.08 }
     local red = SW and SW.OUT_OF_RANGE or { 0.85, 0.2, 0.2 }
     local f = CreateFrame("Frame")
     f:SetSize(DIAGRAM_W, DIAGRAM_H)
@@ -46,11 +48,11 @@ local function SwingDiagram()
     end
 
     local barY = -40
-    local back = Bar(barY, BAR_H, FILL, gold)
-    local label = Text(f, 10, C.text)
+    local back = Bar(barY, BAR_H, FILL, cueC)
+    local label = Text(f, 10, barText)
     label:SetPoint("LEFT", back, "LEFT", 5, 0)
     label:SetText("Main hand")
-    local time = Text(f, 10, C.text)
+    local time = Text(f, 10, barText)
     time:SetPoint("RIGHT", back, "RIGHT", -5, 0)
     time:SetText("0.3")
     local sx = 1 + (BAR_W - 2) * FILL
@@ -60,7 +62,7 @@ local function SwingDiagram()
     spark:SetBlendMode("ADD")
     spark:SetSize(16, BAR_H * 2.4)
     spark:SetPoint("CENTER", back, "LEFT", sx, 0)
-    local tick = Tex(f, "OVERLAY", { gold[1], gold[2], gold[3], 0.95 })
+    local tick = Tex(f, "OVERLAY", { tickC[1], tickC[2], tickC[3], 0.95 })
     tick:SetSize(2, BAR_H + 6)
     tick:SetPoint("CENTER", back, "LEFT", tx, 0)
 
@@ -68,7 +70,7 @@ local function SwingDiagram()
     Callout(30, barY, -12, "Weapon: a bar each for main hand, off hand and ranged")
     Callout(BAR_W - 8, barY, -12, "Time left", C.muted, "RIGHT")
     Callout(sx, barY, -26, "Spark: where the swing is now", nil, "RIGHT")
-    Callout(tx, bottom - 3, bottom - 16, "Cue tick: past it the bar turns gold.\nQueue Heroic Strike or Maul now.", gold, "RIGHT")
+    Callout(tx, bottom - 3, bottom - 16, "Cue tick: past it the bar turns teal.\nQueue Heroic Strike or Maul now.", tickC, "RIGHT")
 
     local oorY = -122
     local oorBar = Bar(oorY, 12, 0.45, red, 0.45)
@@ -97,7 +99,7 @@ T:RegisterPage("general", { key = "swing", label = "Swing timer", order = 6, bui
     p:Check(cfg, "ranged", "Ranged bar when a ranged weapon is equipped")
     p:Check(cfg, "showTime", "Show time left")
     p:Check(cfg, "effects", "Spark swell and a flash when the swing is ready")
-    p:Check(cfg, "cue", "Next-swing cue: a tick and a gold bar for the last moments, to time on-next-swing abilities (Heroic Strike, Maul)")
+    p:Check(cfg, "cue", "Next-swing cue: a tick and a teal bar for the last moments, to time on-next-swing abilities (Heroic Strike, Maul)")
     p:Slider(cfg, "cueWindow", "Cue lead time", 0.1, 1.5, 0.05, function(v) return ("%.2fs"):format(v) end)
     p:Check(cfg, "cueLatency", "Add my latency to the cue")
     p:Check(cfg, "cueSound", "Play a sound when the cue starts")

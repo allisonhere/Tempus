@@ -12,7 +12,7 @@ SW.defaults = {
     offHand = true, ranged = true,
     showTime = true,
     effects = true,             -- spark swell and a flash when the swing is ready
-    cue = true,                 -- a tick and a gold bar for the last moments: press on-next-swing moves now
+    cue = true,                 -- a tick and a teal bar for the last moments: press on-next-swing moves now
     cueWindow = 0.4,            -- seconds before the swing lands that the cue starts
     cueLatency = true,          -- widen the cue by your home latency so the press lands in time
     cueSound = false,           -- a short sound when the cue starts
@@ -24,8 +24,16 @@ SW.defaults = {
 local OUT_OF_RANGE = { 0.85, 0.2, 0.2 }
 local DIM = 0.45
 local FLASH = 0.3           -- seconds the ready flash takes to fade
-local CUE_COLOR = { 1, 0.82, 0.2 }
-SW.CUE_COLOR, SW.OUT_OF_RANGE = CUE_COLOR, OUT_OF_RANGE
+local CUE_COLOR = { 0.42, 0.85, 0.82 }  -- soft teal: the bar during the cue window
+local TICK_COLOR = { 1, 0.96, 0.88 }    -- warm white: the cue tick, clear on the fill and the empty bar
+SW.CUE_COLOR, SW.OUT_OF_RANGE, SW.TICK_COLOR = CUE_COLOR, OUT_OF_RANGE, TICK_COLOR
+
+-- Text that reads on a bar of colour c: near-black on light fills, white on dark ones.
+function SW.TextOn(c)
+    local l = 0.299 * c[1] + 0.587 * c[2] + 0.114 * c[3]
+    if l > 0.55 then return { 0.06, 0.06, 0.08 } end
+    return { 1, 1, 1 }
+end
 local SWELL = 0.25          -- the spark grows during the last quarter second
 
 -- Swing types in display order. Enum.PlayerSwingType: MainHand 0, OffHand 1, Ranged 2.
@@ -145,7 +153,7 @@ local function ColorRow(row)
         or { 0.4, 0.8, 0.45 }
     row.bar:SetStatusBarColor(c[1], c[2], c[3])
     row:SetAlpha(row.outOfRange and DIM or 1)
-    local t = row.outOfRange and OUT_OF_RANGE or { 1, 1, 1 }
+    local t = SW.TextOn(c)
     row.label:SetTextColor(t[1], t[2], t[3])
     row.time:SetTextColor(t[1], t[2], t[3])
 end
@@ -217,7 +225,7 @@ local function NewRow(parent, kind)
     over:SetAllPoints(row)
     over:SetFrameLevel(row.bar:GetFrameLevel() + 2)
     row.tick = over:CreateTexture(nil, "ARTWORK")
-    row.tick:SetColorTexture(CUE_COLOR[1], CUE_COLOR[2], CUE_COLOR[3], 0.9)
+    row.tick:SetColorTexture(TICK_COLOR[1], TICK_COLOR[2], TICK_COLOR[3], 0.9)
     row.tick:SetWidth(2)
     row.tick:Hide()
     row.flash = over:CreateTexture(nil, "ARTWORK")

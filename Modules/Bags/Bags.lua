@@ -351,7 +351,9 @@ function B:ProjectOptions(storage)
     return {
         filter = self.filter[storage],
         container = storage == "CARRIED" and self.bagFilter or nil,
-        sort = self.db.sortItems,
+        -- Grid view always shows the real bag slots, so dragging one item onto another
+        -- visibly swaps them; only Sections view sorts its display.
+        sort = self.db.sortItems and self.db.mode ~= "GRID",
         customItems = self:CustomItems(),
         collapsed = self:Collapsed(),
     }
@@ -370,6 +372,59 @@ end
 function B:SetBagFilter(container)
     self.bagFilter = self.bagFilter ~= container and container or nil
     self:Render("CARRIED")
+end
+
+-- Move everything in one carried bag into free slots of the others, one item at a time
+-- (each move locks both slots until the server answers), so the bag can be swapped out.
+function B:EmptyBag(container)
+    if self.emptying then return end
+    local client = self.client
+    local name = client:BagName(container)
+    local moves, left = client:PlanEmpty(container)
+    if #moves == 0 and left > 0 then
+        T:Print(("no free space in your other bags to empty %s."):format(name))
+        return
+    end
+    self.emptying = true
+    local i, tries, moved, waits = 1, 0, 0, 0
+    -- Once empty, the bag itself comes off into a free slot. The server has to confirm the
+    -- last moves first (a bag with anything in it cannot be picked up), so wait up to ~3s.
+    local function TakeOff()
+        if not client:IsEmpty(container) and waits < 60 then
+            waits = waits + 1
+            C_Timer.After(0.05, TakeOff)
+            return
+        end
+        self.emptying = nil
+        local ok, why = client:UnequipBag(container)
+        if ok then
+            T:Print(moved > 0 and ("emptied %s (%d items) and put it in your bags."):format(name, moved)
+                or ("put %s in your bags."):format(name))
+        else
+            T:Print(moved > 0 and ("emptied %s (%d items), but %s."):format(name, moved, why)
+                or ("%s is empty, but %s."):format(name, why))
+        end
+    end
+    local function Step()
+        local move = moves[i]
+        if not move then
+            if left > 0 then
+                self.emptying = nil
+                T:Print(("moved %d items out of %s; %d did not fit."):format(moved, name, left))
+            else
+                TakeOff()
+            end
+            return
+        end
+        if client:MoveItem(move.from, move.to) then
+            moved, i, tries = moved + 1, i + 1, 0
+        else
+            tries = tries + 1
+            if tries > 20 then left, i, tries = left + 1, i + 1, 0 end    -- stuck slot: skip it
+        end
+        C_Timer.After(0.05, Step)
+    end
+    Step()
 end
 
 function B:SetHoverBag(container)

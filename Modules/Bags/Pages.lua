@@ -16,7 +16,7 @@ T:RegisterPage("bags", { key = "bags", label = "Bags", order = 1, build = functi
     p:Check(cfg, "showBagBar", "Bag bar (hover to highlight a bag, click to show only that bag)")
     p:Check(cfg, "showCurrencies", "Watched currencies in the footer")
     p:Section("Items", "Marks drawn on each item. Sections can be folded by clicking their headers.")
-    p:Check(cfg, "sortItems", "Sort by quality, item level, then name")
+    p:Check(cfg, "sortItems", "Sort sections by quality, item level, then name", "Sections view only. Grid view always shows your real bag slots, so dragging one item onto another swaps them where you can see it. Use the Sort button to tidy the bags themselves.")
     p:Check(cfg, "showItemLevel", "Item level and bind-on-equip tag on gear")
     p:Check(cfg, "showUpgrades", "Arrow on gear better than what you wear")
     p:Check(cfg, "showCooldowns", "Item cooldowns")

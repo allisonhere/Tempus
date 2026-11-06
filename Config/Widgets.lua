@@ -438,7 +438,8 @@ function W.Button(label, onClick, tip, width)
     f.searchLabel = label
     f.searchText = (label or "") .. " " .. (tip or "")
     f:SetSize(COL_W, 28)
-    local b = FlatButton(f, label, width or 150, 26, onClick)
+    -- Default actions fill their column; callers can still request a compact width.
+    local b = FlatButton(f, label, width or COL_W, 26, onClick)
     b:SetPoint("LEFT")
     function f:Refresh() end
     Tooltip(b, label, tip)

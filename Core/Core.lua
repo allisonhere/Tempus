@@ -36,12 +36,26 @@ function T:AccentColor(key)
     return T.accents[1][3]
 end
 
+-- The second colour the settings window uses next to the accent, or nil when it is off.
+function T:SecondColor()
+    local db = T.db
+    if not db or db.useSecond == false or type(db.secondColor) ~= "table" then return nil end
+    return db.secondColor
+end
+
 function T:ApplyAccent()
     local db = T.db
     local c = T:AccentColor(db and db.accent or "BLUE")
     -- In combat the accent can switch to its own colour, so the whole UI says "fighting".
     if T.inCombat and db and db.combatAccent and type(db.combatColor) == "table" then c = db.combatColor end
     T.accent[1], T.accent[2], T.accent[3] = c[1], c[2], c[3]
+    -- Temporary: record accent repaints in the first 20 seconds after login, to find what
+    -- shows the wrong colour at load (TempusDB.debug.log, kind "accent").
+    if T.loginAt and GetTime() - T.loginAt < 20 and T.Log then
+        T:Log("accent", ("+%.1fs %s %.2f,%.2f,%.2f combat=%s inCombatFlag=%s"):format(GetTime() - T.loginAt,
+            tostring(db and db.accent), c[1], c[2], c[3], tostring(UnitAffectingCombat and UnitAffectingCombat("player")),
+            tostring(T.inCombat)))
+    end
     T.accentHex = ("%02x%02x%02x"):format(c[1] * 255 + 0.5, c[2] * 255 + 0.5, c[3] * 255 + 0.5)
 end
 
@@ -102,6 +116,8 @@ T.defaults = {
     accent = "CLASS",           -- key from T.accents; new profiles follow the class colour
     combatAccent = true,        -- accent switches to combatColor while in combat
     combatColor = { 1, 0.45, 0.22 },
+    useSecond = true,           -- the settings window also uses secondColor next to the accent
+    secondColor = { 1, 0.72, 0.3 },
     animate = true,             -- fade-ins and pulses
     borderSize = 1,
     iconZoom = 0.08,
@@ -621,6 +637,7 @@ loader:SetScript("OnEvent", function(self, event, arg)
         TempusDB.tabdump = nil                  -- one-off spellbook tab dump, no longer used
     elseif event == "PLAYER_LOGIN" then
         T.perfSince = GetTime()     -- the profiler's window starts at login, not client launch
+        T.loginAt = GetTime()
         local name = T:ProfileName()
         TempusDB.profiles[name] = TempusDB.profiles[name] or {}
         T.PruneRetired(TempusDB.profiles[name])

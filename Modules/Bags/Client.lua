@@ -46,6 +46,14 @@ function Client:SlotCount(container)
     return T.Num(count) and math.max(0, count) or 0
 end
 
+-- Free slots in a container (0 when unknown).
+function Client:FreeSlots(container)
+    local C = self.env.C_Container
+    local fn = C and C.GetContainerNumFreeSlots or self.env.GetContainerNumFreeSlots
+    local free = Call(fn, container)
+    return T.Num(free) and math.max(0, free) or 0
+end
+
 function Client:BagFamily(container)
     local C = self.env.C_Container
     local fn = C and C.GetContainerNumFreeSlots or self.env.GetContainerNumFreeSlots

@@ -124,7 +124,7 @@ local accented = setmetatable({}, { __mode = "k" })
 local accentFns = {}
 
 local function PaintAccent(obj, spec)
-    local c = T.accent
+    local c = spec.second and T:SecondColor() or T.accent
     local m = spec.mul or 1
     if spec.text then obj:SetTextColor(c[1] * m, c[2] * m, c[3] * m)
     else obj:SetVertexColor(c[1] * m, c[2] * m, c[3] * m, spec.alpha or 1) end
@@ -137,12 +137,24 @@ function S.Accent(obj, alpha, mul)
     return obj
 end
 
+-- Like S.Accent, but painted in the second colour the person picked (Appearance), or the
+-- accent while the second colour is off.
+function S.Second(obj, alpha, mul)
+    local spec = { alpha = alpha, mul = mul, second = true, text = obj.SetTextColor and not obj.SetVertexColor }
+    accented[obj] = spec
+    PaintAccent(obj, spec)
+    return obj
+end
+
 function S.OnAccent(fn)
     accentFns[#accentFns + 1] = fn
     fn()
 end
 
 function S.RefreshAccent()
+    if T.loginAt and GetTime() - T.loginAt < 20 and T.Log then
+        T:Log("accent", ("+%.1fs repaint from %s"):format(GetTime() - T.loginAt, (debugstack(2, 1, 0) or "?"):match("([%w_]+%.lua:%d+)") or "?"))
+    end
     for obj, spec in pairs(accented) do PaintAccent(obj, spec) end
     if S.Theme and S.Theme() == "TEMPUS" then S.ApplyTheme() end      -- accent-tinted edges
     for _, fn in ipairs(accentFns) do pcall(fn) end

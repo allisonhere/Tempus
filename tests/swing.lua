@@ -40,4 +40,7 @@ f.swings = 1
 assert(SW.FightText(f) == nil, "too few swings")
 local g = SW.NewFight(0); g.swings = 5; SW.FightFinish(g, 3)
 assert(SW.FightText(g) == nil, "too short")
+local pw = SW.PreviewWanted({ offHand = true, ranged = false })
+assert(pw.main and pw.off and not pw.ranged, "preview follows the bar settings, not the weapons")
+assert(SW.PREVIEW.main > 0 and SW.PREVIEW.off > 0 and SW.PREVIEW.ranged > 0)
 print("swing ok")

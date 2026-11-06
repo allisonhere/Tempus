@@ -33,7 +33,13 @@ local function Button(self, index)
     button:SetScript("OnEnter", function(b)
         self.owner:SetHoverBag(b.container)
         GameTooltip:SetOwner(b, "ANCHOR_TOP")
-        GameTooltip:SetText(self.owner.client:BagName(b.container), 1, 1, 1)
+        local client = self.owner.client
+        GameTooltip:SetText(client:BagName(b.container), 1, 1, 1)
+        local total = client:SlotCount(b.container)
+        if total > 0 then
+            local free = math.min(client:FreeSlots(b.container), total)
+            GameTooltip:AddLine(("%d slots  ·  %d used, %d free"):format(total, total - free, free), 0.85, 0.88, 0.92)
+        end
         GameTooltip:AddLine("Click to show only this bag", 0.6, 0.65, 0.72)
         GameTooltip:Show()
     end)

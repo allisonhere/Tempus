@@ -224,7 +224,7 @@ function W.Check(label, get, set, tip)
     local bg = Tex(box, "BACKGROUND", { 0.03, 0.035, 0.045, 1 })
     bg:SetAllPoints()
     local border = Border(box, { 1, 1, 1, 0.18 })
-    local fill = Tex(box, "ARTWORK", AC)
+    local fill = S.Second(Tex(box, "ARTWORK", AC))
     fill:SetPoint("TOPLEFT", 4, -4)
     fill:SetPoint("BOTTOMRIGHT", -4, 4)
     local text = Text(f, 12)
@@ -265,8 +265,21 @@ function W.Slider(label, minV, maxV, step, get, set, fmt, tip)
     track:SetPoint("LEFT")
     track:SetPoint("RIGHT")
     track:SetHeight(4)
-    local fillT = Tex(s, "BORDER", AC)
+    -- With a second colour picked, the fill runs from the accent at the low end toward the
+    -- second colour as the value goes up; otherwise it is the plain accent.
+    local fillT = Tex(s, "BORDER", { 1, 1, 1, 1 })
     fillT:SetPoint("LEFT", track, "LEFT")
+    local function PaintFill(v)
+        local a, c2 = AC, T:SecondColor()
+        if not c2 then
+            S.SetGradient(fillT, "HORIZONTAL", a[1], a[2], a[3], 1, a[1], a[2], a[3], 1)
+            return
+        end
+        local range = maxV - minV
+        local k = range > 0 and math.min(1, math.max(0, ((v or minV) - minV) / range)) or 1
+        S.SetGradient(fillT, "HORIZONTAL", a[1], a[2], a[3], 1,
+            a[1] + (c2[1] - a[1]) * k, a[2] + (c2[2] - a[2]) * k, a[3] + (c2[3] - a[3]) * k, 1)
+    end
     fillT:SetHeight(4)
     s:SetThumbTexture(WHITE)
     local thumb = s:GetThumbTexture()
@@ -280,6 +293,7 @@ function W.Slider(label, minV, maxV, step, get, set, fmt, tip)
         v = math.floor(v / step + 0.5) * step
         v = tonumber(("%.3f"):format(v))
         Show(v)
+        PaintFill(v)
         if self.updating then return end
         if v ~= get() then
             set(v)
@@ -300,6 +314,7 @@ function W.Slider(label, minV, maxV, step, get, set, fmt, tip)
         s:SetValue(get())
         s.updating = false
         Show(get())
+        PaintFill(get())
     end
     Tooltip(f, label, tip)
     return f, 44
@@ -536,6 +551,15 @@ function Page:Section(title, desc)
     line:SetHeight(1)
     line:SetPoint("LEFT", t, "RIGHT", 10, 0)
     line:SetPoint("RIGHT", self.frame, "RIGHT", -MARGIN, 0)
+    -- With a second colour picked, the rule runs from the accent into it and fades out.
+    S.OnAccent(function()
+        local a, c2, l = AC, T:SecondColor(), C.line
+        if c2 then
+            S.SetGradient(line, "HORIZONTAL", a[1], a[2], a[3], 0.6, c2[1], c2[2], c2[3], 0.05)
+        else
+            S.SetGradient(line, "HORIZONTAL", l[1], l[2], l[3], l[4], l[1], l[2], l[3], l[4])
+        end
+    end)
     self.y = self.y - 22
     if desc then
         local d = Text(self.frame, 11, C.muted)

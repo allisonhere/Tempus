@@ -28,6 +28,7 @@ T:RegisterPage("nameplates", { key = "np_general", label = "General", order = 1,
     p:Check(NPDB, "lagBar", "Show recent damage", "A hit shows as a red chunk that drains away behind the health bar. The bar itself jumps straight to the new value.")
     p:Check(NPDB, "raidIcon", "Raid target marks")
     p:Check(NPDB, "questIcon", "Quest mob marker")
+    p:Check(NPDB, "questCount", "Quest progress (4/10)", "Beside the quest marker, how many more of this mob (or its drop) your quests still need.")
 
     p:Section("Level & con", "How tough an enemy is at a glance: grey (no XP), green, yellow (about your level), orange, red, and a purple skull for bosses and ?? levels.")
     p:Check(NPDB, "showLevel", "Show level")

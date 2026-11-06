@@ -25,6 +25,7 @@ local OUT_OF_RANGE = { 0.85, 0.2, 0.2 }
 local DIM = 0.45
 local FLASH = 0.3           -- seconds the ready flash takes to fade
 local CUE_COLOR = { 1, 0.82, 0.2 }
+SW.CUE_COLOR, SW.OUT_OF_RANGE = CUE_COLOR, OUT_OF_RANGE
 local SWELL = 0.25          -- the spark grows during the last quarter second
 
 -- Swing types in display order. Enum.PlayerSwingType: MainHand 0, OffHand 1, Ranged 2.
@@ -315,6 +316,52 @@ function SW:UpdateRangeChecks()
     end
 end
 
+-- Preview: fake swings loop on every bar the settings allow, whatever is equipped, so the
+-- size, colours, cue and ready flash can be judged out of combat. The ranged bar plays an
+-- out-of-range swing every other time. Combat or closing the settings ends it.
+SW.PREVIEW = { main = 2.6, off = 1.8, ranged = 3.0 }
+local PREVIEW_GAP = 0.35    -- seconds between a fake swing ending and the next one
+
+function SW.PreviewWanted(db)
+    return { main = true, off = db.offHand and true or false, ranged = db.ranged and true or false }
+end
+
+local function PreviewTick()
+    if not SW.preview then return end
+    local now = GetTime()
+    for key, row in pairs(SW.rows) do
+        if row.wanted and not row.endT then
+            row.previewNext = row.previewNext or now + PREVIEW_GAP
+            if now >= row.previewNext then
+                row.previewNext = nil
+                if key == "ranged" then
+                    row.previewCount = (row.previewCount or 0) + 1
+                    SW:SetRange(row.type.id, row.previewCount % 2 == 0)
+                end
+                SW:Start(row.type.id, SW.PREVIEW[key])
+            end
+        end
+    end
+end
+
+function SW:SetPreview(on)
+    on = on and true or false
+    if on and InCombatLockdown and InCombatLockdown() then return false end
+    if self.preview == on then return on end
+    self.preview = on
+    for _, row in pairs(self.rows) do
+        row.endT, row.previewNext, row.previewCount = nil, nil, nil
+        row.cueing, row.cueAt = false, nil
+        if row.tick then row.tick:Hide() end
+        if row.spark then row.spark:Hide() end
+        if row.bar then row.bar:SetValue(0) end
+        if row.time then row.time:SetText("") end
+    end
+    if self.ticker then self.ticker:SetShown(on) end
+    self:Refresh()
+    return on
+end
+
 function SW:FightStart()
     self.fight = SW.NewFight(GetTime())
     TallyMark()
@@ -347,14 +394,14 @@ function SW:UpdateShown()
     end
     local inCombat = UnitAffectingCombat and UnitAffectingCombat("player")
     local showing = self.result and self.result:IsShown() and db.summary
-    local show = db.enabled and (showing or db.visibility == "ALWAYS" or inCombat or swinging or not T.db.locked)
+    local show = db.enabled and (self.preview or showing or db.visibility == "ALWAYS" or inCombat or swinging or not T.db.locked)
     f:SetShown(show and true or false)
 end
 
 function SW:Refresh()
     local db, f = self.db, self.frame
     if not (db and f) then return end
-    local wanted = SW.Wanted(db, AttackSpeeds())
+    local wanted = self.preview and SW.PreviewWanted(db) or SW.Wanted(db, AttackSpeeds())
     local y, n = 0, 0
     for _, kind in ipairs(TYPES) do
         local row = self.rows[kind.key]
@@ -412,6 +459,9 @@ T:NewModule("swing", {
             end
         end))
         SW.result = res
+        SW.ticker = CreateFrame("Frame", nil, f)
+        SW.ticker:Hide()
+        SW.ticker:SetScript("OnUpdate", T:Wrap("swing.preview", PreviewTick))
         T.Movers.ApplyPoint(f, SW.db)
         T.Movers:Register(f, {
             label = "Swing timer", page = "swing",
@@ -428,12 +478,13 @@ T:NewModule("swing", {
         pcall(ev.RegisterUnitEvent, ev, "UNIT_ATTACK_SPEED", "player")
         ev:SetScript("OnEvent", T:Wrap("swing.events", function(_, event, a, b, c)
             if event == "PLAYER_SWING" then
-                SW:Start(b, a)
+                if not SW.preview then SW:Start(b, a) end
             elseif event == "PLAYER_SWING_RANGE_UPDATE" then
                 if not (T.issecret(b) or T.issecret(c)) then SW:SetRange(a, SW.OutOfRange(b, c)) end
             elseif event == "PLAYER_TARGET_CHANGED" then
                 SW:PollRange()
             elseif event == "PLAYER_REGEN_DISABLED" then
+                if SW.preview then SW:SetPreview(false) end
                 SW:FightStart()
                 SW:UpdateShown()
             elseif event == "PLAYER_REGEN_ENABLED" then

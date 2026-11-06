@@ -52,6 +52,8 @@ PAGES[#PAGES + 1] = { key = "appearance", label = "Appearance", suite = true, bu
         DB().accent = v   -- the dropdown itself calls Changed()
     end, "Highlights, selected tabs, target glows and headers. The settings window, bags and move boxes recolour at once; some Blizzard skins need a reload."))
     p:Add(W.Button("Reload UI", function() ReloadUI() end, "Recolours everything, including the parts that do not change live."))
+    p:Check(DB, "useSecond", "Second colour", "A second colour for the settings window, next to the accent: the selected-page marker, ticked checkboxes, slider fills and the lines beside section titles.")
+    p:Color(DB, "secondColor", "Pick second colour")
     p:Check(DB, "combatAccent", "Combat colour", "The accent switches to its own colour while you are in combat, so the whole interface shows when a fight starts.")
     p:Color(DB, "combatColor", "Combat accent")
     p:Dropdown(DB, "theme", "Theme", {

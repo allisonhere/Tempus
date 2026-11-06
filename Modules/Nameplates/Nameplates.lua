@@ -36,6 +36,7 @@ NP.defaults = {
     buffSize = 20, buffMax = 4,
     cc = true, ccSize = 30,
     raidIcon = true, questIcon = true,
+    questCount = true,          -- "4/10" beside the quest marker, from the tooltip or quest log
     manageCVars = true, stacking = true, maxDistance = 41,
     colors = {
         hostile = { 0.85, 0.2, 0.2 }, neutral = { 0.95, 0.8, 0.2 }, friendly = { 0.2, 0.75, 0.3 },
@@ -369,10 +370,87 @@ local function UpdateRaidIcon(f)
     end
 end
 
+-- Quest progress for a quest mob, as "have/need". The unit's tooltip lists the objectives
+-- it counts toward (kills and drops alike); failing that, an objective in the quest log
+-- that names the mob ("Kobold Vermin slain: 3/10"). Returns nil when nothing is left to do
+-- or nothing can be read.
+function NP.QuestProgress(lines, name, objectives)
+    for _, text in ipairs(lines or {}) do
+        local have, need = text:match("(%d+)%s*/%s*(%d+)")
+        have, need = tonumber(have), tonumber(need)
+        if have and need and need > 0 and have < need then return have .. "/" .. need end
+    end
+    if name and name ~= "" then
+        local lname = name:lower()
+        for _, o in ipairs(objectives or {}) do
+            if o.need and o.need > 0 and o.have < o.need and o.text:lower():find(lname, 1, true) then
+                return o.have .. "/" .. o.need
+            end
+        end
+    end
+end
+
+local function TooltipLines(unit)
+    if not (C_TooltipInfo and C_TooltipInfo.GetUnit) then return nil end
+    local ok, data = pcall(C_TooltipInfo.GetUnit, unit)
+    if not ok or type(data) ~= "table" or type(data.lines) ~= "table" then return nil end
+    local out = {}
+    for i = 2, #data.lines do               -- line 1 is the unit's name
+        local t = data.lines[i] and data.lines[i].leftText
+        if type(t) == "string" and not issecret(t) then out[#out + 1] = t end
+    end
+    return out
+end
+
+-- Every unfinished counted objective in the quest log, rebuilt on QUEST_LOG_UPDATE.
+local function ReadObjectives()
+    local list = {}
+    local function Add(text, have, need)
+        if type(text) == "string" and not issecret(text) then
+            if not (have and need) then
+                local h, n = text:match("(%d+)%s*/%s*(%d+)")
+                have, need = tonumber(h), tonumber(n)
+            end
+            if have and need then list[#list + 1] = { text = text, have = have, need = need } end
+        end
+    end
+    if GetNumQuestLogEntries and GetQuestLogLeaderBoard and GetNumQuestLeaderBoards then
+        local ok, n = pcall(GetNumQuestLogEntries)
+        for i = 1, (ok and tonumber(n) or 0) do
+            local okB, count = pcall(GetNumQuestLeaderBoards, i)
+            for j = 1, (okB and tonumber(count) or 0) do
+                local okL, text = pcall(GetQuestLogLeaderBoard, j, i)
+                if okL then Add(text) end
+            end
+        end
+    elseif C_QuestLog and C_QuestLog.GetNumQuestLogEntries and C_QuestLog.GetInfo and C_QuestLog.GetQuestObjectives then
+        local ok, n = pcall(C_QuestLog.GetNumQuestLogEntries)
+        for i = 1, (ok and tonumber(n) or 0) do
+            local okI, info = pcall(C_QuestLog.GetInfo, i)
+            if okI and type(info) == "table" and info.questID and not info.isHeader then
+                local okO, objs = pcall(C_QuestLog.GetQuestObjectives, info.questID)
+                for _, o in ipairs(okO and type(objs) == "table" and objs or {}) do
+                    Add(o.text, tonumber(o.numFulfilled), tonumber(o.numRequired))
+                end
+            end
+        end
+    end
+    NP.questObjectives = list
+end
+
 local function UpdateQuest(f)
     local show = NP.db.questIcon and not f.nameOnly and C_QuestLog and C_QuestLog.UnitIsRelatedToActiveQuest
         and Bool(C_QuestLog.UnitIsRelatedToActiveQuest, f.unit)
     f.questIcon:SetShown(show and true or false)
+    local text
+    if show and NP.db.questCount then
+        if not NP.questObjectives then ReadObjectives() end
+        local okN, name = pcall(UnitName, f.unit)
+        if not okN or issecret(name) then name = nil end
+        text = NP.QuestProgress(TooltipLines(f.unit), name, NP.questObjectives)
+    end
+    f.questText:SetText(text or "")
+    f.questText:SetShown(text and true or false)
 end
 
 -- Target, focus and mouseover are found by plate identity, so no unit is compared.
@@ -840,6 +918,9 @@ local function Build(plate, preview)
     f.questIcon = over:CreateTexture(nil, "OVERLAY")
     f.questIcon:SetTexture("Interface\\GossipFrame\\AvailableQuestIcon")
     f.questIcon:Hide()
+    f.questText = over:CreateFontString(nil, "OVERLAY")
+    f.questText:SetTextColor(1, 0.82, 0.2)
+    f.questText:Hide()
     f.conStrip = f.health:CreateTexture(nil, "ARTWORK", nil, 4)
     f.conStrip:SetTexture(S.WHITE)
     f.conStrip:Hide()
@@ -959,6 +1040,9 @@ function NP:Layout(f)
     f.questIcon:SetSize(h + 6, h + 6)
     f.questIcon:ClearAllPoints()
     f.questIcon:SetPoint("BOTTOMRIGHT", f.health, "TOPRIGHT", 2, 1)
+    S.ApplyFont(f.questText, math.max(9, math.min(h + 2, 13)), nil, "OUTLINE")
+    f.questText:ClearAllPoints()
+    f.questText:SetPoint("LEFT", f.questIcon, "RIGHT", -3, 0)
     f.conStrip:ClearAllPoints()
     f.conStrip:SetPoint("TOPLEFT", f.health, "TOPLEFT")
     f.conStrip:SetPoint("BOTTOMLEFT", f.health, "BOTTOMLEFT")
@@ -1127,6 +1211,7 @@ local function OnEvent(self, event, unit, _, _, interruptedBy)
         for _, f in pairs(NP.byUnit) do UpdateRaidIcon(f) end
         return
     elseif event == "QUEST_LOG_UPDATE" then
+        ReadObjectives()
         for _, f in pairs(NP.byUnit) do UpdateQuest(f) end
         return
     elseif event == "PLAYER_LEVEL_UP" then
@@ -1321,6 +1406,8 @@ local function FillSample(f, kind)
         f.raidIcon:Hide()
     end
     f.questIcon:SetShown(db.questIcon and kind == "other")
+    f.questText:SetText("4/10")
+    f.questText:SetShown(db.questIcon and db.questCount and kind == "other" and true or false)
 
     local cb = f.castbar
     cb.casting, cb.dur, cb.endT, cb.fadeAt = nil, nil, nil, nil

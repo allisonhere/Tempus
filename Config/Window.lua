@@ -134,7 +134,7 @@ local function NavItem(parent)
     b:SetHeight(26)
     b.bg = Tex(b, "BACKGROUND", { 1, 1, 1, 0 })
     b.bg:SetAllPoints()
-    b.bar = Tex(b, "ARTWORK", AC)
+    b.bar = S.Second(Tex(b, "ARTWORK", AC))
     b.bar:SetSize(3, 16)
     b.bar:SetPoint("LEFT", 0, 0)
     b.text = Text(b, 12, C.muted)
@@ -250,6 +250,7 @@ local function CreateWindow()
     win:SetScript("OnHide", function()
         CloseMenu()
         if T.Display and T.Display.testMode then T.Display:SetTestMode(false) end
+        if T.Swing and T.Swing.preview then T.Swing:SetPreview(false) end
         local GF = T.GroupFrames
         if GF and GF.showSamples then
             GF.showSamples = nil
@@ -288,7 +289,7 @@ local function CreateWindow()
     title:SetText("Tempus UI")
     local sub = Text(header, 10, C.muted)
     sub:SetPoint("BOTTOMLEFT", logo, "BOTTOMRIGHT", 12, 1)
-    sub:SetText("INTERFACE SUITE  ·  v" .. T.version)
+    sub:SetText("INTERFACE SUITE  ·  v" .. T.version .. "  ·  by allie")
     win.profile = Text(header, 11, C.muted)
     win.profile:SetPoint("LEFT", title, "RIGHT", 18, -1)
 

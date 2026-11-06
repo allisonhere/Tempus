@@ -4,6 +4,7 @@ T.changelog = {
     { version = "Unreleased", sections = {
         { title = "New", items = {
             { 0, "|cffffffffNext-swing cue|r: each swing bar gets a gold tick near its end, and the bar turns gold for the last moments before the swing lands, so you can time on-next-swing abilities (Heroic Strike, Maul). The window is a lead time you choose plus, optionally, your latency; an optional sound plays when it starts (Swing timer settings)." },
+            { 0, "|cffffffffFight summary|r: when combat ends, a line under the swing timer shows how much of the fight you spent swinging, out of range or idle (|cff9fd6ff/tempus swing|r repeats it; Swing timer settings turn it off)." },
             { 0, "Escape locks the UI again after unlocking it, and the Profiles page can save your current settings under a new name." },
             { 0, "Swing timer: the spark swells and the bar flashes when a swing is ready (optional)." },
             { 0, "|cff9fd6ff/tempus probe swing|r records swing and range events for comparison with Blizzard's swing timer." },

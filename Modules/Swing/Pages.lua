@@ -13,6 +13,7 @@ T:RegisterPage("general", { key = "swing", label = "Swing timer", order = 6, bui
     p:Slider(cfg, "cueWindow", "Cue lead time", 0.1, 1.5, 0.05, function(v) return ("%.2fs"):format(v) end)
     p:Check(cfg, "cueLatency", "Add my latency to the cue")
     p:Check(cfg, "cueSound", "Play a sound when the cue starts")
+    p:Check(cfg, "summary", "After a fight, show how much of it you spent swinging, out of range or idle (also /tempus swing)")
     p:Dropdown(cfg, "visibility", "Show", { { "COMBAT", "In combat" }, { "ALWAYS", "Always" } })
     p:Slider(cfg, "width", "Width", 80, 400, 1)
     p:Slider(cfg, "height", "Height", 4, 30, 1)

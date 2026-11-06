@@ -16,6 +16,7 @@ SW.defaults = {
     cueWindow = 0.4,            -- seconds before the swing lands that the cue starts
     cueLatency = true,          -- widen the cue by your home latency so the press lands in time
     cueSound = false,           -- a short sound when the cue starts
+    summary = true,             -- after a fight: how much of it you spent swinging, out of range or idle
     visibility = "COMBAT",      -- COMBAT | ALWAYS
     point = { "CENTER", "UIParent", "CENTER", 0, -215 },
 }
@@ -61,6 +62,41 @@ function SW.CueWindow(db, latencyMs, duration)
     return math.max(w, 0)
 end
 
+-- Fight tally. While in combat the time is split three ways: a swing timer running
+-- (swinging), the target out of range (out of range) and nothing running (idle). Mark()
+-- is called with the state that is about to start, so the time since the last call goes to
+-- the state that was in force until now. Out of range wins over idle.
+function SW.NewFight(now)
+    return { t0 = now, last = now, active = false, oor = false, swinging = 0, outOfRange = 0, idle = 0, swings = 0 }
+end
+
+function SW.FightMark(f, now, active, oor)
+    local dt = now - f.last
+    if dt > 0 then
+        if f.active then f.swinging = f.swinging + dt
+        elseif f.oor then f.outOfRange = f.outOfRange + dt
+        else f.idle = f.idle + dt end
+    end
+    f.last, f.active, f.oor = now, active and true or false, oor and true or false
+end
+
+function SW.FightFinish(f, now)
+    SW.FightMark(f, now, false, false)
+    local total = f.swinging + f.outOfRange + f.idle
+    f.total = total
+    f.pct = total > 0 and f.swinging / total or 0
+    return f
+end
+
+-- One line for the result, or nil when the fight was too short or had no swings to talk about.
+function SW.FightText(f)
+    if not f or f.swings < 2 or (f.total or 0) < 5 then return nil end
+    local t = ("Swinging %d%%"):format(f.pct * 100 + 0.5)
+    if f.outOfRange >= 0.5 then t = t .. (" | out of range %.1fs"):format(f.outOfRange) end
+    if f.idle >= 0.5 then t = t .. (" | idle %.1fs"):format(f.idle) end
+    return t
+end
+
 -- The swing to show on a single strip: the first running one, main hand first. Returns nil
 -- while nothing is swinging, otherwise a table with endT, duration and outOfRange.
 function SW.Status()
@@ -82,6 +118,20 @@ local function AttackSpeeds()
     if not UnitAttackSpeed then return end
     local ok, main, off, ranged = pcall(UnitAttackSpeed, "player")
     if ok then return main, off, ranged end
+end
+
+-- Update the tally with the state that is starting now.
+local function TallyMark()
+    local f = SW.fight
+    if not f then return end
+    local active, oor = false, false
+    for _, row in pairs(SW.rows) do
+        if row.wanted then
+            if row.endT then active = true end
+            if row.outOfRange then oor = true end
+        end
+    end
+    SW.FightMark(f, GetTime(), active, oor)
 end
 
 local function RangeAPI()
@@ -114,6 +164,7 @@ local function RowOnUpdate(row)
     local left = row.endT - now
     if left <= 0 then
         row.endT = nil
+        TallyMark()
         row.bar:SetValue(0)
         row.time:SetText("")
         row.spark:Hide()
@@ -190,6 +241,8 @@ function SW:Start(swingType, duration)
     for _, row in pairs(self.rows) do
         if row.type.id == swingType and row.wanted then
             row.duration, row.endT = duration, GetTime() + duration
+            if self.fight then self.fight.swings = self.fight.swings + 1 end
+            TallyMark()
             row.bar:SetMinMaxValues(0, duration)
             row.bar:SetValue(0)
             row.spark:SetSize(10, row.sparkH or 24)
@@ -224,6 +277,7 @@ function SW:SetRange(swingType, outOfRange)
         if row.type.id == swingType and row.outOfRange ~= outOfRange then
             row.outOfRange = outOfRange
             ColorRow(row)
+            TallyMark()
             Notify()
         end
     end
@@ -241,6 +295,7 @@ function SW:PollRange()
         if row.outOfRange ~= out then
             row.outOfRange = out
             ColorRow(row)
+            TallyMark()
             Notify()
         end
     end
@@ -260,6 +315,29 @@ function SW:UpdateRangeChecks()
     end
 end
 
+function SW:FightStart()
+    self.fight = SW.NewFight(GetTime())
+    TallyMark()
+    if self.result then self.result:Hide() end
+end
+
+function SW:FightEnd()
+    local f = self.fight
+    if not f then return end
+    self.fight = nil
+    SW.FightFinish(f, GetTime())
+    local text = SW.FightText(f)
+    if not text then return end
+    self.lastFight, self.lastText = f, text
+    if self.db.summary and self.result then
+        self.result:SetText(text)
+        self.result:SetAlpha(1)
+        self.result.shownAt = GetTime()
+        self.result:Show()
+        self:UpdateShown()
+    end
+end
+
 function SW:UpdateShown()
     local f, db = self.frame, self.db
     if not (f and db) then return end
@@ -268,7 +346,8 @@ function SW:UpdateShown()
         if row.endT then swinging = true end
     end
     local inCombat = UnitAffectingCombat and UnitAffectingCombat("player")
-    local show = db.enabled and (db.visibility == "ALWAYS" or inCombat or swinging or not T.db.locked)
+    local showing = self.result and self.result:IsShown() and db.summary
+    local show = db.enabled and (showing or db.visibility == "ALWAYS" or inCombat or swinging or not T.db.locked)
     f:SetShown(show and true or false)
 end
 
@@ -318,6 +397,21 @@ T:NewModule("swing", {
         local f = CreateFrame("Frame", "TempusSwingTimer", UIParent)
         f:SetFrameStrata("MEDIUM")
         SW.frame = f
+        local res = f:CreateFontString(nil, "OVERLAY")
+        res:SetPoint("TOP", f, "BOTTOM", 0, -4)
+        S.ApplyFont(res, 11)
+        res:Hide()
+        f:SetScript("OnUpdate", T:Wrap("swing.result", function()
+            if not res:IsShown() then return end
+            local age = GetTime() - (res.shownAt or 0)
+            if age > 10 then
+                res:Hide()
+                SW:UpdateShown()
+            elseif age > 8 then
+                res:SetAlpha(1 - (age - 8) / 2)
+            end
+        end))
+        SW.result = res
         T.Movers.ApplyPoint(f, SW.db)
         T.Movers:Register(f, {
             label = "Swing timer", page = "swing",
@@ -339,7 +433,11 @@ T:NewModule("swing", {
                 if not (T.issecret(b) or T.issecret(c)) then SW:SetRange(a, SW.OutOfRange(b, c)) end
             elseif event == "PLAYER_TARGET_CHANGED" then
                 SW:PollRange()
-            elseif event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+            elseif event == "PLAYER_REGEN_DISABLED" then
+                SW:FightStart()
+                SW:UpdateShown()
+            elseif event == "PLAYER_REGEN_ENABLED" then
+                SW:FightEnd()
                 SW:UpdateShown()
             else
                 SW:Refresh()

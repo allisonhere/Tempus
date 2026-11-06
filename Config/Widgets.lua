@@ -219,30 +219,43 @@ function W.Check(label, get, set, tip)
     local f = CreateFrame("Button", nil, nil)
     f.searchLabel = label
     f.searchText = (label or "") .. " " .. (tip or "")
-    f:SetSize(COL_W, 24)
+    f:SetSize(COL_W, 28)
+    -- Royal toggle: a compact violet-enamel switch with a warm-metal rim.
+    -- The existing get/set/Refresh contract remains unchanged.
     local box = CreateFrame("Frame", nil, f)
-    box:SetSize(18, 18)
-    box:SetPoint("LEFT")
-    local bg = Tex(box, "BACKGROUND", { 0.03, 0.035, 0.045, 1 })
+    box:SetSize(32, 17)
+    box:SetPoint("LEFT", 0, 0)
+    local bg = Tex(box, "BACKGROUND", { 0.12, 0.10, 0.15, 1 })
     bg:SetAllPoints()
-    local border = Border(box, { 1, 1, 1, 0.18 })
-    local fill = Tex(box, "ARTWORK", AC)
-    fill:SetPoint("TOPLEFT", 4, -4)
-    fill:SetPoint("BOTTOMRIGHT", -4, 4)
+    local border = Border(box, { 0.58, 0.43, 0.27, 0.75 })
+    local fill = Tex(box, "ARTWORK", { 0.43, 0.21, 0.66, 1 })
+    fill:SetPoint("TOPLEFT", 2, -2)
+    fill:SetPoint("BOTTOMRIGHT", -2, 2)
+    local thumb = Tex(box, "OVERLAY", { 0.94, 0.87, 0.74, 1 })
+    thumb:SetSize(11, 11)
     local text = Text(f, 12)
-    text:SetPoint("LEFT", box, "RIGHT", 9, 0)
+    text:SetPoint("LEFT", box, "RIGHT", 10, 0)
     text:SetPoint("RIGHT", f, "RIGHT")
     text:SetText(label)
-    f:SetScript("OnEnter", function() border:SetColor(AC[1], AC[2], AC[3], 0.9) end)
-    f:SetScript("OnLeave", function() border:SetColor(1, 1, 1, 0.18) end)
+    f:SetScript("OnEnter", function() border:SetColor(0.94, 0.77, 0.47, 1) end)
+    f:SetScript("OnLeave", function() border:SetColor(0.58, 0.43, 0.27, 0.75) end)
     f:SetScript("OnClick", function()
         set(not get())
         PlaySound(get() and 856 or 857)
         Changed()
     end)
-    function f:Refresh() fill:SetShown(get() and true or false) end
+    function f:Refresh()
+        local on = get() and true or false
+        fill:SetShown(on)
+        thumb:ClearAllPoints()
+        if on then
+            thumb:SetPoint("RIGHT", box, "RIGHT", -3, 0)
+        else
+            thumb:SetPoint("LEFT", box, "LEFT", 3, 0)
+        end
+    end
     Tooltip(f, label, tip)
-    return f, 24
+    return f, 28
 end
 
 function W.Slider(label, minV, maxV, step, get, set, fmt, tip)

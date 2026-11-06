@@ -596,7 +596,9 @@ end
 local function FinishRoyalCard(page)
     local card = page.royalCard
     if not card then return end
-    local h = math.max(54, card.top - page.y + 10)
+    -- End the frame just below the last content row. The old +10 formula
+    -- extended panels into the following section and caused overlapping trim.
+    local h = math.max(50, card.top - page.y - 2)
     card.bg:SetHeight(h)
     card.rim:SetHeight(h)
     page.royalCard = nil
@@ -604,8 +606,12 @@ end
 
 function Page:Section(title, desc)
     self:Newline()
-    FinishRoyalCard(self)
-    local top = self.y + 9
+    if self.royalCard then
+        FinishRoyalCard(self)
+        -- One explicit inter-card gap; don't stack it with widget-row margins.
+        self.y = self.y - 16
+    end
+    local top = self.y + 10
     local cardBg = self.frame:CreateTexture(nil, "BACKGROUND", nil, -7)
     cardBg:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\panel.tga")
     cardBg:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, top)

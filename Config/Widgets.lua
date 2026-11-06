@@ -572,8 +572,33 @@ function Page:Add(widget, height, full)
     return widget
 end
 
+-- The same engraved card treatment applies to every module's settings sections.
+-- Cards are decorative BACKGROUND textures: existing widgets retain mouse input.
+local function FinishRoyalCard(page)
+    local card = page.royalCard
+    if not card then return end
+    local h = math.max(54, card.top - page.y + 10)
+    card.bg:SetHeight(h)
+    card.rim:SetHeight(h)
+    page.royalCard = nil
+end
+
 function Page:Section(title, desc)
     self:Newline()
+    FinishRoyalCard(self)
+    local top = self.y + 9
+    local cardBg = self.frame:CreateTexture(nil, "BACKGROUND", nil, -7)
+    cardBg:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\panel.tga")
+    cardBg:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, top)
+    cardBg:SetWidth(COL_W * 2 + COL_GAP + 24)
+    local cardRim = self.frame:CreateTexture(nil, "BACKGROUND", nil, -6)
+    cardRim:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\frame.tga")
+    cardRim:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 10, top)
+    cardRim:SetWidth(COL_W * 2 + COL_GAP + 24)
+    if cardRim.SetTextureSliceMargins then
+        pcall(cardRim.SetTextureSliceMargins, cardRim, 30, 30, 30, 30)
+    end
+    self.royalCard = {top=top, bg=cardBg, rim=cardRim}
     self.searchSection = title
     self.searchEntries[#self.searchEntries + 1] = {label = title, text = title .. " " .. (desc or ""), y = self.y}
     if self.y < -20 then self.y = self.y - 10 end
@@ -618,6 +643,7 @@ end
 
 function Page:Finish()
     self:Newline()
+    FinishRoyalCard(self)
     self.frame:SetHeight(-self.y + 20)
 end
 

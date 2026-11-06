@@ -41,9 +41,9 @@ local function Card(parent, x, y, w, h, title, symbol)
     local rim = Art(f, "frame", "BORDER")
     rim:SetAllPoints(f)
     if rim.SetTextureSliceMargins then
-        rim:SetTextureSliceMargins(30,30,30,30)
+        pcall(rim.SetTextureSliceMargins, rim, 30,30,30,30)
         if rim.SetTextureSliceMode and Enum and Enum.UITextureSliceMode then
-            rim:SetTextureSliceMode(Enum.UITextureSliceMode.Stretched)
+            pcall(rim.SetTextureSliceMode, rim, Enum.UITextureSliceMode.Stretched)
         end
     end
     local titleBg = Tex(f,"ARTWORK",{0.19,0.12,0.23,0.9})
@@ -99,7 +99,7 @@ function R.Build(page)
     local left = Card(root,10,-111,296,156,"DISPLAY","I")
     local right= Card(root,316,-111,296,156,"WEAPON OPTIONS","II")
     local timing=Card(root,10,-276,296,169,"TIMING","III")
-    local layout=Card(root,316,-276,296,169,"LAYOUT","IV")
+    local layout=Card(root,316,-276,296,184,"LAYOUT","IV")
     local cfg=function() return T.db.swing end
     local function check(key,label,x,y)
         local w=UI.W.Check(label,function() return cfg()[key] end,function(v)cfg()[key]=v end)
@@ -128,19 +128,19 @@ function R.Build(page)
         return Place(page,w,x,y,260)
     end
     slider("width","Width",80,400,1,331,-318)
-    slider("height","Height",4,30,1,331,-371)
-    slider("spacing","Spacing",0,12,1,331,-421)
+    slider("height","Height",4,30,1,331,-366)
+    slider("spacing","Spacing",0,12,1,331,-414)
     local preview=CreateFrame("Frame",nil,root)
-    preview:SetSize(602,60);preview:SetPoint("TOPLEFT",14,-455)
+    preview:SetSize(602,60);preview:SetPoint("TOPLEFT",14,-469)
     local bg=Art(preview,"panel","BACKGROUND");bg:SetAllPoints()
     local edge=Art(preview,"frame","BORDER");edge:SetAllPoints()
-    if edge.SetTextureSliceMargins then edge:SetTextureSliceMargins(30,30,30,30) end
+    if edge.SetTextureSliceMargins then pcall(edge.SetTextureSliceMargins, edge, 30,30,30,30) end
     local t=Label(preview,"S W I N G   T I M E L I N E    •    P R E V I E W",10,GOLD)
     t:SetPoint("TOP",0,-9)
     DecorativeBar(preview,23,-31,375,0.72)
     local desc=Label(preview,"|cffaa6ae6■|r Swing progress\n|cffffd27d■|r Next swing",10,PALE)
     desc:SetPoint("TOPLEFT",414,-26)
-    page.y=-530
+    page.y=-548
     page.col=0
     page.rowH=0
 end

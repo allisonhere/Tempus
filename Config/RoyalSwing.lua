@@ -79,13 +79,32 @@ local function Place(page, widget, x, y, width)
     return widget
 end
 local function DecorativeBar(parent,x,y,w,progress)
-    local bg=Tex(parent,"ARTWORK",{0.055,0.038,0.075,1})
-    bg:SetSize(w,11); bg:SetPoint("TOPLEFT",x,y)
-    local fill=Tex(parent,"OVERLAY",{0.53,0.24,0.80,1})
-    fill:SetSize(w*progress,5); fill:SetPoint("LEFT",bg,"LEFT",3,0)
-    local mark=Tex(parent,"OVERLAY",{1,0.75,0.28,1})
-    mark:SetSize(3,18);mark:SetPoint("LEFT",bg,"LEFT",w*progress,0)
-    return bg
+    -- Engraved, multi-layer timeline with the cue rendered as a gold needle.
+    local surround=Tex(parent,"ARTWORK",{0.65,0.47,0.28,0.90})
+    surround:SetSize(w,12)
+    surround:SetPoint("TOPLEFT",x,y)
+    local bg=Tex(parent,"ARTWORK",{0.046,0.029,0.063,1})
+    bg:SetPoint("TOPLEFT",surround,"TOPLEFT",2,-2)
+    bg:SetPoint("BOTTOMRIGHT",surround,"BOTTOMRIGHT",-2,2)
+    local fill=Tex(parent,"OVERLAY",{0.58,0.28,0.83,1})
+    fill:SetSize((w-6)*progress,6)
+    fill:SetPoint("LEFT",bg,"LEFT",2,0)
+    local sheen=Tex(parent,"OVERLAY",{0.98,0.74,1,0.34})
+    sheen:SetHeight(1)
+    sheen:SetPoint("TOPLEFT",fill,"TOPLEFT",0,0)
+    sheen:SetPoint("TOPRIGHT",fill,"TOPRIGHT",0,0)
+    for i=1,9 do
+        local tick=Tex(parent,"OVERLAY",{0.84,0.66,0.42,0.40})
+        tick:SetSize(1,i==5 and 7 or 4)
+        tick:SetPoint("TOPLEFT",surround,"BOTTOMLEFT",i*w/10,1)
+    end
+    local glow=Tex(parent,"OVERLAY",{1,0.64,0.19,0.12})
+    glow:SetSize(12,24)
+    glow:SetPoint("CENTER",surround,"LEFT",w*progress,0)
+    local mark=Tex(parent,"OVERLAY",{1,0.83,0.43,1})
+    mark:SetSize(2,20)
+    mark:SetPoint("CENTER",surround,"LEFT",w*progress,0)
+    return surround
 end
 function R.Build(page)
     local root=page.frame

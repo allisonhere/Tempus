@@ -139,6 +139,21 @@ function Royal.NavItem(button)
     edge:SetPoint("TOPLEFT", 8, -3)
     edge:SetPoint("BOTTOMLEFT", 8, 3)
     edge:Hide()
+    local icon = button:CreateTexture(nil, "OVERLAY")
+    icon:SetTexture("Interface\\AddOns\\Tempus\\media\\royal\\nav-icons.tga")
+    icon:SetSize(16, 16)
+    icon:SetPoint("LEFT", 4, 0)
+    icon:SetVertexColor(0.98, 0.91, 0.79, 0.85)
+    local icons = {
+        ["What's new"]=0, ["Modules"]=1, ["Vendor"]=2, ["Automation"]=3,
+        ["Cooldowns"]=4, ["Swing timer"]=5, ["Combat Pulse"]=6,
+        ["Profiles"]=7, ["Appearance"]=8, ["Buffs & Debuffs"]=9,
+        ["Unit Frames"]=10, ["Nameplates"]=11, ["Party & Raid"]=12,
+        ["Action Bars"]=13, ["Bags"]=14, ["Minimap & Info Bar"]=15,
+        ["Layout presets"]=10, ["Automatic layouts"]=10,
+    }
+    button.royalIcons = icons
+    button.royalIcon = icon
     button.royalInset, button.royalEdge = inset, edge
 end
 
@@ -146,7 +161,25 @@ function Royal.NavSelected(button, on)
     if not button.royalDecor then return end
     button.royalInset:SetShown(on)
     button.royalEdge:SetShown(on)
+    local name = button.text and button.text:GetText() or ""
+    local idx = button.royalIcons[name] or 0
+    local col, row = idx % 4, math.floor(idx / 4)
+    button.royalIcon:SetTexCoord(col / 4, (col + 1) / 4, row / 4, (row + 1) / 4)
+    button.royalIcon:SetVertexColor(on and 1 or 0.91, on and 0.81 or 0.73, on and 0.55 or 0.47, on and 1 or 0.80)
     if on then
         button.text:SetTextColor(PALE[1], PALE[2], PALE[3])
     end
+end
+
+-- Section dividers get the same heraldic treatment as navigation items.
+function Royal.NavHeader(button)
+    if button.royalHeader then return end
+    button.royalHeader = true
+    local rule = Block(button, "ARTWORK", {0.81,0.61,0.35,0.55})
+    rule:SetSize(20,1)
+    rule:SetPoint("RIGHT",button,"RIGHT",-19,0)
+    local gem = Block(button,"OVERLAY",{0.93,0.75,0.47,0.82})
+    gem:SetSize(5,5)
+    gem:SetPoint("RIGHT",rule,"LEFT",-4,0)
+    gem:SetRotation(math.pi / 4)
 end

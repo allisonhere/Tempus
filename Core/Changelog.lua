@@ -1,6 +1,14 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.7.2", sections = {
+        { title = "New", items = {
+            { 0, "Shared positioning panel: select an unlocked frame from the list and use four arrows to nudge it by 1 UI unit, or Shift-click for 10. Protected frames cannot be nudged during combat." },
+        } },
+        { title = "Changed", items = {
+            { 0, "Larger labeled drag handles make small frames easier to grab. The selected frame is highlighted; Escape locks the layout and hides positioning controls." },
+        } },
+    } },
     { version = "2.7.1", sections = {
         { title = "Changed", items = {
             { 0, "The beta bug-report banner at the top of the settings window is gone." },

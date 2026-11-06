@@ -670,7 +670,7 @@ SlashCmdList.TEMPUS = function(msg)
     if msg == "lock" then
         T.db.locked = true; T:ApplySettings(); T:Print("frames locked.")
     elseif msg == "unlock" or msg == "move" then
-        T.db.locked = false; T:ApplySettings(); T:Print("frames unlocked. Drag the boxes, then |cff%s/tempus lock|r.", T.accentHex)
+        T.db.locked = false; T:ApplySettings(); T:Print("frames unlocked. Drag the labeled handles or use the arrow panel to nudge frames, then |cff%s/tempus lock|r.", T.accentHex)
     elseif msg == "test" then
         if T.Display then
             T.Display:SetTestMode(not T.Display.testMode)

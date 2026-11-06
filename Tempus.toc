@@ -20,6 +20,7 @@ Core\AutoLayouts.lua
 Core\Probe.lua
 Core\FPSTest.lua
 Config\Widgets.lua
+Config\RoyalSkin.lua
 Config\Search.lua
 Config\LayoutPresets.lua
 Config\AutoLayouts.lua

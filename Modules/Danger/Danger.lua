@@ -84,8 +84,14 @@ function DG:Show(text, color)
     end
 end
 
+-- On a flight path (or flying mount) nothing below can reach you: no warnings.
+function DG.Flying()
+    return Safe(UnitOnTaxi, "player") == true or Safe(IsFlying) == true
+end
+
 function DG:Check(unit)
     if not (self.db and self.db.enabled) then return end
+    if DG.Flying() then return end     -- not marked seen, so it can still warn after landing
     local info = Info(unit)
     if info.isPlayer and not info.pvp then return end
     local label, color = DG.Reason(info, Safe(UnitLevel, "player"), self.db)

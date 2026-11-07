@@ -25,4 +25,13 @@ assert(DG.PullWarn(3, 0, 3), "three on you")
 assert(not DG.PullWarn(2, 0, 3), "two is fine")
 assert(not DG.PullWarn(3, 3, 3), "already warned for three")
 assert(DG.PullWarn(4, 3, 3), "a fourth joins")
+
+-- Flying: on a taxi or a flying mount, no warnings.
+assert(not DG.Flying(), "no flight APIs: not flying")
+UnitOnTaxi = function() return true end
+assert(DG.Flying(), "flight path")
+UnitOnTaxi = function() return false end
+IsFlying = function() return true end
+assert(DG.Flying(), "flying mount")
+IsFlying, UnitOnTaxi = nil, nil
 print("danger ok")

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.9.0
 
 ### New
 - **Resource ticker**: a thin bar under the swing timer that fills toward your next energy or mana tick (they come every 2 seconds), so you can wait for the tick before an expensive move or a cast. After you spend mana it turns violet and counts down the five-second rule first. It learns the tick timing from ticks it sees, ignoring refunds and potions. Preview, size and when to show it are on General > Resource ticker.

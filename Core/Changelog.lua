@@ -1,7 +1,7 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
-    { version = "Unreleased", sections = {
+    { version = "2.9.0", sections = {
         { title = "New", items = {
             { 0, "|cffffffffResource ticker|r: a thin bar under the swing timer that fills toward your next energy or mana tick (they come every 2 seconds), so you can wait for the tick before an expensive move or a cast. After you spend mana it turns violet and counts down the five-second rule first. It learns the tick timing from ticks it sees, ignoring refunds and potions. Preview, size and when to show it are on General > Resource ticker." },
             { 0, "|cffffffffShopping list|r: a small panel of items you are collecting with a target amount (\"Linen Cloth 20\"), showing what this character has in bags and bank plus what your alts hold. Shift-click an item into its box (or type a name) and press Enter; mouse wheel changes the amount, right-click removes. Item tooltips show your progress, and finishing an item says so. Also |cff9fd6ff/tempus shop <item> <amount>|r, |cff9fd6ff/tempus shop remove <item>|r, |cff9fd6ff/tempus shop clear|r (Bags > Shopping list)." },

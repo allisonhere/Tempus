@@ -12,7 +12,7 @@ local function SwingDiagram()
     local Tex, Text, C = UI.Tex, UI.Text, S.C
     local cueC = SW and SW.CUE_COLOR or { 0.42, 0.85, 0.82 }
     local tickC = SW and SW.TICK_COLOR or { 1, 0.96, 0.88 }
-    local barText = SW and SW.TextOn(cueC) or { 0.06, 0.06, 0.08 }
+    local barText = { 1, 1, 1 }
     local red = SW and SW.OUT_OF_RANGE or { 0.85, 0.2, 0.2 }
     local f = CreateFrame("Frame")
     f:SetSize(DIAGRAM_W, DIAGRAM_H)
@@ -49,10 +49,10 @@ local function SwingDiagram()
 
     local barY = -40
     local back = Bar(barY, BAR_H, FILL, cueC)
-    local label = Text(f, 10, barText)
+    local label = Text(f, 10, barText, "OUTLINE")
     label:SetPoint("LEFT", back, "LEFT", 5, 0)
     label:SetText("Main hand")
-    local time = Text(f, 10, barText)
+    local time = Text(f, 10, barText, "OUTLINE")
     time:SetPoint("RIGHT", back, "RIGHT", -5, 0)
     time:SetText("0.3")
     local sx = 1 + (BAR_W - 2) * FILL
@@ -84,10 +84,31 @@ local function SwingDiagram()
     return f, DIAGRAM_H
 end
 
+-- Live bars under the diagram: the real swing rows, swinging on their own while the page is open.
+local DEMO_H = 100
+local function SwingDemo()
+    local UI, S = T.UI, T.Style
+    local f = CreateFrame("Frame")
+    f:SetSize(DIAGRAM_W, DEMO_H)
+    local title = UI.Text(f, 11, S.C.muted)
+    title:SetPoint("TOPLEFT", 0, 0)
+    title:SetText("Live demo")
+    if not (T.Swing and T.Swing.CreateDemo) then
+        function f:Refresh() end
+        return f
+    end
+    local box = T.Swing.CreateDemo(BAR_W)
+    box:SetParent(f)
+    box:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -18)
+    function f:Refresh() box:Refresh() end
+    return f
+end
+
 T:RegisterPage("general", { key = "swing", label = "Swing timer", order = 6, build = function(p)
     local cfg = function() return T.db.swing end
     p:Section("Swing timer", "A bar per weapon that refills on every auto attack and turns red while your target is out of range. Unlock the UI to move it. Needs the Swing timer module (General > Modules). Blizzard's own swing timer (Edit Mode) is separate and can stay off.")
     p:Add(SwingDiagram(), DIAGRAM_H, true)
+    p:Add(SwingDemo(), DEMO_H, true)
     p:Check(cfg, "enabled", "Show the swing timer")
     p:Add(T.UI.W.Button("Preview on / off", function()
         local SW = T.Swing

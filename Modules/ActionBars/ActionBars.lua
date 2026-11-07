@@ -4,7 +4,7 @@
 local _, T = ...
 local S = T.Style
 
-local AB = { bars = {} }
+local AB = { bars = {}, greyButtons = {} }
 T.ActionBars = AB
 
 -- key, label, Blizzard bar frame, button prefix, button count, page constant name
@@ -40,6 +40,7 @@ AB.defaults = {
     hotkeySize = 12,
     swipeAlpha = 0.75,
     rangeColor = true,
+    greyOnCooldown = true,      -- grey a button's icon while its spell is on cooldown
     showEmpty = false,          -- empty slots on bars 2-8 (they always show while dragging)
     bars = {
         bar1 = Bar("BOTTOM", 0, 42),
@@ -163,6 +164,74 @@ function AB:StyleButton(b)
 end
 
 ----------------------------------------------------------------------------------------
+-- Grey on cooldown. Blizzard's buttons only draw the sweep; this greys the icon too.
+-- Hooked after Blizzard's own updates, so it never changes what the button does.
+----------------------------------------------------------------------------------------
+local function ActionSlot(b)
+    local slot = b.action
+    if not T.Num(slot) and b.CalculateAction then
+        local ok, v = pcall(b.CalculateAction, b)
+        if ok then slot = v end
+    end
+    return T.Num(slot) and slot or nil
+end
+
+function AB:GreyButton(b)
+    local icon = b.tempusIcon
+    if not icon then return end
+    local slot = AB.db and AB.db.greyOnCooldown and ActionSlot(b)
+    if not slot then
+        b.tempusCdDur = nil
+        if b.tempusGreyed then b.tempusGreyed = nil; S.SetGrey(icon, false) end
+        return
+    end
+    b.tempusGreyed = true
+    local now, down = GetTime(), nil
+    if C_ActionBar and C_ActionBar.GetActionCooldown then
+        local ok, info = pcall(C_ActionBar.GetActionCooldown, slot)
+        if ok and type(info) == "table" then
+            down = S.CooldownDown(info.startTime, info.duration, info.isActive, info.isOnGCD, now)
+        end
+    end
+    if down == nil and GetActionCooldown then
+        local ok, start, duration = pcall(GetActionCooldown, slot)
+        if ok then down = S.CooldownDown(start, duration, nil, nil, now) end
+    end
+    if down == nil and C_ActionBar and C_ActionBar.GetActionCooldownDuration then
+        local ok, dur = pcall(C_ActionBar.GetActionCooldownDuration, slot)
+        -- No tint fallback: Blizzard colours these icons for range and mana.
+        if ok and dur and S.GreyFromDuration(icon, dur, false) then
+            b.tempusCdDur = dur
+            return
+        end
+    end
+    b.tempusCdDur = nil
+    S.SetGrey(icon, down == true)
+end
+
+function AB:GreyAll()
+    for _, b in ipairs(AB.greyButtons) do AB:GreyButton(b) end
+end
+
+-- Re-evaluate the buttons greyed from a secret duration (each grey is a snapshot).
+local function GreyTick()
+    for _, b in ipairs(AB.greyButtons) do
+        if b.tempusCdDur and b:IsVisible() and not S.GreyFromDuration(b.tempusIcon, b.tempusCdDur, false) then
+            b.tempusCdDur = nil
+        end
+    end
+end
+
+local function HookGrey(b)
+    local function Regrey() AB:GreyButton(b) end
+    for _, m in ipairs({ "UpdateCooldown", "UpdateUsable" }) do
+        if type(b[m]) == "function" then hooksecurefunc(b, m, Regrey) end
+    end
+    local cd = Region(b, "cooldown", "Cooldown")
+    if cd then cd:HookScript("OnCooldownDone", Regrey) end
+end
+
+----------------------------------------------------------------------------------------
 -- Bars
 ----------------------------------------------------------------------------------------
 -- Blizzard button code sometimes reaches up to its bar (fields, or methods called from
@@ -195,6 +264,11 @@ local function CreateBar(def)
         local b = _G[def.prefix .. i]
         if b then
             bar.buttons[i] = b
+            if not def.stance and not def.pet and not b.tempusGreyHooked then
+                b.tempusGreyHooked = true
+                AB.greyButtons[#AB.greyButtons + 1] = b
+                HookGrey(b)
+            end
             -- Pin each multibar button to its current page before it leaves its Blizzard parent.
             if not def.stance and not def.pet and not def.paging then
                 local page = b:GetAttribute("actionpage")
@@ -354,12 +428,7 @@ function AB:UpdateEmpty()
                     if i <= n then
                         local show = def.paging or AB.db.showEmpty or AB.dragging
                         if not show then
-                            local slot = b.action
-                            if not T.Num(slot) and b.CalculateAction then
-                                local ok, v = pcall(b.CalculateAction, b)
-                                if ok then slot = v end
-                            end
-                            local ok, has = pcall(HasAction, slot)
+                            local ok, has = pcall(HasAction, ActionSlot(b))
                             show = ok and has == true
                         end
                         b:SetShown(show and true or false)
@@ -377,6 +446,7 @@ function AB:Refresh()
         AB:SyncPage()
     end, "ablayout")
     AB:UpdateEmpty()
+    AB:GreyAll()
 end
 
 T:NewModule("actionbars", {
@@ -422,7 +492,17 @@ T:NewModule("actionbars", {
         ev:RegisterEvent("ACTIONBAR_SHOWGRID")
         ev:RegisterEvent("ACTIONBAR_HIDEGRID")
         if C_EditMode then ev:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED") end
+        for _, event in ipairs({ "SPELL_UPDATE_COOLDOWN", "ACTIONBAR_UPDATE_COOLDOWN", "ACTIONBAR_UPDATE_USABLE" }) do
+            pcall(ev.RegisterEvent, ev, event)
+        end
         ev:SetScript("OnEvent", T:Wrap("actionbars.events", function(_, event)
+            if event == "SPELL_UPDATE_COOLDOWN" or event == "ACTIONBAR_UPDATE_COOLDOWN" or event == "ACTIONBAR_UPDATE_USABLE" then
+                AB:GreyAll()
+                return
+            end
+            if event == "ACTIONBAR_PAGE_CHANGED" or event == "UPDATE_BONUS_ACTIONBAR" or event == "ACTIONBAR_SLOT_CHANGED" then
+                AB:GreyAll()
+            end
             if event == "ACTIONBAR_SHOWGRID" or event == "ACTIONBAR_HIDEGRID" then
                 AB.dragging = event == "ACTIONBAR_SHOWGRID"
                 AB:UpdateEmpty()
@@ -434,9 +514,10 @@ T:NewModule("actionbars", {
                 AB:Refresh()
             end
         end))
-        local t = 0
+        local t, g = 0, 0
         ev:SetScript("OnUpdate", T:Wrap("actionbars.fade", function(_, elapsed)
-            t = t + elapsed
+            t, g = t + elapsed, g + elapsed
+            if g >= 0.2 then g = 0; GreyTick() end
             if t < 0.05 then return end
             t = 0
             FadeTick()

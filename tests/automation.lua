@@ -3,7 +3,7 @@ local T = { Wrap = function(_, _, fn) return fn end, NewModule = function() end,
 T.Style = {}
 assert(loadfile("Modules/Automation/Automation.lua"))("Tempus", T)
 local A = T.Automation
-A.db = { quests = true, turnIn = true, errors = true, fastLoot = true, afk = false }
+A.db = { quests = true, turnIn = true, errors = true, fastLoot = true, skipEmptyLoot = true, afk = false }
 
 -- Quests
 local calls = {}
@@ -72,3 +72,16 @@ assert(table.concat(looted, ",") == "3,2,1")
 assert(A.AutoLootOn(true) and not A.AutoLootOn(false))
 
 print("PASS: automation accepts and hands in quests, filters error spam, loots everything")
+
+-- Empty loot: no items and no coins means empty; anything on it (or no answer) means not.
+local has = {}
+GetNumLootItems = function() return #has end
+LootSlotHasItem = function(i) return has[i] end
+assert(A.LootEmpty(), "nothing on the corpse")
+has = { false, false }
+assert(A.LootEmpty(), "slots already taken")
+has = { false, true }
+assert(not A.LootEmpty(), "one item left")
+LootSlotHasItem = function() error("no loot open") end
+assert(not A.LootEmpty(), "an error never closes the window")
+print("empty loot ok")

@@ -89,19 +89,21 @@ end
 
 function SetCooldown(b, entry)
     local cd = b.cd
-    local desat = false
+    local now = GetTime()
+    local down, dur     -- down: true / false / nil (secret, can't tell); dur: duration object
     if entry.spell then
-        if C_Spell and C_Spell.GetSpellCooldownDuration and cd.SetCooldownFromDurationObject then
-            local ok, dur = pcall(C_Spell.GetSpellCooldownDuration, entry.spell)
-            if ok and dur then pcall(cd.SetCooldownFromDurationObject, cd, dur) else cd:Clear() end
+        local native = C_Spell and C_Spell.GetSpellCooldownDuration and cd.SetCooldownFromDurationObject
+        if native then
+            local ok, d = pcall(C_Spell.GetSpellCooldownDuration, entry.spell)
+            if ok and d then dur = d; pcall(cd.SetCooldownFromDurationObject, cd, d) else cd:Clear() end
         end
         if C_Spell and C_Spell.GetSpellCooldown then
             local ok, info = pcall(C_Spell.GetSpellCooldown, entry.spell)
-            if ok and type(info) == "table" and T.Num(info.startTime) and T.Num(info.duration) then
-                if not (C_Spell.GetSpellCooldownDuration and cd.SetCooldownFromDurationObject) then
+            if ok and type(info) == "table" then
+                if not native and T.Num(info.startTime) and T.Num(info.duration) then
                     if info.duration > 0 then cd:SetCooldown(info.startTime, info.duration) else cd:Clear() end
                 end
-                desat = info.duration > 1.6 and info.startTime + info.duration > GetTime()
+                down = S.CooldownDown(info.startTime, info.duration, info.isActive, info.isOnGCD, now)
             end
         end
     else
@@ -110,16 +112,31 @@ function SetCooldown(b, entry)
             pcall(function()
                 if T.Num(start) and T.Num(duration) then
                     if duration > 0 then cd:SetCooldown(start, duration) else cd:Clear() end
-                    desat = duration > 1.6 and start + duration > GetTime()
                 else
                     cd:SetCooldown(start, duration)
                 end
             end)
+            down = S.CooldownDown(start, duration, nil, nil, now)
+            if down == nil and C_DurationUtil and C_DurationUtil.CreateDuration then
+                pcall(function()
+                    local d = C_DurationUtil.CreateDuration()
+                    d:SetTimeFromStart(start, duration)
+                    dur = d
+                end)
+            end
         end
     end
-    if b.down and not desat then b.flash() end
-    b.down = desat
-    b.icon:SetDesaturated(desat)
+    -- Secret numbers: grey through the duration object; the ticker re-evaluates it.
+    if down == nil and S.GreyFromDuration(b.icon, dur, true) then
+        b.secretDur = dur
+        b.down = nil
+        return
+    end
+    b.secretDur = nil
+    down = down == true
+    if b.down and not down then b.flash() end
+    b.down = down
+    S.SetGrey(b.icon, down)
 end
 
 function CD:Refresh()
@@ -179,6 +196,18 @@ T:NewModule("cooldowns", {
         ev:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
         ev:SetScript("OnEvent", T:Wrap("cooldowns.events", function(_, event)
             if event == "SPELL_UPDATE_COOLDOWN" or event == "BAG_UPDATE_COOLDOWN" then CD:Update() else CD:Refresh() end
+        end))
+        -- Icons greyed from a secret duration are snapshots: refresh them a few times a second.
+        local acc = 0
+        f:SetScript("OnUpdate", T:Wrap("cooldowns.grey", function(_, elapsed)
+            acc = acc + elapsed
+            if acc < 0.2 then return end
+            acc = 0
+            for _, b in ipairs(CD.icons) do
+                if b.secretDur and b:IsShown() and not S.GreyFromDuration(b.icon, b.secretDur, true) then
+                    b.secretDur = nil
+                end
+            end
         end))
         CD:Refresh()
     end,

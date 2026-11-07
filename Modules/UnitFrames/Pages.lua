@@ -6,7 +6,12 @@ local W, Changed = UI.W, UI.Changed
 
 local function UFDB() return T.db.unitframes end
 
+local DEMO_H = 120
+
 T:RegisterPage("unitframes", { key = "uf_general", label = "General", order = 1, build = function(p)
+    local demo = UF:CreateDemo(UI.COL_W * 2 + 22, DEMO_H)
+    p:Add(demo, DEMO_H, true)
+    demo:Refresh()
     p:Section("Unit frames", "Player, target, target-of-target and pet frames. Health is shown as a percentage-fed bar because this client hides exact health values from addons. Unlock (top right) to drag frames and preview them without a target.")
     p:Dropdown(UFDB, "healthColor", "Health colour", {
         { "CLASS", "Class / reaction" }, { "REACTION", "Reaction only" },

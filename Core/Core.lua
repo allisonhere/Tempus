@@ -837,6 +837,12 @@ SlashCmdList.TEMPUS = function(msg)
     elseif msg == "swing" then
         local text = T.Swing and T.Swing.lastText
         T:Print("%s", text and ("last fight: " .. text) or "no swing summary yet. Fight something for a few swings first.")
+    elseif msg == "shop" then
+        if T.Shopping and T.Shopping.db and T.Shopping.frame then
+            T.Shopping:Command((fullMsg or ""):match("^%s*%S+%s*(.*)$"))
+        else
+            T:Print("the Shopping list module is off.")
+        end
     elseif msg == "copychat" then
         if T.Chat and T.Chat.Copy then T.Chat:Copy() else T:Print("the Chat module is off.") end
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+dps") then

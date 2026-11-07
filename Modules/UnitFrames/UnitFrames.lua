@@ -555,18 +555,25 @@ local function OnEnter(self)
     if GameTooltip:SetUnit(self.unit) ~= false then GameTooltip:Show() end
 end
 
-local function CreateUnitFrame(unit)
-    local f = CreateFrame("Button", "TempusUF_" .. unit, UIParent, "SecureUnitButtonTemplate")
-    f.unit = unit
-    f:SetAttribute("unit", unit)
-    f:SetAttribute("type1", "target")
-    f:SetAttribute("type2", "togglemenu")
-    f:RegisterForClicks("AnyUp")
-    f:SetFrameStrata("LOW")
-    f:SetScript("OnEnter", OnEnter)
-    f:SetScript("OnLeave", function() GameTooltip:Hide() end)
+-- demoParent: build a plain (not secure, not clickable) copy inside a settings demo instead.
+local function CreateUnitFrame(unit, demoParent)
+    local f
+    if demoParent then
+        f = CreateFrame("Frame", nil, demoParent)
+        f.unit, f.demo = unit, true
+    else
+        f = CreateFrame("Button", "TempusUF_" .. unit, UIParent, "SecureUnitButtonTemplate")
+        f.unit = unit
+        f:SetAttribute("unit", unit)
+        f:SetAttribute("type1", "target")
+        f:SetAttribute("type2", "togglemenu")
+        f:RegisterForClicks("AnyUp")
+        f:SetFrameStrata("LOW")
+        f:SetScript("OnEnter", OnEnter)
+        f:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    end
     f.bd = S.Backdrop(f)
-    if unit ~= "player" then S.FadeIn(f, 0.12) end
+    if unit ~= "player" and not demoParent then S.FadeIn(f, 0.12) end
 
     f.health = S.StatusBar(f)
     S.LagBar(f.health)
@@ -626,7 +633,7 @@ local function CreateUnitFrame(unit)
         f.castbar = CreateCastbar(f)
         f.castbar.kickable = unit ~= "player"
     end
-    if unit == "target" and T.Display and T.Display.NativeAvailable then
+    if unit == "target" and not demoParent and T.Display and T.Display.NativeAvailable then
         -- Aura containers stay live in combat, when auras are secret to addons.
         f.auraBuffs = { id = "UF_target_buffs", key = "buffs", unit = "target", filter = "HELPFUL", frame = CreateFrame("Frame", nil, f) }
         f.auraDebuffs = { id = "UF_target_debuffs", key = "debuffs", unit = "target", filter = "HARMFUL", frame = CreateFrame("Frame", nil, f) }
@@ -796,6 +803,84 @@ function UF:Preview(f)
     f.nameText:SetText(UF.labels[f.unit])
     f.healthText:SetText("72%")
     f.powerText:SetText("")
+end
+
+-- Settings demo: a plain copy of the player frame that loses health in steps (the red
+-- "recent damage" chunk drains behind it, and the low-health glow pulses near the bottom),
+-- drains and refills power, and casts Frostbolt; every other cast is interrupted.
+function UF:CreateDemo(width, height)
+    local box = CreateFrame("Frame")
+    box:SetSize(width, height)
+    S.Backdrop(box, { fill = { 0.03, 0.035, 0.045, 1 }, shadow = false })
+    local holder = CreateFrame("Frame", nil, box)
+    holder:SetPoint("TOPLEFT", 8, -8)
+    holder:SetPoint("BOTTOMRIGHT", -8, 8)
+    holder:SetClipsChildren(true)
+    local f = CreateUnitFrame("player", holder)
+    if f.classPower then f.classPower:Hide() end
+    local label = box:CreateFontString(nil, "OVERLAY")
+    S.ApplyFont(label, 10)
+    label:SetTextColor(0.55, 0.6, 0.68)
+    label:SetPoint("BOTTOMLEFT", 10, 6)
+    label:SetText("Live demo (player frame)")
+
+    function box:Refresh()
+        UF.db = T.db.unitframes
+        f.cfg = UF.db.units.player
+        UF:Layout(f)
+        local cfg = f.cfg
+        local footH = cfg.height + (cfg.castbar and (cfg.castbarHeight + 6) or 0)
+        local s = math.min(1, (width - 40) / cfg.width, (height - 40) / footH)
+        f:SetScale(s)
+        f:ClearAllPoints()
+        -- Centre the frame plus the cast bar hanging under it (offsets are in the frame's scale).
+        f:SetPoint("CENTER", holder, "CENTER", 0, (footH - cfg.height) / 2 + 4 / s)
+        UF:Preview(f)
+        f.nameText:SetText(UnitName("player") or "Player")
+        UpdatePortrait(f)
+        if f.classPower then f.classPower:Hide() end
+        if not cfg.castbar then f.castbar:Hide() end
+    end
+
+    local HP = { 100, 100, 78, 78, 52, 52, 30, 30, 16, 16, 16, 100, 100 }
+    local casts = 0
+    T.UI.Loop(box, 0.6, function(step)
+        local db = UF.db or T.db.unitframes
+        local v = HP[(step - 1) % #HP + 1]
+        SetBarValue(f.health, v)
+        f.healthText:SetFormattedText("%d%%", v)
+        local low = db.lowHealth and v < db.lowHealthAt and f.lowGlow
+        if f.lowGlow then
+            f.lowGlow:SetVertexColor(LOW_COLOR[1], LOW_COLOR[2], LOW_COLOR[3], LOW_COLOR[4] or 1)
+            f.lowGlow:SetShown(low and true or false)
+            f.lowPulse:SetActive(low and true or false)
+        end
+        SetBarValue(f.power, (step % 10) < 6 and 100 - (step % 10) * 14 or 30 + (step % 10 - 6) * 18)
+        local cb = f.castbar
+        if not (cb and f.cfg.castbar) then return end
+        local phase = (step - 1) % 6
+        if phase == 0 then
+            casts = casts + 1
+            local a = T.accent
+            cb.bar:SetStatusBarColor(a[1], a[2], a[3])
+            cb.baseColor = { a[1], a[2], a[3] }
+            cb.text:SetText("Frostbolt")
+            cb.icon:SetTexture("Interface\\Icons\\Spell_Frost_FrostBolt02")
+            cb.shield:SetAlpha(0)
+            for _, t in ipairs(cb.lock) do t:SetAlpha(0) end
+            cb.kick:Hide()
+            local now = GetTime()
+            cb.fadeAt, cb.dur, cb.channel = nil, nil, nil
+            cb.startT, cb.endT = now, now + 2.5
+            cb.bar:SetMinMaxValues(0, 2.5)
+            cb.casting = true
+            cb:Show()
+        elseif phase == 2 and casts % 2 == 0 and cb.casting then
+            CastStop(cb, "Interrupted")
+            cb.flash()
+        end
+    end)
+    return box
 end
 
 ----------------------------------------------------------------------------------------

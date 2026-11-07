@@ -656,6 +656,20 @@ local pct = function(v) return ("%d%%"):format(v * 100 + 0.5) end
 local secs = function(v) return v == 0 and "off" or ("%ds"):format(v) end
 
 
+-- Live demos on settings pages: fn(step, now) runs every `period` seconds while `frame` is
+-- shown (step counts 1, 2, 3...), starting again from step 1 each time it is shown. A hidden
+-- page runs nothing.
+function UI.Loop(frame, period, fn)
+    local nextAt, step = 0, 0
+    frame:HookScript("OnShow", function() nextAt, step = 0, 0 end)
+    frame:SetScript("OnUpdate", T:Wrap("settings.demo", function()
+        local now = GetTime()
+        if now < nextAt then return end
+        nextAt, step = now + period, step + 1
+        fn(step, now)
+    end))
+end
+
 UI.Tex, UI.Text, UI.Border, UI.Tooltip, UI.Changed = Tex, Text, Border, Tooltip, Changed
 UI.FlatButton, UI.StyledEditBox, UI.OpenMenu, UI.CloseMenu = FlatButton, StyledEditBox, OpenMenu, CloseMenu
 UI.W, UI.NewPage, UI.Page = W, NewPage, Page

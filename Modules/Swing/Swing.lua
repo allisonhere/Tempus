@@ -28,12 +28,10 @@ local CUE_COLOR = { 0.42, 0.85, 0.82 }  -- soft teal: the bar during the cue win
 local TICK_COLOR = { 1, 0.96, 0.88 }    -- warm white: the cue tick, clear on the fill and the empty bar
 SW.CUE_COLOR, SW.OUT_OF_RANGE, SW.TICK_COLOR = CUE_COLOR, OUT_OF_RANGE, TICK_COLOR
 
--- Text that reads on a bar of colour c: near-black on light fills, white on dark ones.
-function SW.TextOn(c)
-    local l = 0.299 * c[1] + 0.587 * c[2] + 0.114 * c[3]
-    if l > 0.55 then return { 0.06, 0.06, 0.08 } end
-    return { 1, 1, 1 }
-end
+-- Bar text is white with a black outline: it sits over the fill and the empty part of the
+-- bar in turn, so one colour picked from the fill would vanish over the other.
+SW.BAR_TEXT = { 1, 1, 1 }
+SW.BAR_OUTLINE = "OUTLINE"
 local SWELL = 0.25          -- the spark grows during the last quarter second
 
 -- Swing types in display order. Enum.PlayerSwingType: MainHand 0, OffHand 1, Ranged 2.
@@ -153,13 +151,13 @@ local function ColorRow(row)
         or { 0.4, 0.8, 0.45 }
     row.bar:SetStatusBarColor(c[1], c[2], c[3])
     row:SetAlpha(row.outOfRange and DIM or 1)
-    local t = SW.TextOn(c)
-    row.label:SetTextColor(t[1], t[2], t[3])
-    row.time:SetTextColor(t[1], t[2], t[3])
+    row.label:SetTextColor(1, 1, 1)
+    row.time:SetTextColor(1, 1, 1)
 end
 
 local function RowOnUpdate(row)
     local now = GetTime()
+    local db = row.demo and T.db.swing or SW.db
     if row.flashT then
         local a = 1 - (now - row.flashT) / FLASH
         if a <= 0 then
@@ -173,20 +171,22 @@ local function RowOnUpdate(row)
     local left = row.endT - now
     if left <= 0 then
         row.endT = nil
-        TallyMark()
+        if not row.demo then TallyMark() end
         row.bar:SetValue(0)
         row.time:SetText("")
         row.spark:Hide()
         row.cueing, row.cueAt = false, nil
         row.tick:Hide()
         ColorRow(row)
-        if SW.db.effects and not row.outOfRange then
+        if db.effects and not row.outOfRange then
             row.flashT = now
             row.flash:SetAlpha(0.55)
             row.flash:Show()
         end
-        SW:UpdateShown()
-        Notify()
+        if not row.demo then
+            SW:UpdateShown()
+            Notify()
+        end
         return
     end
     row.bar:SetValue(row.duration - left)
@@ -195,13 +195,13 @@ local function RowOnUpdate(row)
         if cueing ~= row.cueing then
             row.cueing = cueing
             ColorRow(row)
-            if cueing and SW.db.cueSound and not row.outOfRange and PlaySound and SOUNDKIT and SOUNDKIT.UI_BNET_TOAST then
+            if cueing and db.cueSound and not row.demo and not row.outOfRange and PlaySound and SOUNDKIT and SOUNDKIT.UI_BNET_TOAST then
                 pcall(PlaySound, SOUNDKIT.UI_BNET_TOAST)
             end
         end
     end
-    if SW.db.showTime then row.time:SetFormattedText("%.1f", left) end
-    if SW.db.effects then
+    if db.showTime then row.time:SetFormattedText("%.1f", left) end
+    if db.effects then
         local k = left < SWELL and (1 - left / SWELL) or 0
         row.spark:SetSize(10 + 14 * k, row.sparkH * (1 + 0.6 * k))
     end
@@ -235,45 +235,50 @@ local function NewRow(parent, kind)
     row.flash:Hide()
     row.label = over:CreateFontString(nil, "OVERLAY")
     row.label:SetPoint("LEFT", 5, 0)
-    S.ApplyFont(row.label, 10)   -- a FontString needs a font before SetText; Refresh resizes it
+    S.ApplyFont(row.label, 10, nil, SW.BAR_OUTLINE)   -- a FontString needs a font before SetText; Refresh resizes it
     row.label:SetText(kind.label)
     row.time = over:CreateFontString(nil, "OVERLAY")
     row.time:SetPoint("RIGHT", -5, 0)
-    S.ApplyFont(row.time, 10)
+    S.ApplyFont(row.time, 10, nil, SW.BAR_OUTLINE)
     row:SetScript("OnUpdate", T:Wrap("swing.update", RowOnUpdate))
     ColorRow(row)
     return row
+end
+
+-- Start one row's swing: fill, spark, cue tick and colours. db is the swing settings.
+local function StartRow(row, duration, db)
+    row.duration, row.endT = duration, GetTime() + duration
+    row.bar:SetMinMaxValues(0, duration)
+    row.bar:SetValue(0)
+    row.spark:SetSize(10, row.sparkH or 24)
+    row.spark:Show()
+    row.cueing, row.cueAt = false, nil
+    row.tick:Hide()
+    if db.cue then
+        local _, _, _, home = GetNetStats()
+        local w = SW.CueWindow(db, home, duration)
+        if w > 0 then
+            row.cueAt = w
+            local barW = row.bar:GetWidth()
+            if not T.Num(barW) or barW <= 0 then barW = db.width - 2 end
+            row.tick:ClearAllPoints()
+            row.tick:SetPoint("TOP", row.bar, "TOPLEFT", barW * (1 - w / duration), 0)
+            row.tick:SetPoint("BOTTOM", row.bar, "BOTTOMLEFT", barW * (1 - w / duration), 0)
+            row.tick:Show()
+        end
+    end
+    ColorRow(row)
+    row.flashT = nil
+    row.flash:Hide()
 end
 
 function SW:Start(swingType, duration)
     if not T.Num(duration) or duration <= 0 then return end
     for _, row in pairs(self.rows) do
         if row.type.id == swingType and row.wanted then
-            row.duration, row.endT = duration, GetTime() + duration
             if self.fight then self.fight.swings = self.fight.swings + 1 end
+            StartRow(row, duration, self.db)
             TallyMark()
-            row.bar:SetMinMaxValues(0, duration)
-            row.bar:SetValue(0)
-            row.spark:SetSize(10, row.sparkH or 24)
-            row.spark:Show()
-            row.cueing, row.cueAt = false, nil
-            row.tick:Hide()
-            if self.db.cue then
-                local _, _, _, home = GetNetStats()
-                local w = SW.CueWindow(self.db, home, duration)
-                if w > 0 then
-                    row.cueAt = w
-                    local barW = row.bar:GetWidth()
-                    if not T.Num(barW) or barW <= 0 then barW = self.db.width - 2 end
-                    row.tick:ClearAllPoints()
-                    row.tick:SetPoint("TOP", row.bar, "TOPLEFT", barW * (1 - w / duration), 0)
-                    row.tick:SetPoint("BOTTOM", row.bar, "BOTTOMLEFT", barW * (1 - w / duration), 0)
-                    row.tick:Show()
-                end
-            end
-            ColorRow(row)
-            row.flashT = nil
-            row.flash:Hide()
             self:UpdateShown()
             Notify()
             return
@@ -370,6 +375,56 @@ function SW:SetPreview(on)
     return on
 end
 
+-- Settings demo: a main-hand and an off-hand bar swinging on their own, built from the same
+-- rows as the real timer (fill, spark swell, cue tick and teal window, ready flash). Every
+-- third main-hand swing is out of range. Nothing here touches the real bars or the tally.
+function SW.CreateDemo(width)
+    local db = T.db.swing
+    local box = CreateFrame("Frame")
+    local rows = { NewRow(box, TYPES[1]), NewRow(box, TYPES[2]) }
+    local speeds = { 2.6, 1.9 }
+    local height = 0
+    function box:Refresh()
+        db = T.db.swing
+        local y = 0
+        for _, row in ipairs(rows) do
+            row.demo = true
+            row:SetSize(math.min(db.width, width), db.height)
+            row:ClearAllPoints()
+            row:SetPoint("TOPLEFT", box, "TOPLEFT", 0, -y)
+            y = y + db.height + math.max(db.spacing, 10)    -- roomier than the real bars, to read on the page
+            local size = math.max(8, math.min(db.height - 2, 12))
+            S.ApplyFont(row.label, size, nil, SW.BAR_OUTLINE)
+            S.ApplyFont(row.time, size, nil, SW.BAR_OUTLINE)
+            row.label:SetShown(db.height >= 10)
+            row.time:SetShown(db.showTime)
+            row.sparkH = db.height * 2
+            row.spark:SetSize(10, row.sparkH)
+            ColorRow(row)
+        end
+        height = y
+        box:SetSize(width, math.max(height, 1))
+    end
+    box:Refresh()
+    local count = 0
+    T.UI.Loop(box, 0.05, function(_, now)
+        for i, row in ipairs(rows) do
+            if not row.endT then
+                row.demoNext = row.demoNext or now + 0.35
+                if now >= row.demoNext then
+                    row.demoNext = nil
+                    if i == 1 then
+                        count = count + 1
+                        row.outOfRange = count % 3 == 0
+                    end
+                    StartRow(row, speeds[i], db)
+                end
+            end
+        end
+    end)
+    return box, function() return height end
+end
+
 function SW:FightStart()
     self.fight = SW.NewFight(GetTime())
     TallyMark()
@@ -423,8 +478,8 @@ function SW:Refresh()
             y = y + db.height + db.spacing
             n = n + 1
             local size = math.max(8, math.min(db.height - 2, 12))
-            S.ApplyFont(row.label, size)
-            S.ApplyFont(row.time, size)
+            S.ApplyFont(row.label, size, nil, SW.BAR_OUTLINE)
+            S.ApplyFont(row.time, size, nil, SW.BAR_OUTLINE)
             row.label:SetShown(db.height >= 10)
             row.time:SetShown(db.showTime)
             row.sparkH = db.height * 2

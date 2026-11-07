@@ -14,6 +14,7 @@ T:RegisterPage("actionbars", { key = "ab_general", label = "General", order = 1,
     p:Check(ABDB, "showCounts", "Show item counts")
     p:Check(ABDB, "showEmpty", "Show empty slots", "Bars 2-8 hide empty slots and show them while you drag a spell or item. The main bar always shows all slots.")
     p:Slider(ABDB, "hotkeySize", "Text size", 8, 18, 1)
+    p:Check(ABDB, "greyOnCooldown", "Grey out icons on cooldown", "Turns a button's icon grey while its spell or item is on cooldown. The global cooldown doesn't count.")
     p:Slider(ABDB, "swipeAlpha", "Cooldown darkness", 0.2, 1, 0.05, UI.pct)
 end })
 

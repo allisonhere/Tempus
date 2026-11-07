@@ -140,6 +140,18 @@ local function Index()
     return index
 end
 
+-- How many of an item every other saved character holds (bags, bank and reagents together).
+function Ch.OthersCount(itemID, currentKey)
+    local perChar = Index()[itemID]
+    local total = 0
+    for key, counts in pairs(perChar or {}) do
+        if key ~= currentKey then
+            for _, n in pairs(counts) do total = total + n end
+        end
+    end
+    return total
+end
+
 function Ch.ClassHex(class)
     local color = class and RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
     if color then return ("%02x%02x%02x"):format(color.r * 255 + 0.5, color.g * 255 + 0.5, color.b * 255 + 0.5) end

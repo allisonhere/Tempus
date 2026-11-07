@@ -1494,6 +1494,45 @@ function NP:CreatePreview(width, height)
             end
         end
     end
+
+    -- Live demo: the target takes hits (the red "recent damage" chunk drains behind the bar)
+    -- and casts Fear over and over; every other cast is interrupted. The other enemy takes a
+    -- hit now and then. Runs only while the page is shown.
+    local HP = { 100, 100, 80, 80, 55, 55, 35, 35, 100, 100 }
+    local target, other = cells[1].f, cells[2].f
+    local casts = 0
+    local function StartCast(cb)
+        local db, c = NP.db, NP.db.colors
+        local col = db.castAlerts and c.castAlert or c.cast
+        cb.bar:SetStatusBarColor(col[1], col[2], col[3])
+        cb.text:SetText("Fear")
+        cb.shield:SetAlpha(0)
+        SetKick(cb, false)
+        SetAlert(cb, db.castAlerts)
+        local now = GetTime()
+        cb.fadeAt, cb.dur, cb.channel = nil, nil, nil
+        cb.startT, cb.endT = now, now + 2.4
+        cb.bar:SetMinMaxValues(0, 2.4)
+        cb.casting = true
+        cb:Show()
+    end
+    T.UI.Loop(box, 0.6, function(step)
+        local db = NP.db
+        local v = HP[(step - 1) % #HP + 1]
+        SetBarValue(target.health, v)
+        if db.healthText == "PERCENT" then target.healthText:SetFormattedText("%d%%", v) end
+        local base = db.execute > 0 and math.max(db.execute - 6, 4) or 40
+        SetBarValue(other.health, step % 8 < 4 and base or base * 0.6)
+        local cb = target.castbar
+        if not db.castbar then return end
+        local phase = (step - 1) % 6
+        if phase == 0 then
+            casts = casts + 1
+            StartCast(cb)
+        elseif phase == 2 and casts % 2 == 0 and cb.casting then
+            CastStop(cb, "Interrupted")
+        end
+    end)
     return box
 end
 

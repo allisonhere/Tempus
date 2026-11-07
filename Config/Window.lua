@@ -218,6 +218,7 @@ function O:DismissPreview(includeUnlocked)
     if T.Layouts and T.Layouts.pending then T.Layouts:Cancel(); active = true end
     if T.Display and T.Display.testMode then T.Display:SetTestMode(false); active = true end
     if T.Swing and T.Swing.preview then T.Swing:SetPreview(false); active = true end
+    if T.Ticker and T.Ticker.preview then T.Ticker:SetPreview(false); active = true end
     local GF = T.GroupFrames
     if GF and GF.showSamples then
         GF.showSamples = nil

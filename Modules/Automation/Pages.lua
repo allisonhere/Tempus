@@ -10,6 +10,7 @@ T:RegisterPage("general", { key = "automation", label = "Automation", order = 4.
     p:Check(cfg, "errors", "Hide error spam", "Drops the red \"not ready yet\", \"not enough energy\" and \"no target\" messages. Other errors still show.")
     p:Section("Looting")
     p:Check(cfg, "fastLoot", "Fast loot", "With auto-loot on, takes every item at once instead of one by one. Hold your auto-loot key to open the window as usual.")
+    p:Check(cfg, "skipEmptyLoot", "Skip empty loot", "When a corpse has nothing on it, the loot window closes straight away instead of opening empty.")
     p:Section("Away")
     p:Check(cfg, "afk", "AFK screen", "When you go AFK the interface fades out, the camera turns slowly and a Tempus panel shows your name and how long you have been away. Move or press a key to come back.")
 end })

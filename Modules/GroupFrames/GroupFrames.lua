@@ -1356,6 +1356,21 @@ function GF:CreatePreview(kind, width, height)
         inner:ClearAllPoints()
         inner:SetPoint("CENTER", holder, "CENTER", 0, 0)
     end
+    -- Live demo: the tank takes hits and gets healed back up, a damage dealer takes a big
+    -- hit and recovers, so the smooth fill and the draining "recent damage" chunk show.
+    local TANK = { 1, 0.82, 0.64, 0.5, 0.36, 0.7, 1, 1 }
+    local DPS = { 0.34, 0.34, 0.34, 0.12, 0.12, 0.5, 0.8, 0.34 }
+    T.UI.Loop(box, 0.7, function(step)
+        local i = (step - 1) % #TANK + 1
+        for n, values in pairs({ [2] = TANK, [3] = DPS }) do
+            local b = frames[n]
+            if b then
+                local v = values[i]
+                SetBarValue(b.content.health, v)
+                if GF.db.healthText == "PERCENT" then b.content.status:SetFormattedText("%d%%", v * 100) end
+            end
+        end
+    end)
     return box
 end
 

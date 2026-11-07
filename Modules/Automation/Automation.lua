@@ -13,6 +13,7 @@ A.defaults = {
     turnIn = true,          -- hand in finished quests (never picks between rewards)
     errors = true,          -- hide "not ready yet" / "not enough energy" spam
     fastLoot = true,        -- take every item at once when auto-loot is on
+    skipEmptyLoot = true,   -- close the loot window at once when the corpse has nothing on it
     afk = false,            -- AFK screen with a slowly turning camera
 }
 
@@ -146,7 +147,28 @@ function A.FastLoot()
     for i = (GetNumLootItems() or 0), 1, -1 do LootSlot(i) end
 end
 
+-- Does the open loot have anything on it (an item or coins)?
+function A.LootEmpty()
+    local n = GetNumLootItems and GetNumLootItems()
+    if not Plain(n) or type(n) ~= "number" then return false end
+    for i = 1, n do
+        if LootSlotHasItem then
+            local ok, has = pcall(LootSlotHasItem, i)
+            if not ok or not Plain(has) or has then return false end
+        else
+            return false
+        end
+    end
+    return true
+end
+
+-- Nothing to take: close the window before it shows (or right after).
+local function CloseIfEmpty()
+    if A.db and A.db.skipEmptyLoot and A.LootEmpty() and CloseLoot then CloseLoot() end
+end
+
 local function OnLootReady(autoLoot)
+    CloseIfEmpty()
     if not (A.db and A.db.fastLoot) or not A.AutoLootOn(autoLoot) then return end
     -- One frame later, so modules that read the loot window (gathering nodes) see it first.
     C_Timer.After(0, A.FastLoot)
@@ -241,6 +263,7 @@ local function OnEvent(_, event, ...)
     if QUEST_EVENTS[event] then A.OnQuestEvent(event)
     elseif event == "UI_ERROR_MESSAGE" then OnError(event, ...)
     elseif event == "LOOT_READY" then OnLootReady(...)
+    elseif event == "LOOT_OPENED" then CloseIfEmpty()
     elseif event == "PLAYER_FLAGS_CHANGED" then OnFlags(...)
     elseif event == "PLAYER_REGEN_DISABLED" then A.LeaveAfk()
     end
@@ -255,6 +278,7 @@ T:NewModule("automation", {
         A.events = CreateFrame("Frame")
         for e in pairs(QUEST_EVENTS) do pcall(A.events.RegisterEvent, A.events, e) end
         A.events:RegisterEvent("LOOT_READY")
+        A.events:RegisterEvent("LOOT_OPENED")
         A.events:RegisterEvent("PLAYER_FLAGS_CHANGED")
         A.events:RegisterEvent("PLAYER_REGEN_DISABLED")
         A.events:SetScript("OnEvent", T:Wrap("automation.events", OnEvent))

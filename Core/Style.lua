@@ -488,6 +488,84 @@ function S.ThresholdCurve(threshold, c, off)
     return ok and curve or nil
 end
 
+----------------------------------------------------------------------------------------
+-- Greying icons while on cooldown. In combat this client can hide cooldown numbers from
+-- addons (secret values), so there are three ways to decide, best first: the plain
+-- numbers, the plain isActive / isOnGCD flags, then a duration object evaluated through
+-- a curve, which never lets Lua see the time.
+----------------------------------------------------------------------------------------
+S.GCD_MAX = 1.6     -- anything this short or shorter is the global cooldown: no grey
+
+local function PlainBool(v) return not T.issecret(v) and type(v) == "boolean" end
+
+-- true = on a real cooldown, false = ready (or only the global cooldown), nil = can't tell.
+function S.CooldownDown(start, duration, isActive, onGCD, now)
+    if T.Num(start) and T.Num(duration) then
+        return duration > S.GCD_MAX and start + duration > (now or GetTime())
+    end
+    if PlainBool(isActive) then
+        if not isActive then return false end
+        if PlainBool(onGCD) then return not onGCD end
+    end
+    return nil
+end
+
+local greyCurve, tintCurve
+local function GreyCurves()
+    if greyCurve ~= nil then return end
+    greyCurve, tintCurve = false, false
+    if not (C_CurveUtil and Enum and Enum.LuaCurveType) then return end
+    if C_CurveUtil.CreateCurve then
+        local ok, c = pcall(function()
+            local c = C_CurveUtil.CreateCurve()
+            c:SetType(Enum.LuaCurveType.Step)
+            c:AddPoint(0, 0)
+            c:AddPoint(S.GCD_MAX, 1)
+            return c
+        end)
+        if ok and c then greyCurve = c end
+    end
+    if C_CurveUtil.CreateColorCurve then
+        local ok, c = pcall(function()
+            local c = C_CurveUtil.CreateColorCurve()
+            c:SetType(Enum.LuaCurveType.Step)
+            c:AddPoint(0, CreateColor(1, 1, 1, 1))
+            c:AddPoint(S.GCD_MAX, CreateColor(0.42, 0.42, 0.42, 1))
+            return c
+        end)
+        if ok and c then tintCurve = c end
+    end
+end
+
+-- Grey `tex` from a duration object without reading its (secret) time. The result is a
+-- snapshot: call it again as time passes. allowTint: when desaturation can't take a secret
+-- value, darken with the vertex colour instead (only for icons Blizzard doesn't colour).
+-- Returns true when it worked.
+function S.GreyFromDuration(tex, dur, allowTint)
+    if not (tex and dur) then return false end
+    GreyCurves()
+    if greyCurve and tex.SetDesaturation and not tex.tempusNoSecretDesat then
+        local ok = pcall(function() tex:SetDesaturation(dur:EvaluateRemainingDuration(greyCurve)) end)
+        if ok then return true end
+        tex.tempusNoSecretDesat = true
+    end
+    if allowTint and tintCurve then
+        local ok = pcall(function()
+            local color = dur:EvaluateRemainingDuration(tintCurve)
+            tex:SetVertexColor(color:GetRGB())
+        end)
+        if ok then tex.tempusTinted = true return true end
+    end
+    return false
+end
+
+-- Plain (non-secret) grey on or off, undoing any curve tint.
+function S.SetGrey(tex, down)
+    if not tex then return end
+    if tex.tempusTinted then tex.tempusTinted = nil; tex:SetVertexColor(1, 1, 1) end
+    tex:SetDesaturated(down and true or false)
+end
+
 function S.ClassColor(class)
     local cc = class and (CUSTOM_CLASS_COLORS or RAID_CLASS_COLORS)[class]
     if cc then return cc.r, cc.g, cc.b end

@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### New
+- **Resource ticker**: a thin bar under the swing timer that fills toward your next energy or mana tick (they come every 2 seconds), so you can wait for the tick before an expensive move or a cast. After you spend mana it turns violet and counts down the five-second rule first. It learns the tick timing from ticks it sees, ignoring refunds and potions. Preview, size and when to show it are on General > Resource ticker.
+- **Shopping list**: a small panel of items you are collecting with a target amount ("Linen Cloth 20"), showing what this character has in bags and bank plus what your alts hold. Shift-click an item into its box (or type a name) and press Enter; mouse wheel changes the amount, right-click removes. Item tooltips show your progress, and finishing an item says so. Also `/tempus shop <item> <amount>`, `/tempus shop remove <item>`, `/tempus shop clear` (Bags > Shopping list).
+- **Danger alert**: a warning at the top of the screen when a risky mob's nameplate appears (elite, rare, ?? level or several levels above you) or a hostile PvP player, and when more mobs are on you than you meant to pull. Each mob warns once, then stays quiet for a while; sound, level gap and pull size are adjustable (General > Danger alert).
+- **Live bar demos in settings**: every animated bar now plays on its own page. Nameplates and Party & Raid samples take hits (the red "recent damage" chunk drains away) and nameplates cast, with every other cast interrupted. Unit Frames > General has a live player frame with health, power, the low-health glow and a cast bar. The Swing timer page has live bars under its diagram, and the Resource ticker page has energy and mana bars. They follow your current settings and only run while the page is open.
+
+- **Skip empty loot**: looting a corpse with nothing on it no longer opens an empty loot window (General > Automation).
+- **Grey out on cooldown** for action bar buttons: a button's icon turns grey while its spell or item is on cooldown, on top of Blizzard's dark sweep (the global cooldown doesn't count). On by default; Action Bars > General.
+
+### Changed
+- Swing timer and resource ticker text is now always white with a black outline, so it stays readable over both the filled and the empty part of the bar (it used to turn black on light bars and vanish over the dark empty part).
+
+### Fixed
+- Cooldowns: icons stayed in colour during a cooldown in combat, because the game hides cooldown times from addons there. They now grey out in combat too.
+
+
 ## 2.8.0
 
 ### New

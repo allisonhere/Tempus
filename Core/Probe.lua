@@ -94,6 +94,18 @@ local function Sample(fn, ...)
     return table.concat(out, ", ")
 end
 
+-- A returned table's fields, each marked SECRET when hidden (cooldown info tables).
+local function Fields(fn, ...)
+    if type(fn) ~= "function" then return "missing" end
+    local ok, v = pcall(fn, ...)
+    if not ok or issecret(v) or type(v) ~= "table" then return Read(ok, v) end
+    local out = {}
+    for k, x in pairs(v) do
+        if not issecret(k) then out[tostring(k)] = tostring(Read(true, x)) end
+    end
+    return out
+end
+
 local function FrameInfo(name)
     local f = _G[name]
     if f == nil then return nil end
@@ -163,7 +175,7 @@ function T:RunProbe(label)
         s.GetActionTexture = Sample(GetActionTexture, slot)
         s.GetActionCount = Sample(GetActionCount, slot)
         if C_ActionBar then
-            s.C_ActionBar_GetActionCooldown = Sample(C_ActionBar.GetActionCooldown, slot)
+            s.C_ActionBar_GetActionCooldown = Fields(C_ActionBar.GetActionCooldown, slot)
             s.C_ActionBar_GetActionCooldownDuration = Sample(C_ActionBar.GetActionCooldownDuration, slot)
         end
     end
@@ -203,6 +215,9 @@ function T:RunProbe(label)
         for _, fn in ipairs({ "ShouldAurasBeSecret", "ShouldCooldownsBeSecret", "ShouldUnitIdentityBeSecret", "ShouldUnitHealthMaxBeSecret" }) do
             s["C_Secrets." .. fn] = Sample(C_Secrets[fn])
         end
+    end
+    if C_Spell and C_Spell.GetSpellCooldown then
+        s.GetSpellCooldown_61304 = Fields(C_Spell.GetSpellCooldown, 61304)   -- the global cooldown
     end
     if C_Spell and C_Spell.GetSpellCooldownDuration then
         s.GetSpellCooldownDuration_6603 = Sample(C_Spell.GetSpellCooldownDuration, 6603)

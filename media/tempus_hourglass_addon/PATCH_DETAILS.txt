@@ -1,0 +1,49 @@
+In Config/Window.lua, replace the exact line
+    logo:SetTexture(T.LOGO)
+with
+    -- Single 512x512 TGA atlas: sixteen 128x128 frames. No GIF/video dependencies.
+    -- This replaces only the settings-window header logo, not the addon's minimap icon.
+    logo:SetTexture("Interface\\AddOns\\Tempus\\media\\hourglass-animated")
+    logo.tempus = true  -- prevent Tempus's skinning code from altering its art
+    local function HourglassFrame(index)
+        local col = (index - 1) % 4
+        local row = math.floor((index - 1) / 4)
+        logo:SetTexCoord(col / 4, (col + 1) / 4, row / 4, (row + 1) / 4)
+    end
+    HourglassFrame(1)
+    do
+        -- Fluid sand-drain sequence, a quick 3-frame flip, then sand refilling.
+        local frameTimes = {
+            0.190, 0.190, 0.190, 0.190,
+            0.190, 0.190, 0.190, 0.190,
+            0.260, 0.095, 0.095, 0.095,
+            0.160, 0.170, 0.170, 0.380,
+        }
+        local index, accumulated = 1, 0
+        -- A driver frame automatically stops updating while options are hidden.
+        local driver = CreateFrame("Frame", nil, header)
+        driver:SetAllPoints(logo)
+        driver:SetScript("OnShow", function()
+            index, accumulated = 1, 0
+            HourglassFrame(index)
+        end)
+        driver:SetScript("OnUpdate", function(_, elapsed)
+            if T.db and T.db.animate == false then
+                if index ~= 1 then
+                    index, accumulated = 1, 0
+                    HourglassFrame(1)
+                end
+                return
+            end
+            accumulated = accumulated + elapsed
+            -- Bound catch-up work after stalls or alt-tab.
+            local changes = 0
+            while accumulated >= frameTimes[index] and changes < 4 do
+                accumulated = accumulated - frameTimes[index]
+                index = index % 16 + 1
+                HourglassFrame(index)
+                changes = changes + 1
+            end
+            if changes == 4 then accumulated = 0 end
+        end)
+    end

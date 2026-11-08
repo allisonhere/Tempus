@@ -1,6 +1,12 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.11.1", sections = {
+        { title = "Fixed", items = {
+            { 0, "Bags: the bank window could open with |cffffffff0 / 0|r slots on WoW Forever. Tempus hid Blizzard's bank frame completely, and the game only fills in the bank (its 48-slot main bank and bank bags) while that frame is on screen. Blizzard's bank now stays open but invisible behind the Tempus window, so the bank fills in every time; |cffffffffManage|r still shows it." },
+            { 0, "Bags: the bank's |cffffffffManage|r button moved up into the window header next to Tag, instead of floating on the Personal row." },
+        } },
+    } },
     { version = "2.11.0", sections = {
         { title = "New", items = {
             { 0, "|cffffffffChat select mode|r: Alt+click a chat window, or click the new I-beam button by the chat tabs, and the window turns into text you can select like a text editor: drag with the mouse, Shift+arrows, Ctrl+A, then Ctrl+C. Colours stay. Esc, Enter or switching tabs puts normal chat back, where links are clickable again. Lines that arrive while you are selecting are counted instead of jumping the text; click |cffffffffupdate|r to add them. Also |cff9fd6ff/tempus selectchat|r (Chat > Select mode for chat history)." },

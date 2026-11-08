@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.11.1
+
+### Fixed
+- Bags: the bank window could open with **0 / 0** slots on WoW Forever. Tempus hid Blizzard's bank frame completely, and the game only fills in the bank (its 48-slot main bank and bank bags) while that frame is on screen. Blizzard's bank now stays open but invisible behind the Tempus window, so the bank fills in every time; **Manage** still shows it.
+- Bags: the bank's **Manage** button moved up into the window header next to Tag, instead of floating on the Personal row.
+
 ## 2.11.0
 
 ### New

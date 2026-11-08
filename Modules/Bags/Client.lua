@@ -559,7 +559,7 @@ function Client:Claim(onStockSync, isShown)
     end
     if type(env.ShowUIPanel) == "function" then
         env.hooksecurefunc("ShowUIPanel", function(panel)
-            if panel and panel == env.BankFrame and not self.managingBank then panel:SetParent(self.hidden) end
+            if panel and panel == env.BankFrame and not self.managingBank then self:GhostBank(true) end
         end)
     end
     if type(env.ContainerFrame_GenerateFrame) == "function" then
@@ -571,16 +571,36 @@ function Client:Claim(onStockSync, isShown)
     return true
 end
 
+-- Blizzard's bank frame must stay shown while the bank is open: on newer clients (WoW Forever)
+-- the bank's slots (container 6 and up) are only filled in while that frame is really on screen.
+-- Hiding it under a hidden parent left the bank at 0 slots. So it stays shown, invisible and
+-- shrunk to nothing, and "Manage" brings it back at full size.
+function Client:GhostBank(ghost)
+    local env, bank = self.env, self.env.BankFrame
+    if not bank then return false end
+    if bank.GetParent and bank:GetParent() ~= env.UIParent then bank:SetParent(env.UIParent) end
+    if ghost then
+        if not self.bankLook then
+            self.bankLook = { alpha = bank:GetAlpha(), scale = bank:GetScale() }
+        end
+        bank:SetAlpha(0)
+        bank:SetScale(0.0001)
+    elseif self.bankLook then
+        bank:SetAlpha(self.bankLook.alpha or 1)
+        bank:SetScale(self.bankLook.scale or 1)
+    end
+    return true
+end
+
 function Client:SuppressBank()
-    local bank = self.env.BankFrame
-    if bank and self.hidden and not self.managingBank then bank:SetParent(self.hidden) end
+    if not self.managingBank then self:GhostBank(true) end
 end
 
 function Client:ShowBankManagement(show)
     local env, bank = self.env, self.env.BankFrame
     if not bank then return false end
     self.managingBank = show and true or false
-    bank:SetParent(show and env.UIParent or self.hidden)
+    self:GhostBank(not show)
     if show then
         if env.ShowUIPanel then env.ShowUIPanel(bank) else bank:Show() end
     end

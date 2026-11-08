@@ -74,6 +74,10 @@ function Window.New(owner, storage, title, pointKey)
     if storage == "CARRIED" then
         self.alts = SmallButton(header, "Alts", 40, function() owner:ShowCharacterMenu(self.alts) end)
         self.alts:SetPoint("RIGHT", self.tag, "LEFT", -4, 0)
+    else
+        -- Blizzard's own bank (buy bank bags, tab settings), in the header like Alts on the bags window.
+        self.manage = SmallButton(header, "Manage", 64, function() owner:ShowBankManagement() end)
+        self.manage:SetPoint("RIGHT", self.tag, "LEFT", -4, 0)
     end
 
     header:EnableMouse(true)
@@ -117,8 +121,6 @@ function Window.New(owner, storage, title, pointKey)
         self.personalTab:SetPoint("RIGHT")
         self.reagentTab = SmallButton(self.bankRow, "Reagents", 72, function() owner:SetBankStorage("REAGENT") end)
         self.reagentTab:SetPoint("RIGHT", self.personalTab, "LEFT", -4, 0)
-        self.manage = SmallButton(self.bankRow, "Manage", 64, function() owner:ShowBankManagement() end)
-        self.manage:SetPoint("RIGHT", self.reagentTab, "LEFT", -4, 0)
     else
         self.bagBar = Bags.BagBar.New(self)
     end

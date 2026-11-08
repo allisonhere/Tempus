@@ -123,7 +123,9 @@ function B:EnsureEvents()
     self.events = CreateFrame("Frame")
     for _, event in ipairs({ "BAG_UPDATE_DELAYED", "BANKFRAME_OPENED", "BANKFRAME_CLOSED",
         "PLAYERBANKSLOTS_CHANGED", "PLAYERREAGENTBANKSLOTS_CHANGED", "REAGENTBANK_PURCHASED",
-        "PLAYER_MONEY", "CURRENCY_DISPLAY_UPDATE", "BAG_UPDATE_COOLDOWN", "ITEM_LOCK_CHANGED" }) do
+        "PLAYER_MONEY", "CURRENCY_DISPLAY_UPDATE", "BAG_UPDATE_COOLDOWN", "ITEM_LOCK_CHANGED",
+        -- Character bank tabs: their sizes arrive from the server after the bank opens.
+        "BAG_CONTAINER_UPDATE", "BANK_TABS_CHANGED", "BANK_TAB_SETTINGS_UPDATED", "PLAYER_BANK_TABS_CHANGED" }) do
         pcall(self.events.RegisterEvent, self.events, event)
     end
     self.events:SetScript("OnEvent", function(_, event) self:OnEvent(event) end)
@@ -523,6 +525,28 @@ function B:ShowBankManagement()
     self.client:ShowBankManagement(true)
 end
 
+-- Right after the bank opens, the game may still report 0 slots for the bank tabs while it
+-- loads them. Look again for a few seconds until slots appear, so the bank never stays empty.
+B.BANK_RETRY = { 0.2, 0.5, 1, 2, 3.5 }
+
+function B:WaitForBankSlots()
+    self.bankWait = (self.bankWait or 0) + 1
+    local wait = self.bankWait
+    local function Check(step)
+        if wait ~= self.bankWait or not self.bankOpen then return end
+        local snapshot = self.snapshots and self.snapshots.BANK
+        if snapshot and snapshot.capacity > 0 then return end
+        self:Refresh("BANK")
+        snapshot = self.snapshots and self.snapshots.BANK
+        if snapshot and snapshot.capacity > 0 then return end
+        local delay = B.BANK_RETRY[step + 1]
+        if delay then C_Timer.After(delay - B.BANK_RETRY[step], function() Check(step + 1) end) end
+    end
+    local snapshot = self.snapshots and self.snapshots.BANK
+    if snapshot and snapshot.capacity > 0 then return end
+    C_Timer.After(B.BANK_RETRY[1], function() Check(1) end)
+end
+
 function B:OnEvent(event)
     if event == "BANKFRAME_OPENED" then
         self.viewing = nil
@@ -536,6 +560,7 @@ function B:OnEvent(event)
         -- Save the other bank tab too, so the Alts viewer has both.
         local other = self.bankStorage == "BANK" and "REAGENT" or "BANK"
         if other == "BANK" or self.client:IsReagentAvailable() then self:Snapshot(other) end
+        self:WaitForBankSlots()
     elseif event == "BANKFRAME_CLOSED" then
         self.bankOpen = false
         self.bankWindow.frame:Hide()
@@ -556,6 +581,9 @@ function B:OnEvent(event)
         if self.carriedWindow then self.carriedWindow:UpdateCooldowns() end
     elseif event == "ITEM_LOCK_CHANGED" then
         if self.carriedWindow and self.carriedWindow.frame:IsShown() then self:Refresh("CARRIED") end
+    elseif event == "BAG_CONTAINER_UPDATE" or event == "BANK_TABS_CHANGED" or event == "BANK_TAB_SETTINGS_UPDATED"
+        or event == "PLAYER_BANK_TABS_CHANGED" then
+        if self.bankOpen and self.bankWindow.frame:IsShown() then self:Refresh(self.bankStorage) end
     elseif event == "PLAYERBANKSLOTS_CHANGED" then
         if self.bankWindow.frame:IsShown() then self:Refresh("BANK") end
     elseif event == "PLAYERREAGENTBANKSLOTS_CHANGED" or event == "REAGENTBANK_PURCHASED" then
@@ -606,6 +634,50 @@ function B:Dump()
     for k, v in pairs(Constants and Constants.InventoryConstants or {}) do out.inventoryConstants[k] = v end
     out.bankIds = { BANK = self.client:ContainerIDs("BANK"), REAGENT = self.client:ContainerIDs("REAGENT"),
         CARRIED = self.client:ContainerIDs("CARRIED") }
+    -- Bank details: what each candidate container reports right now, and the bank-tab API.
+    out.bankOpen, out.bankStorage = self.bankOpen and true or false, self.bankStorage
+    out.bankSnapshot = self.snapshots and self.snapshots.BANK and
+        { capacity = self.snapshots.BANK.capacity, used = self.snapshots.BANK.used } or "none"
+    out.slots = {}
+    local C = C_Container
+    for id = -3, 20 do
+        local okN, n = pcall(C and C.GetContainerNumSlots or GetContainerNumSlots, id)
+        local okF, free = pcall(C and C.GetContainerNumFreeSlots or GetContainerNumFreeSlots, id)
+        if (okN and n and n ~= 0) or (okF and free and free ~= 0) then
+            out.slots[tostring(id)] = ("%s slots, %s free"):format(tostring(n), tostring(free))
+        end
+    end
+    out.bank = {}
+    if C_Bank then
+        for k, v in pairs(C_Bank) do out.bank[k] = type(v) end
+        local bt = Enum and Enum.BankType
+        out.bankTypes = {}
+        for k, v in pairs(bt or {}) do out.bankTypes[k] = v end
+        if bt and bt.Character ~= nil then
+            local function Try(name, ...)
+                local fn = C_Bank[name]
+                if type(fn) ~= "function" then return "missing" end
+                local ok, a, b = pcall(fn, ...)
+                if not ok then return "error: " .. tostring(a) end
+                if type(a) == "table" then
+                    local parts = {}
+                    for i, v in ipairs(a) do parts[i] = type(v) == "table" and (tostring(v.ID or v.bankTabID or "?") .. ":" .. tostring(v.name)) or tostring(v) end
+                    return "{" .. table.concat(parts, ",") .. "}"
+                end
+                return tostring(a) .. (b ~= nil and (" " .. tostring(b)) or "")
+            end
+            out.bankCalls = {
+                FetchPurchasedBankTabIDs = Try("FetchPurchasedBankTabIDs", bt.Character),
+                FetchNumPurchasedBankTabs = Try("FetchNumPurchasedBankTabs", bt.Character),
+                FetchPurchasedBankTabData = Try("FetchPurchasedBankTabData", bt.Character),
+                CanPurchaseBankTab = Try("CanPurchaseBankTab", bt.Character),
+                HasMaxBankTabs = Try("HasMaxBankTabs", bt.Character),
+                CanViewBank = Try("CanViewBank", bt.Character),
+                CanUseBank = Try("CanUseBank", bt.Character),
+                FetchNextPurchasableBankTabData = Try("FetchNextPurchasableBankTabData", bt.Character),
+            }
+        end
+    end
     TempusDB.bagdump = out
     T:Print("bag state dumped; /reload, then read TempusDB.bagdump in SavedVariables.")
 end

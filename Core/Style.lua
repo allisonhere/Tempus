@@ -282,7 +282,7 @@ function S.Backdrop(frame, opts)
     if h.wantShadow then h.glow = S.Glow(frame, 12, "BACKGROUND", -8) end
 
     function h:Refresh()
-        local theme = S.Theme()
+        local theme = self.previewTheme or S.Theme()
         local c = self.edgeColor
         local functional = not IsNeutral(c)
         local shown = not self.hidden

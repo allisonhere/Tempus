@@ -49,7 +49,13 @@ Built for the new Classic client (interface 16001), where the game hides health,
 
 The accent colour recolours the settings window, move boxes and bags at once (some Blizzard skins need a reload). The Theme setting (Appearance) restyles every Tempus panel and status bar live: **Modern** (crisp edge and soft shadow), **Gloss** (adds a glassy highlight), **Classic** (a warm Blizzard-style border; skinned windows keep Blizzard's own frames after a reload) and **Flat** (no decoration). Class, dispel and target highlight edges stay visible in every theme.
 
+**General > Style Studio** brings sample player and target frames, enemy nameplates, buffs, debuffs, action buttons and cast bars together. Change the shared theme, texture, font, outline, accent or icon crop while the scene runs, or pause it to compare details. These controls save immediately; the scene uses simulated data and does not enable module test modes. Samples demonstrate the shared appearance at fixed sizes, rather than your screen layout.
+
 Every settings page has a live preview. Unlock the UI to drag any element into place; sample frames fill the boxes so you can arrange group frames while solo.
+
+## Auction values
+
+With Auctionator enabled, **General > Auction values** adds its last scanned per-item price and data age to item tooltips, plus stack estimates in Tempus bags. At an auctioneer, open the AH and click **Scan bag items** to search your carried item names through Auctionator. Use Auctionator's Full Scan for broader coverage. Unknown prices stay unknown and older prices are marked stale. These are listing estimates, not guaranteed sale prices.
 
 ## Install
 

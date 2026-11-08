@@ -209,3 +209,39 @@ Escape(); assert(not win:IsShown())
 Open(); T.Display.testMode=true; T.Layouts.pending={}; T.db.locked=false
 win:Hide(); assert(not win:IsShown() and not T.Display.testMode and not T.Layouts.pending and not T.db.locked)
 print("PASS: preview-first Escape, key-repeat, search focus, unlocked samples and explicit close")
+
+-- Graphical dropdowns preview both the saved value and every option without writes.
+function methods:SetTexture(path) self.texturePath = path end
+function methods:SetFont(path, size, flags) self.font = {path,size,flags}; return true end
+function methods:GetRight() return 200 end
+function methods:GetStringWidth() return 80 end
+S.BarTexture = function(key) return "texture/" .. key end
+local selected, writes = "FLAT", 0
+local choices = {{"FLAT","Flat"},{"SMOOTH","Smooth"}}
+local dropdown = T.UI.W.Dropdown("Bar texture",choices,function() return selected end,
+    function(v) selected=v; writes=writes+1 end,nil,"barTexture")
+dropdown:Refresh()
+local button
+for _,frame in ipairs(frames) do
+    if frame.parent == dropdown and frame.scripts.OnClick then button=frame end
+end
+assert(button.choicePreview.texture.texturePath=="texture/FLAT")
+button.scripts.OnClick(button)
+local popup
+for _,frame in ipairs(frames) do if type(frame.rows)=="table" then popup=frame end end
+assert(popup and popup.rows[1].choicePreview.texture.texturePath=="texture/FLAT")
+assert(popup.rows[2].choicePreview.texture.texturePath=="texture/SMOOTH")
+assert(writes==0 and selected=="FLAT","opening samples must not apply an option")
+local plain = T.UI.W.Dropdown("Ordinary",choices,function() return selected end,function() end)
+local plainButton
+for _,frame in ipairs(frames) do if frame.parent==plain and frame.scripts.OnClick then plainButton=frame end end
+plainButton.scripts.OnClick(plainButton)
+assert(not popup.rows[1].choicePreview:IsShown(),"shared rows must clear old previews")
+local font = T.UI.W.Dropdown("Font",{{"sample.ttf","Sample"}},function() return "sample.ttf" end,function() end,nil,"font")
+font:Refresh()
+for _,frame in ipairs(frames) do
+    if frame.parent==font and frame.choicePreview then
+        assert(frame.choicePreview.text.font[1]=="sample.ttf")
+    end
+end
+print("PASS: graphical dropdown samples and shared menu cleanup")

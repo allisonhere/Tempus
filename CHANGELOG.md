@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.10.0
+
+### New
+- **Style Studio** (General > Style Studio): sample player and target frames, enemy nameplates, buffs, debuffs, action buttons and cast bars in one live scene. Change the theme, bar texture, font, outline, accent colour or icon crop and watch every sample update at once; pause the scene to compare details. Changes save immediately, and the scene uses simulated data without turning on any module's test mode.
+- **Auction values** (General > Auction values): with Auctionator enabled, item tooltips show its last scanned price and how old the data is, and Tempus bags show stack estimates. At the auction house, **Scan bag items** searches your carried items through Auctionator (it never buys or posts). Unknown prices stay unknown and old prices are marked stale.
+
+### Fixed
+- Bags: the bank window showed no slots on clients that use character bank tabs. It now reads your purchased bank tabs as well as the older bank and bank bags, so the bank (and the Alts viewer's saved bank) fills in again.
+
+
 ## 2.9.0
 
 ### New

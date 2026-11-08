@@ -9,6 +9,19 @@ Run this checklist on both interface versions listed in `Tempus.toc`. Start with
 - Export the active profile, import it under a new name, switch profiles, and reload.
 - Disable and re-enable each module from the Modules page. Confirm the reload notice appears.
 
+## Style Studio
+
+- Open General > Style Studio while standing in town without a target. Confirm all sample elements appear together and health, casts and aura timers animate.
+- Change theme, bar texture, font, outline, accent colour and icon crop. Confirm the scene updates immediately, and the saved appearance persists after `/reload`.
+- Pause and resume; navigate away and back; close and reopen settings; switch profiles. Confirm samples stay correct and no live module preview modes are enabled.
+- Repeat with unit frames, buffs and nameplates disabled. The independent sample scene should still work. Check `/tempus log` for errors.
+
+## Auction values
+
+- Enable Auctionator. At an open auction house, use General > Auction values > Scan bag items. Confirm searches start and no items are bought or posted. Try again away from the AH and confirm the visit-an-auctioneer message.
+- Hover scanned items and stacks in Tempus bags. Check unit price, stack multiplication, scan age, stale labels and no duplicate Tempus lines on repeated hover. Check item-link tooltips too.
+- Hover an unscanned item, disable the tooltip setting, and disable Auctionator/reload. Confirm unknown prices are clear and unavailable data never causes Lua errors.
+
 ## Combat safety
 
 - Enter combat with party or raid frames, action bars, unit frames, nameplates, and Combat Pulse enabled.

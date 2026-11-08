@@ -42,6 +42,16 @@ local bank = modern:Locations("BANK")
 assert(#bank == 3 and bank[1].container == -1 and bank[3].container == 3, "personal bank containers")
 assert(#modern:Locations("REAGENT") == 2, "feature-detected reagent bank")
 
+-- Bank tabs: no main bank container or bank bags, only purchased character tabs.
+local tabbed = Client.New({
+    NUM_BAG_SLOTS = 4, NUM_TOTAL_EQUIPPED_BAG_SLOTS = 5,
+    Enum = { BagIndex = { Bank = -1, CharacterBankTab_1 = 6, CharacterBankTab_2 = 7 }, BankType = { Character = 0 } },
+    C_Bank = { FetchPurchasedBankTabIDs = function(kind) assert(kind == 0); return { 6 } end },
+    C_Container = { GetContainerNumSlots = function(bag) return ({ [6] = 98 })[bag] or 0 end },
+})
+local tabSlots = tabbed:Locations("BANK")
+assert(#tabSlots == 98 and tabSlots[1].container == 6, "character bank tabs give the bank its slots")
+
 local a, b = modern:Read(carried[1]), legacy:Read(carried[1])
 for _, key in ipairs({ "itemID", "link", "name", "icon", "count", "quality", "classID", "subClassID", "equipLoc" }) do
     assert(a[key] == b[key], "modern and legacy normalize " .. key)

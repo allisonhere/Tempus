@@ -212,12 +212,24 @@ function Client:ContainerIDs(storage)
             ids[#ids + 1] = env.KEYRING_CONTAINER
         end
     elseif storage == "BANK" then
-        local bank = self:Index("BANK_CONTAINER", "Bank")
-        if bank ~= nil then ids[#ids + 1] = bank end
+        local seen = {}
+        local function Add(id)
+            if id ~= nil and not seen[id] then seen[id] = true; ids[#ids + 1] = id end
+        end
+        -- Older clients: one main bank container plus equipped bank bags.
+        Add(self:Index("BANK_CONTAINER", "Bank"))
+        local index = env.Enum and env.Enum.BagIndex or {}
         local bankBags = env.NUM_BANKBAGSLOTS
             or (env.Constants and env.Constants.InventoryConstants and env.Constants.InventoryConstants.NumCharacterBankSlots)
             or 0
-        for id = numBags + 1, numBags + bankBags do ids[#ids + 1] = id end
+        local first = index.BankBag_1 or numBags + 1
+        for id = first, first + bankBags - 1 do Add(id) end
+        -- Newer clients replace both with purchasable character bank tabs.
+        local C_Bank, bankType = env.C_Bank, env.Enum and env.Enum.BankType
+        local tabs = C_Bank and bankType and bankType.Character ~= nil
+            and Call(C_Bank.FetchPurchasedBankTabIDs, bankType.Character)
+        if type(tabs) == "table" then for _, id in ipairs(tabs) do Add(id) end end
+        for n = 1, 12 do Add(index["CharacterBankTab_" .. n]) end
     elseif storage == "REAGENT" then
         local reagent = self:Index("REAGENTBANK_CONTAINER", "Reagentbank")
         if reagent ~= nil then ids[1] = reagent end

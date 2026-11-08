@@ -115,6 +115,53 @@ end
 ----------------------------------------------------------------------------------------
 -- Dropdown menu (shared popup)
 ----------------------------------------------------------------------------------------
+-- Samples are read-only: browsing an option never changes the saved appearance.
+local previewKinds = { barTexture = true, font = true, fontOutline = true, theme = true, accent = true }
+local function Preview(parent, kind, value, right)
+    if not parent.choicePreview and not kind then return end
+    local sample = parent.choicePreview
+    if not sample then
+        sample = CreateFrame("Frame", nil, parent)
+        sample:SetSize(84, 16)
+        sample.texture = Tex(sample, "ARTWORK")
+        sample.texture:SetAllPoints()
+        sample.text = Text(sample, 12)
+        sample.text:SetAllPoints()
+        parent.choicePreview = sample
+    end
+    sample:ClearAllPoints()
+    sample:SetPoint("RIGHT", parent, "RIGHT", right or -8, 0)
+    sample:SetShown(kind ~= nil)
+    if not kind then return end
+    sample.texture:Hide()
+    sample.text:Hide()
+    if sample.panel then sample.panel:Hide() end
+    if kind == "barTexture" or kind == "accent" then
+        sample.texture:SetTexture(kind == "barTexture" and S.BarTexture(value) or WHITE)
+        local c = kind == "accent" and T:AccentColor(value) or AC
+        sample.texture:SetVertexColor(c[1], c[2], c[3], 1)
+        sample.texture:Show()
+    elseif kind == "font" or kind == "fontOutline" then
+        local font = kind == "font" and value or (T.db.font or FONT)
+        local outline = kind == "fontOutline" and value or (T.db.fontOutline or "NONE")
+        if not sample.text:SetFont(font, 12, outline == "NONE" and "" or outline) then
+            sample.text:SetFont(FONT, 12, "")
+        end
+        sample.text:SetShadowOffset(outline == "NONE" and 1 or 0, outline == "NONE" and -1 or 0)
+        sample.text:SetText("Aa 12:34")
+        sample.text:Show()
+    elseif kind == "theme" then
+        if not sample.panel then
+            sample.panel = CreateFrame("Frame", nil, sample)
+            sample.panel:SetAllPoints()
+            sample.backdrop = S.Backdrop(sample.panel)
+        end
+        sample.backdrop.previewTheme = value
+        sample.backdrop:Refresh()
+        sample.panel:Show()
+    end
+end
+
 local menu, catcher
 
 local function CloseMenu()
@@ -122,7 +169,7 @@ local function CloseMenu()
     if catcher then catcher:Hide() end
 end
 
-local function OpenMenu(owner, items, onPick, current)
+local function OpenMenu(owner, items, onPick, current, preview)
     if not menu then
         catcher = CreateFrame("Button", nil, UIParent)
         catcher:SetAllPoints(UIParent)
@@ -168,6 +215,8 @@ local function OpenMenu(owner, items, onPick, current)
             row:SetPoint("TOPLEFT", menu, "TOPLEFT", 1, -1 - (i - 1) * rowH)
             row:SetPoint("RIGHT", menu, "RIGHT", -1, 0)
             row.text:SetText(item[2])
+            row.text:SetPoint("RIGHT", row, "RIGHT", preview and -104 or -10, 0)
+            Preview(row, preview, item[1])
             row.mark:SetShown(item[1] == menu.current)
             row:SetScript("OnClick", function()
                 local pick = menu.onPick
@@ -194,7 +243,7 @@ local function OpenMenu(owner, items, onPick, current)
     probe:Hide()
     for _, item in ipairs(items) do
         probe:SetText(item[2])
-        width = math.max(width, (probe:GetStringWidth() or 0) + 28)
+        width = math.max(width, (probe:GetStringWidth() or 0) + 28 + (preview and 100 or 0))
     end
     menu:SetSize(math.min(width, UIParent:GetWidth() - 20), shown * rowH + 2)
     menu:ClearAllPoints()
@@ -324,7 +373,7 @@ function W.Slider(label, minV, maxV, step, get, set, fmt, tip)
     return f, 44
 end
 
-function W.Dropdown(label, items, get, set, tip)
+function W.Dropdown(label, items, get, set, tip, preview)
     local f = CreateFrame("Frame", nil, nil)
     f.searchLabel = label
     f.searchText = (label or "") .. " " .. (tip or "")
@@ -341,6 +390,7 @@ function W.Dropdown(label, items, get, set, tip)
     local border = Border(btn, { 1, 1, 1, 0.12 })
     local cur = Text(btn, 12)
     cur:SetPoint("LEFT", 10, 0)
+    cur:SetPoint("RIGHT", btn, "RIGHT", preview and -122 or -26, 0)
     local arrow = btn:CreateTexture(nil, "ARTWORK")
     arrow:SetTexture("Interface\\ChatFrame\\UI-ChatIcon-ScrollDown-Up")
     arrow:SetSize(20, 20)
@@ -349,12 +399,13 @@ function W.Dropdown(label, items, get, set, tip)
     btn:SetScript("OnLeave", function() border:SetColor(1, 1, 1, 0.12) end)
     local function List() return type(items) == "function" and items() or items end
     btn:SetScript("OnClick", function(self)
-        OpenMenu(self, List(), function(v) set(v); Changed() end, get())
+        OpenMenu(self, List(), function(v) set(v); Changed() end, get(), preview)
     end)
     function f:Refresh()
         local v = get()
         if v == nil then v = "" end     -- unset matches a "" (None) item, never shows "nil"
         cur:SetText(tostring(v))
+        Preview(btn, preview, v, -28)
         for _, item in ipairs(List()) do
             if item[1] == v then cur:SetText(item[2]) end
         end
@@ -646,7 +697,7 @@ function Page:Slider(tbl, key, label, a, b, step, fmt, tip)
     return self:Add(W.Slider(label, a, b, step, Getter(tbl, key), Setter(tbl, key), fmt, tip))
 end
 function Page:Dropdown(tbl, key, label, items, tip)
-    return self:Add(W.Dropdown(label, items, Getter(tbl, key), Setter(tbl, key), tip))
+    return self:Add(W.Dropdown(label, items, Getter(tbl, key), Setter(tbl, key), tip, previewKinds[key] and key or nil))
 end
 function Page:Color(tbl, key, label, tip)
     return self:Add(W.Color(label, function() return tbl()[key] end, tip))

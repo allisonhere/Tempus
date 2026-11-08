@@ -1,6 +1,15 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.10.0", sections = {
+        { title = "New", items = {
+            { 0, "|cffffffffStyle Studio|r (General > Style Studio): sample player and target frames, enemy nameplates, buffs, debuffs, action buttons and cast bars in one live scene. Change the theme, bar texture, font, outline, accent colour or icon crop and watch every sample update at once; pause the scene to compare details. Changes save immediately, and the scene uses simulated data without turning on any module's test mode." },
+            { 0, "|cffffffffAuction values|r (General > Auction values): with Auctionator enabled, item tooltips show its last scanned price and how old the data is, and Tempus bags show stack estimates. At the auction house, |cffffffffScan bag items|r searches your carried items through Auctionator (it never buys or posts). Unknown prices stay unknown and old prices are marked stale." },
+        } },
+        { title = "Fixed", items = {
+            { 0, "Bags: the bank window showed no slots on clients that use character bank tabs. It now reads your purchased bank tabs as well as the older bank and bank bags, so the bank (and the Alts viewer's saved bank) fills in again." },
+        } },
+    } },
     { version = "2.9.0", sections = {
         { title = "New", items = {
             { 0, "|cffffffffResource ticker|r: a thin bar under the swing timer that fills toward your next energy or mana tick (they come every 2 seconds), so you can wait for the tick before an expensive move or a cast. After you spend mana it turns violet and counts down the five-second rule first. It learns the tick timing from ticks it sees, ignoring refunds and potions. Preview, size and when to show it are on General > Resource ticker." },

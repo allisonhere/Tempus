@@ -59,3 +59,10 @@ S.SetBar(bar, 40, true, true)
 assert(set[1] == 40 and set[2] == nil, 'plain SetValue without interpolation')
 
 print('PASS: themes restyle backdrops and status bars live; coloured highlight edges survive')
+-- A theme sample stays independent of the active theme, including global refreshes.
+local preview = S.Backdrop(stub())
+preview.previewTheme = 'GLOSS'
+T.db.theme = 'FLAT'
+S.ApplyTheme()
+assert(preview.gloss.shown and preview.edge.top.shown)
+assert(T.db.theme == 'FLAT' and not b.gloss.shown)

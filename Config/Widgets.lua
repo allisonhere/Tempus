@@ -74,8 +74,12 @@ local function FlatButton(parent, label, w, h, onClick)
         self.border:SetColor(AC[1], AC[2], AC[3], 0.8)
     end)
     b:SetScript("OnLeave", function(self)
-        self.bg:SetVertexColor(C.card[1], C.card[2], C.card[3])
-        if not self.active then self.border:SetColor(1, 1, 1, 0.1) end
+        local bg = self.restBg or C.card
+        self.bg:SetVertexColor(bg[1], bg[2], bg[3])
+        if not self.active then
+            local c = self.restBorder
+            if c then self.border:SetColor(c[1], c[2], c[3], c[4]) else self.border:SetColor(1, 1, 1, 0.1) end
+        end
     end)
     b:SetScript("OnMouseDown", function(self) self.text:SetPoint("CENTER", 1, -1) end)
     b:SetScript("OnMouseUp", function(self) self.text:SetPoint("CENTER", 0, 0) end)
@@ -89,7 +93,8 @@ local function FlatButton(parent, label, w, h, onClick)
             self.border:SetColor(AC[1], AC[2], AC[3], 1)
             self.text:SetTextColor(AC[1], AC[2], AC[3])
         else
-            self.border:SetColor(1, 1, 1, 0.1)
+            local c = self.restBorder
+            if c then self.border:SetColor(c[1], c[2], c[3], c[4]) else self.border:SetColor(1, 1, 1, 0.1) end
             self.text:SetTextColor(C.text[1], C.text[2], C.text[3])
         end
     end

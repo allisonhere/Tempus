@@ -4,3 +4,6 @@
 .DS_Store
 Thumbs.db
 .release/
+
+# Local scratch: screenshots, design packages, anything not shipped
+work/

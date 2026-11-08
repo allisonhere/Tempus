@@ -1,6 +1,15 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.11.2", sections = {
+        { title = "Changed", items = {
+            { 0, "The settings window header has a new animated hourglass logo: the sand runs down, then the glass flips over, in 30 frames on a loop of about five seconds. It only animates while settings are open, and it stays still when the Animations setting is off. The minimap button keeps the clock icon." },
+            { 0, "New settings window header: a silver TEMPUS UI wordmark, a diagonal band holding your profile and version, glowing edge lines, and outlined Preview and Unlock buttons. It follows your Appearance colours: the band and Unlock take the accent, the slash, base line and Preview take the second colour." },
+        } },
+        { title = "Fixed", items = {
+            { 0, "Removed work-in-progress design files that were accidentally packaged in 2.11.1." },
+        } },
+    } },
     { version = "2.11.1", sections = {
         { title = "Fixed", items = {
             { 0, "Bags: the bank window could open with |cffffffff0 / 0|r slots on WoW Forever. Tempus hid Blizzard's bank frame completely, and the game only fills in the bank (its 48-slot main bank and bank bags) while that frame is on screen. Blizzard's bank now stays open but invisible behind the Tempus window, so the bank fills in every time; |cffffffffManage|r still shows it." },

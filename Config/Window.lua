@@ -467,27 +467,74 @@ local function CreateWindow()
     header:SetPoint("TOPLEFT")
     header:SetPoint("TOPRIGHT")
     header:SetHeight(56)
-    local hbg = Tex(header, "BACKGROUND", { 1, 1, 1, 1 }, -6)
-    hbg:SetAllPoints()
-    S.OnAccent(function()
-        S.SetGradient(hbg, "HORIZONTAL", AC[1] * 0.28, AC[2] * 0.28, AC[3] * 0.28, 0.9, 0.05, 0.055, 0.07, 0.2)
-    end)
-    local hline = S.Accent(Tex(header, "ARTWORK"), 0.55)
-    hline:SetHeight(1)
-    hline:SetPoint("BOTTOMLEFT")
-    hline:SetPoint("BOTTOMRIGHT")
+    -- Header art, drawn for an 860x56 header and padded to 1024x64, in three layers: the base
+    -- (dark backdrop, silver wordmark, white slash) as drawn, and two white layers tinted live
+    -- with the accent (band, its edge line and dash) and the second colour (slash glow, base
+    -- line, dash). Profile, version, the hourglass and the buttons sit on top.
+    local function HeaderLayer(file, sub)
+        local t = header:CreateTexture(nil, "BACKGROUND", nil, sub)
+        t:SetTexture("Interface\\AddOns\\Tempus\\media\\" .. file)
+        t:SetTexCoord(0, 860 / 1024, 0, 56 / 64)
+        t:SetAllPoints()
+        t.tempus = true
+        return t
+    end
+    HeaderLayer("header-base", -6)
+    S.Accent(HeaderLayer("header-accent", -5))
+    S.Second(HeaderLayer("header-second", -4))
     local logo = header:CreateTexture(nil, "ARTWORK")
-    logo:SetSize(34, 34)
-    logo:SetPoint("LEFT", 14, 0)
-    logo:SetTexture(T.LOGO)
-    local title = Text(header, 20, AC, "")
-    title:SetPoint("TOPLEFT", logo, "TOPRIGHT", 12, 0)
-    title:SetText("Tempus UI")
-    local sub = Text(header, 10, C.muted)
-    sub:SetPoint("BOTTOMLEFT", logo, "BOTTOMRIGHT", 12, 1)
-    sub:SetText("INTERFACE SUITE  ·  v" .. T.version .. "  ·  by allie")
+    logo:SetSize(46, 46)
+    logo:SetPoint("LEFT", 4, 0)
+    -- Animated hourglass: one 1024x512 TGA holding 30 frames of 128x128 (8 across, 4 down),
+    -- stepped with SetTexCoord. Only the settings header uses it; the minimap icon stays T.LOGO.
+    logo:SetTexture("Interface\\AddOns\\Tempus\\media\\hourglass-animated")
+    logo.tempus = true  -- skinning leaves Tempus's own art alone
+    local COLS, ROWS, FRAMES = 8, 4, 30
+    local function HourglassFrame(index)
+        local col, row = (index - 1) % COLS, math.floor((index - 1) / COLS)
+        logo:SetTexCoord(col / COLS, (col + 1) / COLS, row / ROWS, (row + 1) / ROWS)
+    end
+    HourglassFrame(1)
+    do
+        -- Frames 1-19 the sand runs down, 20 holds with the bottom full, 21-30 the glass flips.
+        local frameTimes = {}
+        for i = 1, FRAMES do
+            frameTimes[i] = (i <= 19 and 0.18) or (i == 20 and 0.76) or 0.07
+        end
+        local index, accumulated = 1, 0
+        -- A child of the header, so it only ticks while the settings window is open.
+        local driver = CreateFrame("Frame", nil, header)
+        driver:SetAllPoints(logo)
+        driver:SetScript("OnShow", function()
+            index, accumulated = 1, 0
+            HourglassFrame(index)
+        end)
+        driver:SetScript("OnUpdate", function(_, elapsed)
+            if T.db and T.db.animate == false then
+                if index ~= 1 then
+                    index, accumulated = 1, 0
+                    HourglassFrame(1)
+                end
+                return
+            end
+            accumulated = accumulated + elapsed
+            local changes = 0     -- bounded catch-up after a stall or alt-tab
+            while accumulated >= frameTimes[index] and changes < 4 do
+                accumulated = accumulated - frameTimes[index]
+                index = index % FRAMES + 1
+                HourglassFrame(index)
+                changes = changes + 1
+            end
+            if changes == 4 then accumulated = 0 end
+        end)
+    end
+    -- The "TEMPUS UI / INTERFACE SUITE" wordmark is part of the header art; profile and
+    -- version live in the diagonal band.
     win.profile = Text(header, 11, C.muted)
-    win.profile:SetPoint("LEFT", title, "RIGHT", 18, -1)
+    win.profile:SetPoint("TOPLEFT", header, "TOPLEFT", 322, -13)
+    local sub = Text(header, 10, C.muted)
+    sub:SetPoint("TOPLEFT", win.profile, "BOTTOMLEFT", 0, -5)
+    sub:SetText("v" .. T.version .. "  ·  by allie")
 
     local close = CreateFrame("Button", nil, header)
     close:SetSize(28, 28)
@@ -510,6 +557,19 @@ local function CreateWindow()
         O:Refresh()
     end)
     win.testBtn:SetPoint("RIGHT", win.lockBtn, "LEFT", -8, 0)
+    -- Outlined in the header's two colours: Preview in the second colour, Unlock in the accent.
+    win.testBtn.restBorder, win.lockBtn.restBorder = { 0, 0, 0, 0.9 }, { 0, 0, 0, 0.9 }
+    for _, b in ipairs({ win.testBtn, win.lockBtn }) do
+        b.restBg = { 0.07, 0.08, 0.11 }
+        b.bg:SetVertexColor(0.07, 0.08, 0.11)
+    end
+    S.OnAccent(function()
+        local second = (T.SecondColor and T:SecondColor()) or AC
+        for b, c in pairs({ [win.testBtn] = second, [win.lockBtn] = AC }) do
+            b.restBorder[1], b.restBorder[2], b.restBorder[3] = c[1], c[2], c[3]
+            if not b.active and not b:IsMouseOver() then b.border:SetColor(c[1], c[2], c[3], 0.9) end
+        end
+    end)
     UI.Tooltip(win.testBtn, "Preview", "Escape ends previews and keeps Tempus open. Press Escape again to close settings.")
     win.reload = FlatButton(header, "Reload to apply", 120, 26, function() ReloadUI() end)
     win.reload:SetPoint("RIGHT", win.testBtn, "LEFT", -8, 0)

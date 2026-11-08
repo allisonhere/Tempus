@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.11.2
+
+### Changed
+- The settings window header has a new animated hourglass logo: the sand runs down, then the glass flips over, in 30 frames on a loop of about five seconds. It only animates while settings are open, and it stays still when the Animations setting is off. The minimap button keeps the clock icon.
+- New settings window header: a silver TEMPUS UI wordmark, a diagonal band holding your profile and version, glowing edge lines, and outlined Preview and Unlock buttons. It follows your Appearance colours: the band and Unlock take the accent, the slash, base line and Preview take the second colour.
+
+### Fixed
+- Removed work-in-progress design files that were accidentally packaged in 2.11.1.
+
 ## 2.11.1
 
 ### Fixed

@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.11.0
+
+### New
+- **Chat select mode**: Alt+click a chat window, or click the new I-beam button by the chat tabs, and the window turns into text you can select like a text editor: drag with the mouse, Shift+arrows, Ctrl+A, then Ctrl+C. Colours stay. Esc, Enter or switching tabs puts normal chat back, where links are clickable again. Lines that arrive while you are selecting are counted instead of jumping the text; click **update** to add them. Also `/tempus selectchat` (Chat > Select mode for chat history).
+- **New chat look** (Skins > Chat frames): messages and the edit box share one panel. The active tab is bright with an accent underline and the others are dimmed; tabs light up on hover and show an unread count, which pulses pink for whispers. Chat uses your Tempus font with a little more line spacing, a **Back to newest** button appears when you scroll up (instead of the arrow column), and the edit box edge takes the colour of the channel you are typing in. Each part can be turned off; they apply after a reload.
+- **Whisper alert** (Chat > Whisper alert): when someone whispers you, a pink banner shows who it is and the start of the message, a sound plays (pick it, or turn it off; it plays even with game sounds muted), and WoW's taskbar icon flashes when the game is in the background. Options for combat and Battle.net whispers, a Test button, and the banner can be moved with the UI unlocked. Press R to reply.
+- **Cleaner chat text** (Chat > Text): short channel names (`[2. Trade - City]` becomes `[T]`), class-coloured player names, and grey timestamps.
+- **Arrow keys move the cursor** in the chat box without holding Alt: Left, Right, Home and End move, Shift selects, Up and Down walk your sent messages. SpellPower's spell checking and shortcuts keep working (Chat > Typing).
+- **Edit box position**: a slider moves the chat edit box left or right (Skins > Chat frames > Edit box left / right).
+
+### Fixed
+- The chat copy window came up empty when the window held Battle.net whispers. Friends' names now show as their BattleTag name.
+- Changing the chat font size from a chat tab's menu works while the Tempus chat font is on.
+
 ## 2.10.0
 
 ### New

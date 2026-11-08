@@ -845,6 +845,8 @@ SlashCmdList.TEMPUS = function(msg)
         end
     elseif msg == "copychat" then
         if T.Chat and T.Chat.Copy then T.Chat:Copy() else T:Print("the Chat module is off.") end
+    elseif msg == "selectchat" then
+        if T.Chat and T.Chat.db and T.Chat.ToggleSelect then T.Chat:ToggleSelect() else T:Print("the Chat module is off.") end
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+dps") then
         local s = T:RunDPSProbe()
         T:Print("DPS probe: API %s, meter %s, enabled %s, live %s, top %s. /reload to save it.",
@@ -906,7 +908,7 @@ SlashCmdList.TEMPUS = function(msg)
         end
         if log.lastError then T:Print("last error (%s): %s", log.lastError.combat and "combat" or "idle", log.lastError.err:match("^[^\n]*")) end
     elseif msg == "help" then
-        T:Print("/tempus [lock | unlock | test | install | reset | log | debug | perf | skinreport | copychat | swing | probe | safe] - no argument opens settings. 'safe' turns off everything but buffs and reloads.")
+        T:Print("/tempus [lock | unlock | test | install | reset | log | debug | perf | skinreport | copychat | selectchat | swing | probe | safe] - no argument opens settings. 'safe' turns off everything but buffs and reloads.")
     else
         T.Options:Toggle()
     end

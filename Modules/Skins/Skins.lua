@@ -8,7 +8,7 @@ local C = S.C
 local SK = { skinned = {}, extrasSkinned = {} }
 T.Skins = SK
 
-local RELOAD_SETTINGS = { "stockSkin", "windows", "parchment", "tooltips", "tooltipHealth", "chat", "meter", "bagnon", "dbm" }
+local RELOAD_SETTINGS = { "stockSkin", "windows", "parchment", "tooltips", "tooltipHealth", "chat", "chatTabs", "chatUnified", "chatFont", "chatNewButton", "chatEditColor", "chatInputX", "meter", "bagnon", "dbm" }
 
 function SK:ReportError(name, err)
     if TempusDB and TempusDB.debug then
@@ -42,6 +42,12 @@ SK.defaults = {
     windows = true,
     tooltips = true, tooltipCursor = false, tooltipHealth = true,
     chat = true, chatAlpha = 0.55,
+    chatTabs = true,            -- accent underline on the active tab, dimmed others, unread counts
+    chatUnified = true,         -- one panel around tabs, messages and edit box
+    chatFont = true,            -- Tempus font and a little line spacing in the message area
+    chatNewButton = true,       -- "Back to newest" button instead of the arrow column
+    chatEditColor = true,       -- edit box edge takes the colour of the channel you type in
+    chatInputX = -4,            -- move the edit box sideways (pixels, negative = left)
     meter = true, meterAlpha = 0.55,
     bagnon = true, dbm = true,
     parchment = true,           -- keep parchment on reading surfaces (quests, gossip, books, mail)

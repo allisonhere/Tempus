@@ -442,7 +442,8 @@ function Window:Render(snapshot, projection)
     self.lastSnapshot, self.equipped = snapshot, {}
     self:Layout()
     local size, gap, columns = db.itemSize, db.spacing, db.columns
-    local width = math.max(360, columns * (size + gap) - gap + PAD * 2)
+    local filterWidth = #Bags.Inventory.filters * 66 - 4 + PAD * 2
+    local width = math.max(360, filterWidth, columns * (size + gap) - gap + PAD * 2)
     local inner = width - PAD * 2
     self.chipRow:SetWidth(inner)
     if self.bankRow then self.bankRow:SetWidth(inner) end

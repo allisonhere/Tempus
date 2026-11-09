@@ -57,6 +57,7 @@ do
         { storage = "CARRIED", container = 0, slot = 1 }, { storage = "CARRIED", container = 0, slot = 2 },
         { storage = "CARRIED", container = 0, slot = 3 }, { storage = "CARRIED", container = 1, slot = 1 },
         { storage = "CARRIED", container = 1, slot = 2 }, { storage = "CARRIED", container = 1, slot = 3 },
+        { storage = "CARRIED", container = 1, slot = 4 },
     }
     local items = {
         ["CARRIED:0:1"] = { itemID = 1, name = "Zed Blade", classID = 2, quality = 3, itemLevel = 50 },
@@ -64,26 +65,30 @@ do
         ["CARRIED:0:3"] = { itemID = 3, name = "Big Blade", classID = 2, quality = 3, itemLevel = 60 },
         ["CARRIED:1:1"] = { itemID = 4, name = "Worm", classID = 0, quality = 1 },
         ["CARRIED:1:2"] = { itemID = 5, name = "Rubbish", classID = 15, quality = 0 },
+        ["CARRIED:1:3"] = { itemID = 6, name = "Copper Bar", classID = 7, quality = 1 },
+        ["CARRIED:1:4"] = { itemID = 7, name = "Tailoring Pattern", classID = 9, quality = 1 },
     }
     local snap = I.Snapshot("CARRIED", more, function(l) return items[I.Key(l)] end)
     local function Keys(p, section) return table.concat(p.sections[section or 1].keys, ",") end
 
     local sorted = I.Project(snap, "GRID", "", true, { sort = true })
-    assert(Keys(sorted) == "CARRIED:0:3,CARRIED:0:2,CARRIED:0:1,CARRIED:1:1,CARRIED:1:2,CARRIED:1:3",
-        "sort: quality, item level, name; empty slots last")
-    assert(Keys(I.Project(snap, "GRID", "", true)) == "CARRIED:0:1,CARRIED:0:2,CARRIED:0:3,CARRIED:1:1,CARRIED:1:2,CARRIED:1:3",
+    assert(Keys(sorted) == "CARRIED:0:3,CARRIED:0:2,CARRIED:0:1,CARRIED:1:3,CARRIED:1:4,CARRIED:1:1,CARRIED:1:2",
+        "sort: quality, item level, name")
+    assert(Keys(I.Project(snap, "GRID", "", true)) == "CARRIED:0:1,CARRIED:0:2,CARRIED:0:3,CARRIED:1:1,CARRIED:1:2,CARRIED:1:3,CARRIED:1:4",
         "slot order is kept when sorting is off")
 
     assert(Keys(I.Project(snap, "GRID", "", true, { filter = "GEAR" })) == "CARRIED:0:1,CARRIED:0:2,CARRIED:0:3",
         "gear chip keeps only equipment")
+    assert(Keys(I.Project(snap, "GRID", "", true, { filter = "TRADES" })) == "CARRIED:1:3,CARRIED:1:4",
+        "trades chip keeps trade goods and recipes")
     assert(I.Project(snap, "GRID", "", true, { filter = "JUNK" }).sections[1].keys[1] == "CARRIED:1:2", "junk chip")
-    assert(Keys(I.Project(snap, "GRID", "", true, { container = 1 })) == "CARRIED:1:1,CARRIED:1:2,CARRIED:1:3",
+    assert(Keys(I.Project(snap, "GRID", "", true, { container = 1 })) == "CARRIED:1:1,CARRIED:1:2,CARRIED:1:3,CARRIED:1:4",
         "bag filter limits to one container")
 
     local cat = I.Project(snap, "CATEGORIES", "", false, { customItems = { [4] = "Fishing" } })
     local order = {}
     for _, section in ipairs(cat.sections) do order[#order + 1] = section.key end
-    assert(table.concat(order, ",") == "CUSTOM:Fishing,EQUIPMENT,JUNK", "custom categories sit after Quest, before the rest")
+    assert(table.concat(order, ",") == "CUSTOM:Fishing,EQUIPMENT,TRADE_GOODS,RECIPE,JUNK", "custom categories sit after Quest, before the rest")
     assert(cat.sections[1].label == "Fishing" and cat.sections[1].count == 1, "custom category label and count")
     local quest = I.Project(snap, "CATEGORIES", "", false, { customItems = { [4] = "Fishing" } })
     assert(quest.sections[1].keys[1] == "CARRIED:1:1", "custom item moves out of its built-in category")

@@ -12,6 +12,7 @@ Run this checklist on both interface versions listed in `Tempus.toc`. Start with
 ## Style Studio
 
 - Open General > Style Studio while standing in town without a target. Confirm all sample elements appear together and health, casts and aura timers animate.
+- Confirm General has no separate Appearance page, and that second colour, combat colour, border thickness and animations are on Style Studio. Buff text sizes and colours are on Buffs & Debuffs > Look.
 - Change theme, bar texture, font, outline, accent colour and icon crop. Confirm the scene updates immediately, and the saved appearance persists after `/reload`.
 - Pause and resume; navigate away and back; close and reopen settings; switch profiles. Confirm samples stay correct and no live module preview modes are enabled.
 - Repeat with unit frames, buffs and nameplates disabled. The independent sample scene should still work. Check `/tempus log` for errors.

@@ -39,42 +39,11 @@ PAGES[#PAGES + 1] = { key = "buffsgeneral", label = "Behaviour", build = functio
     end, "Large glossy icons."))
 end }
 
-PAGES[#PAGES + 1] = { key = "appearance", label = "Appearance", suite = true, build = function(p)
-    p:Section("Style")
-    p:Add(W.Dropdown("Accent colour", function()
-        local t = {}
-        for _, a in ipairs(T.accents) do
-            local c = T:AccentColor(a[1])
-            t[#t + 1] = { a[1], ("|cff%02x%02x%02x%s|r"):format(c[1] * 255 + 0.5, c[2] * 255 + 0.5, c[3] * 255 + 0.5, a[2]) }
-        end
-        return t
-    end, function() return DB().accent end, function(v)
-        DB().accent = v   -- the dropdown itself calls Changed()
-    end, "Highlights, selected tabs, target glows and headers. The settings window, bags and move boxes recolour at once; some Blizzard skins need a reload.", "accent"))
-    p:Add(W.Button("Reload UI", function() ReloadUI() end, "Recolours everything, including the parts that do not change live."))
-    p:Check(DB, "useSecond", "Second colour", "A second colour for the settings window, next to the accent: the selected-page marker, ticked checkboxes, slider fills and the lines beside section titles.")
-    p:Color(DB, "secondColor", "Pick second colour")
-    p:Check(DB, "combatAccent", "Combat colour", "The accent switches to its own colour while you are in combat, so the whole interface shows when a fight starts.")
-    p:Color(DB, "combatColor", "Combat accent")
-    p:Dropdown(DB, "theme", "Theme", {
-        { "TEMPUS", "Tempus - accent edge & soft glow" }, { "MODERN", "Modern - crisp border & shadow" }, { "GLOSS", "Gloss - glassy highlight" },
-        { "CLASSIC", "Classic - Blizzard look" }, { "FLAT", "Flat - borderless" } })
-    p:Dropdown(DB, "barTexture", "Bar texture", function()
-        local t = {}
-        for _, bt in ipairs(D.barTextures) do t[#t + 1] = { bt[1], bt[2] } end
-        return t
-    end)
-    p:Slider(DB, "borderSize", "Border thickness", 0, 4, 1)
-    p:Slider(DB, "iconZoom", "Icon crop", 0, 0.2, 0.01, pct, "Trims the icon's built-in edge.")
-    p:Check(DB, "animate", "Animations", "Windows fade in; low health, ready cooldowns and dispellable debuffs pulse.")
-
+-- Buff-only look. The shared look (accent, theme, texture, font) is on General > Style Studio.
+PAGES[#PAGES + 1] = { key = "buffslook", label = "Look", build = function(p)
+    p:Section("Look", "Text sizes and colours for buffs and debuffs. Theme, bar texture, font and accent are shared by the whole UI and set on General > Style Studio.")
+    p:Add(W.Button("Open Style Studio", function() T.Options:Select("style_studio") end, "The shared look for every Tempus frame.", 200))
     p:Section("Text")
-    p:Dropdown(DB, "font", "Font", function()
-        local t = {}
-        for _, f in ipairs(T.Style.fonts) do t[#t + 1] = { f[1], f[2] } end
-        return t
-    end)
-    p:Dropdown(DB, "fontOutline", "Outline", { { "NONE", "None (shadow)" }, { "OUTLINE", "Outline" }, { "THICKOUTLINE", "Thick outline" } })
     p:Slider(DB, "timerFontSize", "Timer size", 7, 24, 1)
     p:Slider(DB, "countFontSize", "Stack count size", 7, 24, 1)
     p:Slider(DB, "nameFontSize", "Bar name size", 7, 24, 1)
@@ -262,7 +231,7 @@ PAGES[#PAGES + 1] = { key = "profiles", label = "Profiles", suite = true, build 
     p:Add(W.Button("Import profile", function() T:ShowShare("import") end, "Creates a new profile from a pasted string and switches to it."))
 end }
 
--- Appearance and profiles apply to the whole suite; the rest belong to the buffs section.
+-- Profiles apply to the whole suite; the rest belong to the buffs section.
 for _, def in ipairs(PAGES) do
     T:RegisterPage(def.suite and "general" or "buffs", def)
 end

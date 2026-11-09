@@ -43,7 +43,7 @@ CreateFrame=Frame
 UIParent=Frame()
 local T={accent={0.2,0.7,1},accents={{'BLUE','Blue'}},pages={},
     db={theme='MODERN',barTexture='FLAT',font='test.ttf',fontOutline='NONE',iconZoom=.08,borderSize=1,
-        accent='BLUE',colors={buffBar={.2,.6,1},debuffBar={.8,.1,.1},border={0,0,0}}}}
+        accent='BLUE',secondColor={1,.5,0},combatColor={1,0,0},colors={buffBar={.2,.6,1},debuffBar={.8,.1,.1},border={0,0,0}}}}
 function T:RegisterPage(section, def) def.section=section; self.pages[#self.pages+1]=def end
 function T:AccentColor() return self.accent end
 function T:ApplySettings() error('scene must not apply settings') end
@@ -60,6 +60,12 @@ T.pages[1].build(page)
 page:Finish()
 page:Refresh()
 local scene=page.widgets[1]
+local labels={}
+for _,entry in ipairs(page.searchEntries or {}) do labels[entry.label]=true end
+for _,label in ipairs({'Accent colour','Second colour','Combat colour','Theme','Bar texture','Border thickness','Icon crop','Animations','Font','Outline'}) do
+    assert(labels[label],'Style Studio holds the shared appearance control '..label)
+end
+assert(not labels['More appearance settings'] and not labels['Timer size'],'no link to a separate Appearance page, no buff-only controls')
 assert(#scene.bars==9 and #scene.icons==11)
 assert(scene.player.texture==T.Style.WHITE and scene.cast.colour[2]==.7)
 assert(scene.labels[1].text.font[1]=='test.ttf')

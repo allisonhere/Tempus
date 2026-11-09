@@ -156,16 +156,38 @@ function Studio:CreateScene()
     return scene
 end
 
+-- The one page for the suite's shared look: a live sample scene, then every shared appearance control.
+-- Buff-only text sizes and colours live under Buffs & Debuffs > Look.
 T:RegisterPage("general", {key = "style_studio", label = "Style Studio", order = 2, build = function(p)
-    p:Section("Style Studio", "Compare your shared look across a sample combat scene. Appearance changes save immediately.")
+    local W, DB = UI.W, UI.DB
+    p:Section("Style Studio", "Your shared look on a sample combat scene. Changes save immediately and show in the scene at once.")
     p:Add(Studio:CreateScene(), 266, true)
-    p:Dropdown(UI.DB, "theme", "Theme", {
-        {"TEMPUS", "Tempus"}, {"MODERN", "Modern"}, {"GLOSS", "Gloss"}, {"CLASSIC", "Classic"}, {"FLAT", "Flat"},
-    })
-    p:Dropdown(UI.DB, "barTexture", "Bar texture", S.barTextures)
-    p:Dropdown(UI.DB, "font", "Font", S.fonts)
-    p:Dropdown(UI.DB, "fontOutline", "Outline", {{"NONE", "None (shadow)"}, {"OUTLINE", "Outline"}, {"THICKOUTLINE", "Thick outline"}})
-    p:Dropdown(UI.DB, "accent", "Accent colour", T.accents)
-    p:Slider(UI.DB, "iconZoom", "Icon crop", 0, 0.2, 0.01, UI.pct, "Trims the edges of spell and item icons. Higher values hide more of Blizzard's icon border.")
-    p:Add(UI.W.Button("More appearance settings", function() T.Options:Select("appearance") end, nil, 220))
+
+    p:Section("Style")
+    p:Add(W.Dropdown("Accent colour", function()
+        local t = {}
+        for _, a in ipairs(T.accents) do
+            local c = T:AccentColor(a[1])
+            t[#t + 1] = { a[1], ("|cff%02x%02x%02x%s|r"):format(c[1] * 255 + 0.5, c[2] * 255 + 0.5, c[3] * 255 + 0.5, a[2]) }
+        end
+        return t
+    end, function() return DB().accent end, function(v)
+        DB().accent = v   -- the dropdown itself calls Changed()
+    end, "Highlights, selected tabs, target glows and headers. The settings window, bags and move boxes recolour at once; some Blizzard skins need a reload.", "accent"))
+    p:Add(W.Button("Reload UI", function() ReloadUI() end, "Recolours everything, including the parts that do not change live."))
+    p:Check(DB, "useSecond", "Second colour", "A second colour for the settings window, next to the accent: the selected-page marker, ticked checkboxes, slider fills and the lines beside section titles.")
+    p:Color(DB, "secondColor", "Pick second colour")
+    p:Check(DB, "combatAccent", "Combat colour", "The accent switches to its own colour while you are in combat, so the whole interface shows when a fight starts.")
+    p:Color(DB, "combatColor", "Combat accent")
+    p:Dropdown(DB, "theme", "Theme", {
+        { "TEMPUS", "Tempus - accent edge & soft glow" }, { "MODERN", "Modern - crisp border & shadow" }, { "GLOSS", "Gloss - glassy highlight" },
+        { "CLASSIC", "Classic - Blizzard look" }, { "FLAT", "Flat - borderless" } })
+    p:Dropdown(DB, "barTexture", "Bar texture", S.barTextures)
+    p:Slider(DB, "borderSize", "Border thickness", 0, 4, 1, nil, "Thickness of the edge around icons and bars. 0 hides it.")
+    p:Slider(DB, "iconZoom", "Icon crop", 0, 0.2, 0.01, UI.pct, "Trims the edges of spell and item icons. Higher values hide more of Blizzard's icon border.")
+    p:Check(DB, "animate", "Animations", "Windows fade in; low health, ready cooldowns and dispellable debuffs pulse.")
+
+    p:Section("Text")
+    p:Dropdown(DB, "font", "Font", S.fonts)
+    p:Dropdown(DB, "fontOutline", "Outline", { { "NONE", "None (shadow)" }, { "OUTLINE", "Outline" }, { "THICKOUTLINE", "Thick outline" } })
 end})

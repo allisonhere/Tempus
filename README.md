@@ -47,7 +47,7 @@ Built for the new Classic client (interface 16001), where the game hides health,
 
 ## Themes
 
-The accent colour recolours the settings window, move boxes and bags at once (some Blizzard skins need a reload). The Theme setting (Appearance) restyles every Tempus panel and status bar live: **Modern** (crisp edge and soft shadow), **Gloss** (adds a glassy highlight), **Classic** (a warm Blizzard-style border; skinned windows keep Blizzard's own frames after a reload) and **Flat** (no decoration). Class, dispel and target highlight edges stay visible in every theme.
+The accent colour recolours the settings window, move boxes and bags at once (some Blizzard skins need a reload). The Theme setting (Style Studio) restyles every Tempus panel and status bar live: **Modern** (crisp edge and soft shadow), **Gloss** (adds a glassy highlight), **Classic** (a warm Blizzard-style border; skinned windows keep Blizzard's own frames after a reload) and **Flat** (no decoration). Class, dispel and target highlight edges stay visible in every theme.
 
 **General > Style Studio** brings sample player and target frames, enemy nameplates, buffs, debuffs, action buttons and cast bars together. Change the shared theme, texture, font, outline, accent or icon crop while the scene runs, or pause it to compare details. These controls save immediately; the scene uses simulated data and does not enable module test modes. Samples demonstrate the shared appearance at fixed sizes, rather than your screen layout.
 

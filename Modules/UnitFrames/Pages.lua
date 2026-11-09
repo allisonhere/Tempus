@@ -24,7 +24,7 @@ T:RegisterPage("unitframes", { key = "uf_general", label = "General", order = 1,
     p:Check(UFDB, "classPower", "Combo points above the player frame", "Rogues, and druids in cat form.")
     p:Check(UFDB, "hideBlizzard", "Hide Blizzard unit frames", "Turning this off takes effect after /reload.")
     p:Newline()
-    p:Section("Shared look", "Bar texture, font and outline come from General > Appearance.")
+    p:Section("Shared look", "Bar texture, font and outline come from General > Style Studio.")
 end })
 
 local function UnitPage(unit, order)

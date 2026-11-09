@@ -126,7 +126,11 @@ local function UpdateScrollbar()
     thumb:SetPoint("TOPRIGHT", scroll, "TOPRIGHT", 8, -(h - th) * (scroll:GetVerticalScroll() / range))
 end
 
+-- Pages that were merged into another keep working under their old key.
+local PAGE_ALIASES = { appearance = "style_studio" }
+
 local function FindPage(key)
+    key = PAGE_ALIASES[key] or key
     for _, def in ipairs(T.pages) do
         if def.key == key then return def end
     end

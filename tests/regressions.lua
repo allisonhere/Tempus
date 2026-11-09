@@ -87,6 +87,33 @@ T:ResetProfile()
 assert(T.Options.needsReload)
 print('PASS: profile switch, copy and reset update active settings and request reload')
 
+-- Reset keeps a copy that /tempus undo brings back; the confirm dialog runs at once without popups.
+TempusDB.profiles.New = {modules = {active = true}, active = {width = 321}}
+T:SetProfile('New')
+T:ConfirmReset()
+assert(next(TempusDB.profiles.New.active or {}) == nil or TempusDB.profiles.New.active.width ~= 321, 'reset cleared the profile')
+local undone, undoName = T:UndoProfileChange()
+assert(undone and undoName == 'New' and T.db.active.width == 321, 'undo restores the profile from before the reset')
+assert(not T:UndoProfileChange(), 'undo only works once')
+T:ConfirmCopy('Old')
+assert(T.db.active.width == 100, 'copy replaced the active profile')
+assert(T:UndoProfileChange() and T.db.active.width == 321, 'undo restores the profile from before a copy')
+T:ConfirmDelete('New')
+assert(TempusDB.profiles.New, 'the active profile is never deleted')
+print('PASS: reset and copy ask first and can be undone')
+
+local printed = {}
+local realPrint = T.Print
+T.Print = function(_, msg, ...) printed[#printed + 1] = msg:format(...) end
+SlashCmdList.TEMPUS('help')
+local helpText = table.concat(printed, '\n')
+assert(#printed > 10 and helpText:find('shop', 1, true) and not helpText:find('bagdump', 1, true), 'help lists everyday commands only')
+printed = {}
+SlashCmdList.TEMPUS('help dev')
+assert(table.concat(printed, '\n'):find('bagdump', 1, true), 'help dev lists troubleshooting commands')
+T.Print = realPrint
+print('PASS: slash help is one command per line with troubleshooting separate')
+
 assert(loadfile('Modules/Skins/Skins.lua'))('Tempus', T)
 local SK = T.Skins
 T.db.skins = {

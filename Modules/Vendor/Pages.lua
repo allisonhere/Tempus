@@ -1,7 +1,7 @@
 -- Tempus UI: settings page for the vendor module.
 local _, T = ...
 
-T:RegisterPage("general", { key = "vendor", label = "Vendor", order = 4, build = function(p)
+T:RegisterPage("convenience", { key = "vendor", label = "Vendor", order = 4, build = function(p)
     local cfg = function() return T.db.vendor end
     p:Section("Vendor", "Runs when you open a merchant window. Needs the Vendor module to be on (General > Modules).")
     p:Check(cfg, "sellGrey", "Sell grey items", "Poor-quality items with a vendor price. Nothing else is ever sold.")

@@ -60,11 +60,19 @@ T:RegisterPage("general", { key = "modules", label = "Modules", order = 1, build
         p:Add(UI.W.Check(m.label or key, function() return T:ModuleEnabled(key) end, function(v)
             T.db.modules[key] = v and true or false
             O.needsReload = true
+            if win and win.reload then win.reload:Show() end
         end, m.desc))
     end
     p:Newline()
     p:Add(UI.W.Button("Reload UI", function() ReloadUI() end, "Applies module changes."))
-    p:Section("Layout", "Unlock to see a box for every movable element. Drag a labeled handle to move and snap to nearby edges or centers; hold Alt to bypass snapping. Shift-click frames or toggle them in the positioning panel to select a group. Drag or nudge them together, align edges/centers, or distribute equal gaps. Shift-click arrows moves 10 units. Right-click a box for settings.")
+    p:Section("Layout", "Unlock (button at the top) to show a box for every movable element.")
+    p:Tips({
+        "Drag a box's label to move it. It snaps to nearby edges and centres; hold Alt to move freely.",
+        "Click the arrows in the positioning panel to nudge 1 unit; Shift-click for 10.",
+        "Shift-click several boxes to move, align or space them out together.",
+        "Right-click a box to open its settings.",
+        "Save and switch whole layouts under Layout > Layout presets.",
+    })
     p:Add(UI.W.Check("Lock frames", function() return T.db.locked end, function(v) T.db.locked = v end))
     p:Add(UI.W.Check("Minimap button", function() return not T.db.minimap.hide end, function(v) T.db.minimap.hide = not v end))
 end })

@@ -17,7 +17,7 @@ local function TickerDemo()
     return f
 end
 
-T:RegisterPage("general", { key = "ticker", label = "Resource ticker", order = 6.5, build = function(p)
+T:RegisterPage("combat", { key = "ticker", label = "Resource ticker", order = 6.5, build = function(p)
     local cfg = function() return T.db.ticker end
     p:Section("Resource ticker", "Energy and mana come in on a fixed 2-second clock. This bar fills toward your next tick, so you can wait for it before an expensive move or a cast. After you spend mana, spirit regen stops for five seconds: the bar turns violet and counts that down first. The bar learns the tick timing from the ticks it sees, so it starts once your power has ticked up once. Unlock the UI to move it. Needs the Resource ticker module (General > Modules).")
     p:Add(TickerDemo(), DEMO_H, true)

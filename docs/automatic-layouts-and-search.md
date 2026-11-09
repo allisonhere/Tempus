@@ -2,8 +2,8 @@
 
 ## Set up automatic layouts
 
-First save the desired positions as named presets under **General > Layout
-presets**. Open **General > Automatic layouts** and assign a **Solo layout**,
+First save the desired positions as named presets under **Layout > Layout
+presets**. Open **Layout > Automatic layouts** and assign a **Solo layout**,
 **Party layout**, and **Raid layout**, then enable **Automatic layout switching**.
 The feature is off by default, and assignments belong to the current Tempus
 profile. **Keep current positions** leaves that group type unassigned; it never

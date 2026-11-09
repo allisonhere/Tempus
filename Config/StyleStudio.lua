@@ -166,6 +166,6 @@ T:RegisterPage("general", {key = "style_studio", label = "Style Studio", order =
     p:Dropdown(UI.DB, "font", "Font", S.fonts)
     p:Dropdown(UI.DB, "fontOutline", "Outline", {{"NONE", "None (shadow)"}, {"OUTLINE", "Outline"}, {"THICKOUTLINE", "Thick outline"}})
     p:Dropdown(UI.DB, "accent", "Accent colour", T.accents)
-    p:Slider(UI.DB, "iconZoom", "Icon crop", 0, 0.2, 0.01, UI.pct)
+    p:Slider(UI.DB, "iconZoom", "Icon crop", 0, 0.2, 0.01, UI.pct, "Trims the edges of spell and item icons. Higher values hide more of Blizzard's icon border.")
     p:Add(UI.W.Button("More appearance settings", function() T.Options:Select("appearance") end, nil, 220))
 end})

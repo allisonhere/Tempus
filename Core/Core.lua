@@ -240,10 +240,68 @@ function T:SaveProfileAs(name)
     return true
 end
 
+-- Keep one copy of a profile before it is overwritten, so a reset or copy can be undone.
+local function Backup(name, why)
+    if TempusDB.profiles[name] then
+        TempusDB.undoProfile = { name = name, data = CopyTable(TempusDB.profiles[name]), why = why, at = date("%H:%M") }
+    end
+end
+
 function T:ResetProfile()
     local name = T:ProfileName()
+    Backup(name, "reset")
     TempusDB.profiles[name] = {}
     T:SetProfile(name)
+end
+
+-- Put back the profile saved before the last reset or copy. False when there is nothing to undo.
+function T:UndoProfileChange()
+    local undo = TempusDB.undoProfile
+    if not (undo and undo.name and type(undo.data) == "table") then return false end
+    TempusDB.profiles[undo.name] = undo.data
+    TempusDB.undoProfile = nil
+    T:SetProfile(undo.name)
+    return true, undo.name, undo.why
+end
+
+-- A yes/no dialog before anything that throws settings away. Falls back to running at once
+-- where the game's popups are unavailable (tests).
+function T:Confirm(text, accept, acceptLabel)
+    if not (StaticPopupDialogs and StaticPopup_Show) then return accept() end
+    StaticPopupDialogs.TEMPUS_CONFIRM = {
+        text = text, button1 = acceptLabel or "Yes", button2 = "Cancel",
+        OnAccept = function() accept() end,
+        timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
+    }
+    StaticPopup_Show("TEMPUS_CONFIRM")
+end
+
+function T:ConfirmReset()
+    T:Confirm(("Reset every Tempus setting in the profile \"%s\" to its default?\n\nYou can undo this with |cff%s/tempus undo|r."):format(T:ProfileName(), T.accentHex or "ffffff"),
+        function()
+            T:ResetProfile()
+            T:Print("profile reset. Type |cff%s/tempus undo|r to get your settings back.", T.accentHex)
+        end, "Reset")
+end
+
+function T:ConfirmCopy(from)
+    T:Confirm(("Replace every setting in \"%s\" with a copy of \"%s\"?\n\nYou can undo this with |cff%s/tempus undo|r."):format(T:ProfileName(), from, T.accentHex or "ffffff"),
+        function()
+            Backup(T:ProfileName(), "copy")
+            T:CopyProfile(from)
+            T:Print("copied \"%s\". Type |cff%s/tempus undo|r to get your old settings back.", from, T.accentHex)
+        end, "Replace")
+end
+
+function T:ConfirmDelete(name)
+    if name == T:ProfileName() or name == "Default" then
+        T:Print("the active profile and Default cannot be deleted.")
+        return
+    end
+    T:Confirm(("Delete the profile \"%s\"? This cannot be undone."):format(name), function()
+        T:DeleteProfile(name)
+        T:Print("deleted profile \"%s\".", name)
+    end, "Delete")
 end
 
 function T:DeleteProfile(name)
@@ -425,6 +483,9 @@ end
 -- Settings pages contributed by modules, shown in sidebar sections.
 T.pageSections = {
     { key = "general", label = "General" },
+    { key = "layout", label = "Layout" },
+    { key = "combat", label = "Combat" },
+    { key = "convenience", label = "Convenience" },
     { key = "buffs", label = "Buffs & Debuffs" },
     { key = "unitframes", label = "Unit Frames" },
     { key = "nameplates", label = "Nameplates" },
@@ -461,9 +522,20 @@ function T:ReportError(err)
         TempusDB.debug = TempusDB.debug or {}
         TempusDB.debug.lastError = { err = tostring(err), combat = InCombatLockdown(), at = date("%H:%M:%S") }
     end
+    if T.Log then T:Log("error", err) end
     if not T.errorShown then
         T.errorShown = true
-        T:Print("|cffff5050error:|r %s", tostring(err))
+        T:Print("|cffff5050error:|r %s  (|cff%s/tempus log|r lists every error)", tostring(err), T.accentHex)
+        return
+    end
+    -- Later errors are counted rather than printed; say so now and then so they are not missed.
+    T.errorsSinceNotice = (T.errorsSinceNotice or 0) + 1
+    local now = GetTime and GetTime() or 0
+    if not T.errorNoticeAt or now - T.errorNoticeAt >= 60 then
+        T.errorNoticeAt = now
+        T:Print("|cffff5050%d more error%s|r since the last notice. Type |cff%s/tempus log|r to see them.",
+            T.errorsSinceNotice, T.errorsSinceNotice == 1 and "" or "s", T.accentHex)
+        T.errorsSinceNotice = 0
     end
 end
 
@@ -681,6 +753,39 @@ end
 ----------------------------------------------------------------------------------------
 -- Slash commands
 ----------------------------------------------------------------------------------------
+local HELP = {
+    { "", "open settings" },
+    { "unlock", "show move boxes so you can drag frames around" },
+    { "lock", "hide the move boxes again" },
+    { "test", "show sample buffs and frames while you set things up" },
+    { "install", "run the first-time setup again" },
+    { "shop <item> <amount>", "add to your shopping list (also: shop remove <item>, shop clear)" },
+    { "swing", "repeat the last fight's swing summary" },
+    { "copychat", "copy chat text into a box you can select from" },
+    { "selectchat", "select chat lines in place" },
+    { "log", "list warnings and errors from this session" },
+    { "reset", "reset this profile's settings (asks first)" },
+    { "undo", "undo the last profile reset or copy" },
+    { "safe", "turn off everything but buffs and reload, if something breaks" },
+}
+local DEV_HELP = {
+    { "debug", "aura reading status" },
+    { "perf", "time spent per module since the last report" },
+    { "cpu [seconds|off]", "measure CPU use per addon (turns profiling on first)" },
+    { "fps", "frame rate test" },
+    { "skinreport", "which Blizzard frames are skinned" },
+    { "probe [dps|group|meter|lockdown|chat|auras|api|swing|new|off]", "record client facts for bug reports" },
+    { "bagdump, inkdump, trackerdump", "save frame layouts to SavedVariables" },
+}
+function T:PrintHelp(topic)
+    local list = topic == "dev" and DEV_HELP or HELP
+    T:Print(topic == "dev" and "troubleshooting commands:" or "commands (/tempus or /bt):")
+    for _, row in ipairs(list) do
+        T:Print("  |cff%s/tempus%s|r  %s", T.accentHex, row[1] ~= "" and (" " .. row[1]) or "", row[2])
+    end
+    if topic ~= "dev" then T:Print("  |cff%s/tempus help dev|r  troubleshooting commands", T.accentHex) end
+end
+
 SLASH_TEMPUS1, SLASH_TEMPUS2 = "/tempus", "/bt"
 local fullMsg
 SlashCmdList.TEMPUS = function(msg)
@@ -696,7 +801,11 @@ SlashCmdList.TEMPUS = function(msg)
             T:Print("test mode %s.", T.Display.testMode and "on" or "off")
         end
     elseif msg == "reset" then
-        T:ResetProfile(); T:Print("profile reset.")
+        T:ConfirmReset()
+    elseif msg == "undo" then
+        local ok, name, why = T:UndoProfileChange()
+        if ok then T:Print("restored profile \"%s\" from before the last %s.", name, why or "change")
+        else T:Print("nothing to undo. Undo brings back a profile after a reset or copy.") end
     elseif msg == "fpstest" or msg == "fps" then
         T:FPSTest()
     elseif msg == "cpu" then
@@ -908,7 +1017,7 @@ SlashCmdList.TEMPUS = function(msg)
         end
         if log.lastError then T:Print("last error (%s): %s", log.lastError.combat and "combat" or "idle", log.lastError.err:match("^[^\n]*")) end
     elseif msg == "help" then
-        T:Print("/tempus [lock | unlock | test | install | reset | log | debug | perf | skinreport | copychat | selectchat | swing | probe | safe] - no argument opens settings. 'safe' turns off everything but buffs and reloads.")
+        T:PrintHelp((fullMsg or ""):lower():match("^%s*help%s+(%S+)"))
     else
         T.Options:Toggle()
     end

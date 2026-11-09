@@ -19,7 +19,7 @@ T:RegisterPage("unitframes", { key = "uf_general", label = "General", order = 1,
     p:Slider(UFDB, "fontSize", "Text size", 8, 18, 1)
     p:Check(UFDB, "smooth", "Smooth bar animation")
     p:Check(UFDB, "lowHealth", "Pulse at low health", "The player frame glows red and pulses while your health is below the threshold.")
-    p:Slider(UFDB, "lowHealthAt", "Low health at", 10, 60, 5, function(v) return v .. "%" end)
+    p:Slider(UFDB, "lowHealthAt", "Low health at", 10, 60, 5, function(v) return v .. "%" end, "The low-health glow starts below this much health.")
     p:Check(UFDB, "lagBar", "Show recent damage", "A hit shows as a red chunk that drains away behind the health bar. The bar itself jumps straight to the new value.")
     p:Check(UFDB, "classPower", "Combo points above the player frame", "Rogues, and druids in cat form.")
     p:Check(UFDB, "hideBlizzard", "Hide Blizzard unit frames", "Turning this off takes effect after /reload.")

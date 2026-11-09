@@ -39,10 +39,10 @@ T:RegisterPage("nameplates", { key = "np_general", label = "General", order = 1,
         { "CHEVRONS", "Elite / rare / boss pips" }, { "DANGER", "Danger rating (1-5, skull)" }, { "NONE", "None" } },
         "Danger combines the con, elite status and the enemy's health against yours: a +2 elite with triple your health rates higher than a +2 normal mob.")
     p:Check(NPDB, "trivialFade", "Shrink and fade grey mobs", "Mobs that give no XP, so the ones worth fighting stand out. Your target is never faded.")
-    p:Slider(NPDB, "trivialAlpha", "Grey mob opacity", 0.15, 1, 0.05, UI.pct)
+    p:Slider(NPDB, "trivialAlpha", "Grey mob opacity", 0.15, 1, 0.05, UI.pct, "Nameplates of grey mobs, which give no experience, fade to this opacity (your target stays solid).")
 
     p:Section("Target")
-    p:Slider(NPDB, "targetScale", "Target scale", 1, 1.6, 0.05, UI.pct)
+    p:Slider(NPDB, "targetScale", "Target scale", 1, 1.6, 0.05, UI.pct, "Your target's nameplate grows to this size so it stands out.")
     p:Slider(NPDB, "nonTargetAlpha", "Other plates' opacity", 0.2, 1, 0.05, UI.pct, "Applies while you have a target.")
     p:Check(NPDB, "targetGlow", "Glow around your target")
     p:Check(NPDB, "mouseoverGlow", "Highlight plate under the mouse")
@@ -102,7 +102,7 @@ T:RegisterPage("nameplates", { key = "np_colors", label = "Colours & Threat", or
     p:Color(Colors, "threatAggro", "Aggro lost / on you")
 
     p:Section("Execute range")
-    p:Slider(NPDB, "execute", "Tint enemies below", 0, 50, 1, function(v) return v == 0 and "off" or (v .. "%") end)
+    p:Slider(NPDB, "execute", "Tint enemies below", 0, 50, 1, function(v) return v == 0 and "off" or (v .. "%") end, "Enemies below this much health get the execute tint. 0 turns it off.")
     p:Color(Colors, "execute", "Execute colour")
 
     p:Section("Cast bar")

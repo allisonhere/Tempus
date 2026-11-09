@@ -489,6 +489,14 @@ function Window:Render(snapshot, projection)
     end
     self.mode.text:SetText(db.mode == "GRID" and "Grid" or "Sections")
     self.tag:SetActive(owner.tagMode and true or false)
+    -- No slots at all is different from a search with no matches: say what to do about it.
+    if snapshot.capacity == 0 and not viewing then
+        self.empty:SetText(self.storage == "BANK"
+            and "The game has not sent the bank's slots yet.\nClose and reopen the bank, or click Manage\nto use Blizzard's bank window."
+            or "No bag slots found. Try /reload.")
+    else
+        self.empty:SetText("No matching items")
+    end
     self.empty:SetShown(projection.emptyResult)
     local active = owner.filter[self.storage] or "ALL"
     for _, chip in ipairs(self.chips) do chip:SetActive(chip.key == active) end

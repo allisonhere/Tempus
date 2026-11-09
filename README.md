@@ -55,7 +55,7 @@ Every settings page has a live preview. Unlock the UI to drag any element into p
 
 ## Auction values
 
-With Auctionator enabled, **General > Auction values** adds its last scanned per-item price and data age to item tooltips, plus stack estimates in Tempus bags. At an auctioneer, open the AH and click **Scan bag items** to search your carried item names through Auctionator. Use Auctionator's Full Scan for broader coverage. Unknown prices stay unknown and older prices are marked stale. These are listing estimates, not guaranteed sale prices.
+With Auctionator enabled, **Convenience > Auction values** adds its last scanned per-item price and data age to item tooltips, plus stack estimates in Tempus bags. At an auctioneer, open the AH and click **Scan bag items** to search your carried item names through Auctionator. Use Auctionator's Full Scan for broader coverage. Unknown prices stay unknown and older prices are marked stale. These are listing estimates, not guaranteed sale prices.
 
 ## Install
 
@@ -95,7 +95,7 @@ Copyright (c) 2026 Allison Bayless. All rights reserved. You're welcome to downl
 
 Use `/tempus unlock` for labeled drag handles, a frame selector, arrow nudges,
 edge/center snapping and alignment guides. Hold Alt for free dragging.
-Open **General > Layout presets** to save, duplicate, rename, preview and apply
+Open **Layout > Layout presets** to save, duplicate, rename, preview and apply
 position-only layouts, or preview and restore default positions. Undo/Redo in the
 positioning panel and Layout presets page recover the last 50 position changes
 per profile during the current session. Shift-click frames or toggle them in the
@@ -106,7 +106,7 @@ and testing instructions.
 
 ## Automatic layouts and settings search
 
-Under **General > Automatic layouts**, optionally assign saved presets to solo,
+Under **Layout > Automatic layouts**, optionally assign saved presets to solo,
 party and raid play. Switching waits for combat to end and editing to finish.
 Manual adjustments take precedence for the current group type; Pause keeps manual
 control across group changes. The feature is off by default.

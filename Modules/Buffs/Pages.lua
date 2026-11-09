@@ -97,8 +97,8 @@ PAGES[#PAGES + 1] = { key = "timers", label = "Timers", build = function(p)
     p:Slider(DB, "decimals", "Tenths of a second below", 0, 10, 1, secs, "Shows 4.3 instead of 5 in the final seconds.")
     p:Check(DB, "colorTimers", "Colour by time left")
     p:Newline()
-    p:Slider(DB, "soonAt", "\"Soon\" colour below", 5, 600, 5, secs)
-    p:Slider(DB, "urgentAt", "\"Urgent\" colour below", 1, 60, 1, secs)
+    p:Slider(DB, "soonAt", "\"Soon\" colour below", 5, 600, 5, secs, "Timers turn the \"soon\" colour when this much time is left.")
+    p:Slider(DB, "urgentAt", "\"Urgent\" colour below", 1, 60, 1, secs, "Timers turn the \"urgent\" colour when this much time is left.")
     local colors = function() return T.db.colors end
     p:Color(colors, "normal", "Normal")
     p:Color(colors, "soon", "Soon")
@@ -106,9 +106,9 @@ PAGES[#PAGES + 1] = { key = "timers", label = "Timers", build = function(p)
 
     p:Section("Animation")
     p:Check(DB, "pulse", "Pulse when about to expire")
-    p:Slider(DB, "pulseAt", "Pulse below", 1, 60, 1, secs)
+    p:Slider(DB, "pulseAt", "Pulse below", 1, 60, 1, secs, "Icons start pulsing when this much time is left.")
     p:Check(DB, "swipe", "Cooldown swipe on icons")
-    p:Slider(DB, "swipeAlpha", "Swipe darkness", 0.1, 1, 0.05, pct)
+    p:Slider(DB, "swipeAlpha", "Swipe darkness", 0.1, 1, 0.05, pct, "How dark the clock sweep over an icon is.")
 end }
 
 local function GroupPage(key, label)
@@ -131,8 +131,8 @@ local function GroupPage(key, label)
         p:Section("Layout")
         p:Slider(cfg, "size", "Icon size", 16, 72, 1).enabledIf = isIcons
         p:Slider(cfg, "spacing", "Spacing", 0, 24, 1)
-        p:Slider(cfg, "perRow", "Per row (icons) / bars per column", 1, 40, 1)
-        p:Slider(cfg, "rows", "Rows", 1, 10, 1)
+        p:Slider(cfg, "perRow", "Per row (icons) / bars per column", 1, 40, 1, nil, "Icons: how many sit side by side before a new row starts. Bars: how many stack before a new column starts.")
+        p:Slider(cfg, "rows", "Rows", 1, 10, 1, nil, "The most rows of icons (or columns of bars). Auras beyond that are not shown.")
         p:Dropdown(cfg, "growX", "Grow horizontally", { { "LEFT", "To the left" }, { "RIGHT", "To the right" } }).enabledIf = isIcons
         p:Dropdown(cfg, "growY", "Grow vertically", { { "DOWN", "Downwards" }, { "UP", "Upwards" } })
         p:Dropdown(cfg, "timer", "Timer position", { { "BOTTOM", "Below icon" }, { "TOP", "Above icon" }, { "CENTER", "On icon" }, { "NONE", "Hidden" } })
@@ -179,7 +179,7 @@ PAGES[#PAGES + 1] = { key = "alerts", label = "Alerts", build = function(p)
     local a = function() return T.db.alerts end
     p:Section("Expiry alerts", "An on-screen toast (and optional sound) when a long buff is about to run out or has faded. Only buffs whose timing the game shares with addons can be watched.")
     p:Check(a, "warn", "Warn before a buff expires")
-    p:Slider(a, "warnAt", "Warn this long before", 5, 300, 5, secs)
+    p:Slider(a, "warnAt", "Warn this long before", 5, 300, 5, secs, "How long before the buff runs out the warning appears.")
     p:Check(a, "expired", "Announce when a buff expires")
     p:Slider(a, "minDuration", "Only buffs lasting at least", 0, 1800, 30, secs, "Skips short procs and cooldowns.")
     p:Check(a, "sound", "Play a sound")
@@ -247,12 +247,16 @@ PAGES[#PAGES + 1] = { key = "profiles", label = "Profiles", suite = true, build 
     saveEdit:SetScript("OnEnterPressed", function() save:Click() end)
     function saveBox:Refresh() end
     p:Add(saveBox, 48)
-    p:Add(W.Dropdown("Copy settings from", profiles, function() return "" end, function(v) T:CopyProfile(v) end,
-        "Overwrites the active profile with a copy of the chosen one."))
-    p:Add(W.Dropdown("Delete a profile", profiles, function() return "" end, function(v) T:DeleteProfile(v) end,
-        "The active profile and Default cannot be deleted."))
+    p:Add(W.Dropdown("Copy settings from", profiles, function() return "" end, function(v) T:ConfirmCopy(v) end,
+        "Overwrites the active profile with a copy of the chosen one. Asks first, and can be undone."))
+    p:Add(W.Dropdown("Delete a profile", profiles, function() return "" end, function(v) T:ConfirmDelete(v) end,
+        "Asks first. The active profile and Default cannot be deleted."))
     p:Newline()
-    p:Add(W.Button("Reset active profile", function() T:ResetProfile() end, "Restores every setting in this profile to its default."))
+    p:Add(W.Button("Reset active profile", function() T:ConfirmReset() end, "Restores every setting in this profile to its default. Asks first, and can be undone."))
+    p:Add(W.Button("Undo last reset or copy", function()
+        local ok, name = T:UndoProfileChange()
+        if ok then T:Print("restored profile \"%s\".", name) else T:Print("nothing to undo.") end
+    end, "Brings back the settings from before the last reset or copy."))
     p:Section("Share", "Turn the active profile into a text string to send to a friend, or paste one you received into a new profile.")
     p:Add(W.Button("Export profile", function() T:ShowShare("export") end, "Shows the active profile as text you can copy."))
     p:Add(W.Button("Import profile", function() T:ShowShare("import") end, "Creates a new profile from a pasted string and switches to it."))

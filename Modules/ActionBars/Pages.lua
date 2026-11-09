@@ -15,7 +15,7 @@ T:RegisterPage("actionbars", { key = "ab_general", label = "General", order = 1,
     p:Check(ABDB, "showEmpty", "Show empty slots", "Bars 2-8 hide empty slots and show them while you drag a spell or item. The main bar always shows all slots.")
     p:Slider(ABDB, "hotkeySize", "Text size", 8, 18, 1)
     p:Check(ABDB, "greyOnCooldown", "Grey out icons on cooldown", "Turns a button's icon grey while its spell or item is on cooldown. The global cooldown doesn't count.")
-    p:Slider(ABDB, "swipeAlpha", "Cooldown darkness", 0.2, 1, 0.05, UI.pct)
+    p:Slider(ABDB, "swipeAlpha", "Cooldown darkness", 0.2, 1, 0.05, UI.pct, "How dark the sweep over a button on cooldown is.")
 end })
 
 for i, def in ipairs(AB.defs) do
@@ -31,7 +31,7 @@ for i, def in ipairs(AB.defs) do
         p:Slider(cfg, "scale", "Scale", 0.5, 2, 0.05, UI.pct)
         p:Section("Visibility")
         p:Dropdown(cfg, "fade", "Fading", FADE)
-        p:Slider(cfg, "fadeAlpha", "Faded opacity", 0, 1, 0.05, UI.pct)
+        p:Slider(cfg, "fadeAlpha", "Faded opacity", 0, 1, 0.05, UI.pct, "How see-through the bar is while faded out. 0% hides it completely.")
         p:Slider(cfg, "alpha", "Opacity when shown", 0.2, 1, 0.05, UI.pct)
         p:Section("Position")
         p:Add(W.Button("Reset position", function()
@@ -48,6 +48,6 @@ T:RegisterPage("actionbars", { key = "ab_menus", label = "Menu & Bags", order = 
         p:Check(cfg, "enabled", "Let Tempus place it", "Off leaves it where Blizzard's Edit Mode puts it.")
         p:Slider(cfg, "scale", "Scale", 0.5, 1.5, 0.05, UI.pct)
         p:Dropdown(cfg, "fade", "Fading", FADE)
-        p:Slider(cfg, "fadeAlpha", "Faded opacity", 0, 1, 0.05, UI.pct)
+        p:Slider(cfg, "fadeAlpha", "Faded opacity", 0, 1, 0.05, UI.pct, "How see-through the bar is while faded out. 0% hides it completely.")
     end
 end })

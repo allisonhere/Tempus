@@ -9,7 +9,7 @@ T:RegisterPage("minimap", { key = "nodes", label = "Gathering nodes", order = 4,
     p:Check(cfg, "learn", "Remember nodes as I gather them", "Starts empty and fills up as you mine and pick herbs.")
     p:Slider(cfg, "size", "Icon size", 10, 32, 1)
     p:Check(cfg, "dim", "Dim nodes I just gathered", "The game does not tell addons whether a node is up. A node you gathered recently is shown dim until it has probably respawned. For a certain answer, turn on Find Minerals or Find Herbs: Blizzard's own blip under the pin only exists while the node is up.")
-    p:Slider(cfg, "respawn", "Assumed respawn time (minutes)", 1, 30, 1)
+    p:Slider(cfg, "respawn", "Assumed respawn time (minutes)", 1, 30, 1, nil, "How long a node you gathered stays dim, as a guess at when it is back.")
     p:Section("Show")
     p:Check(cfg, "ore", "Ore")
     p:Check(cfg, "herb", "Herbs")

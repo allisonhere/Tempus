@@ -3,7 +3,7 @@ local _, T = ...
 local UI = T.UI
 local W, Changed = UI.W, UI.Changed
 
-T:RegisterPage("general", { key = "combatpulse", label = "Combat Pulse", order = 8, build = function(p)
+T:RegisterPage("combat", { key = "combatpulse", label = "Combat Pulse", order = 8, build = function(p)
     local cfg = function() return T.db.combatpulse end
     local two = function(v) return ("%.2f"):format(v) end
     p:Section("Combat Pulse", "One strip for the fight: the layered DPS bar, a thin swing line, and small cues that appear only when they matter: an interruptible cast, a buff you can purge, threat trouble and the execute range. Needs the Combat Pulse module (General > Modules). Swing timing needs the Swing timer module.")

@@ -64,7 +64,7 @@ Group editing changes positions only, not sizes or anchors between frames.
 
 ## Save, duplicate and rename
 
-Open `/tempus` > General > Layout presets. Finish dragging, then choose
+Open `/tempus` > Layout > Layout presets. Finish dragging, then choose
 **Save current as...**, enter a name and Save. Names are trimmed, case-sensitive,
 1-48 bytes, and cannot contain control characters or `|`. Names must be unique:
 there is no silent overwrite. Save an adjusted layout under a new name.
@@ -91,7 +91,7 @@ Preview/apply are blocked during combat or frame dragging. Entering combat cance
 preview. Changing a setting/profile, locking frames or closing settings also
 cancels it. Position changes are never queued to apply after combat. Disabled
 modules' saved positions can be restored for later use; missing modules are skipped.
-Automatic group-type switching is opt-in under General > Automatic layouts.
+Automatic group-type switching is opt-in under Layout > Automatic layouts.
 See [automatic layouts and settings search](automatic-layouts-and-search.md) for
 assignments, safe switching and manual overrides. Specialization and combat role
 are not automatic triggers.
@@ -106,7 +106,7 @@ position. This does not reset the full Tempus profile.
 ## Undo and redo
 
 Use **Undo** and **Redo** in the unlocked positioning panel or under
-**General > Layout presets > Layout history**. Buttons are disabled when no action
+**Layout > Layout presets > Layout history**. Buttons are disabled when no action
 is available, during combat, or while dragging/resizing. No keyboard shortcuts are
 assigned, so chat and text editing keep their normal behavior.
 

@@ -675,6 +675,13 @@ function Page:Paragraph(text, indent, color, size, gap)
     return t
 end
 
+-- Short tips, one per line with a leading dash, easier to scan than one long paragraph.
+function Page:Tips(list)
+    for i, tip in ipairs(list) do
+        self:Paragraph("-  " .. tip, 8, C.muted, 12, i == #list and 8 or 3)
+    end
+end
+
 function Page:Finish()
     self:Newline()
     self.frame:SetHeight(-self.y + 20)

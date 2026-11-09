@@ -6,9 +6,9 @@ T:RegisterPage("bags", { key = "bags", label = "Bags", order = 1, build = functi
     local cfg = function() return T.db.bags end
     p:Section("Bags", "Combines carried bags and personal bank storage. Search matches every typed word against item names, types and item IDs.")
     p:Dropdown(cfg, "mode", "Default view", { { "GRID", "Grid" }, { "CATEGORIES", "Automatic categories" } })
-    p:Slider(cfg, "columns", "Columns", 6, 20, 1)
-    p:Slider(cfg, "itemSize", "Item size", 28, 52, 1)
-    p:Slider(cfg, "spacing", "Spacing", 1, 10, 1)
+    p:Slider(cfg, "columns", "Columns", 6, 20, 1, nil, "How many item slots fit across one row of the bag window.")
+    p:Slider(cfg, "itemSize", "Item size", 28, 52, 1, nil, "Size of each item slot.")
+    p:Slider(cfg, "spacing", "Spacing", 1, 10, 1, nil, "Gap between item slots.")
     p:Check(cfg, "showEmpty", "Show empty slots")
     p:Check(cfg, "showNew", "Mark newly acquired items")
     p:Section("Window", "Optional parts of the bag window.")

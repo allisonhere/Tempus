@@ -31,7 +31,7 @@ T:RegisterPage("chat", { key = "chat", label = "Chat", order = 1, build = functi
     p:Check(cfg, "mutedTimestamps", "Grey timestamps", "Timestamps are drawn in grey so the message stands out. Works with the game's timestamp setting or the one below.")
     p:Section("History", "Recent lines are saved and shown again after a reload or relog. Lines the game hides during boss fights and Mythic+ cannot be saved.")
     p:Check(cfg, "history", "Keep chat history", "Applies after a reload.")
-    p:Slider(cfg, "historyLines", "Lines kept per window", 25, 500, 25)
+    p:Slider(cfg, "historyLines", "Lines kept per window", 25, 500, 25, nil, "How many recent lines each chat window saves for after a reload.")
     p:Add(W.Button("Clear saved history", function() T.Chat:ClearHistory() end))
     p:Section("Look")
     p:Dropdown(cfg, "timestamps", "Timestamps", { { "KEEP", "Leave the game setting" }, { "NONE", "Off" },

@@ -1,7 +1,7 @@
 -- Tempus UI: settings page for the automation module.
 local _, T = ...
 
-T:RegisterPage("general", { key = "automation", label = "Automation", order = 4.5, build = function(p)
+T:RegisterPage("convenience", { key = "automation", label = "Automation", order = 4.5, build = function(p)
     local cfg = function() return T.db.automation end
     p:Section("Quests", "Hold Shift while talking to an NPC to do it yourself. Needs the Automation module (General > Modules).")
     p:Check(cfg, "quests", "Accept quests", "Takes new quests from NPCs, skipping grey ones.")

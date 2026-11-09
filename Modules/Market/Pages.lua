@@ -1,5 +1,5 @@
 local _, T = ...
-T:RegisterPage("general", {key = "market", label = "Auction values", order = 4.1, build = function(p)
+T:RegisterPage("convenience", {key = "market", label = "Auction values", order = 4.1, build = function(p)
     local cfg = function() return T.db.market end
     p:Section("Auction values", "Shows Auctionator's last scanned prices on item links and tooltips: chat, loot, bags, bank, crafting and comparisons. Enable Auctionator and the Auction values module to show estimates on item tooltips. Listing prices are estimates, not completed sales.")
     p:Check(cfg, "tooltips", "Show auction estimates on item tooltips")

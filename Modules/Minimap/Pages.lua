@@ -34,7 +34,7 @@ T:RegisterPage("minimap", { key = "databar", label = "Info Bar", order = 2, buil
     p:Slider(cfg, "width", "Width", 150, 1600, 10)
     p:Slider(cfg, "height", "Height", 16, 36, 1)
     p:Slider(cfg, "fontSize", "Text size", 8, 16, 1)
-    p:Slider(cfg, "count", "Number of slots", 1, 8, 1)
+    p:Slider(cfg, "count", "Number of slots", 1, 8, 1, nil, "How many pieces of information the info bar shows.")
     p:Section("Slots", "Left to right.")
     for i = 1, 8 do
         local item = p:Dropdown(slots, i, "Slot " .. i, function() return T.DataBar:TextList() end)

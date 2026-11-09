@@ -26,7 +26,7 @@ local function Prompt(title, action)
     input:SetScript("OnEscapePressed", function() dialog:Hide() end)
     input:SetFocus()
 end
-T:RegisterPage("general", {key = "layouts", label = "Layout presets", order = 3, build = function(p)
+T:RegisterPage("layout", {key = "layouts", label = "Layout presets", order = 3, build = function(p)
     p:Section("Layout presets", "Save frame positions in this profile. Preview shows ghost frames; Apply commits the preview. Sizes and other settings stay unchanged. Layout switching is unavailable in combat.")
     p:Add(UI.W.Dropdown("Saved layout", function()
         local items = {}; for _, name in ipairs(L:Names()) do items[#items + 1] = {name, name} end

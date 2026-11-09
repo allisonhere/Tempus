@@ -1,6 +1,6 @@
 local _, T = ...
 local UI, A = T.UI, T.AutoLayouts
-T:RegisterPage("general", {key = "auto_layouts", label = "Automatic layouts", order = 3.1, build = function(p)
+T:RegisterPage("layout", {key = "auto_layouts", label = "Automatic layouts", order = 3.1, build = function(p)
     p:Section("Automatic layouts", "Opt in to a saved position preset for solo, party or raid play. Switching waits for combat to end, frames to be locked, and dragging/previews to finish. An unassigned group type keeps current positions.")
     p:Add(UI.W.Check("Enable automatic layout switching", function() return A:Config().enabled end, function(v) A:Config().enabled = v; A:Reapply() end))
     p:Add(UI.W.Check("Pause automatic switching (manual override)", function() return A:Config().paused end, function(v) A:Config().paused = v; A:Reapply() end))

@@ -42,7 +42,7 @@ T:RegisterPage("groupframes", { key = "gf_general", label = "General", order = 1
         { "CLASS", "Class" }, { "DARK", "Dark bars, class-coloured names" }, { "GRADIENT", "By health (green > red)" } })
     p:Dropdown(GFDB, "healthText", "Health text", { { "NONE", "None" }, { "PERCENT", "Percent" } })
     p:Slider(GFDB, "fontSize", "Text size", 8, 16, 1)
-    p:Slider(GFDB, "rangeAlpha", "Out-of-range opacity", 0.1, 1, 0.05, UI.pct)
+    p:Slider(GFDB, "rangeAlpha", "Out-of-range opacity", 0.1, 1, 0.05, UI.pct, "Group members out of range fade to this opacity.")
     p:Slider(GFDB, "powerHeight", "Power bar height", 0, 10, 1, function(v) return v == 0 and "hidden" or tostring(v) end)
     p:Check(GFDB, "manaOnly", "Power bar for mana users only", "Healers and casters; hides rage and energy bars.")
     p:Check(GFDB, "smooth", "Smooth health animation")

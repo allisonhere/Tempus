@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.11.4
+
+### Changed
+- Settings pages use clearer labels and help text, and errors explain what to fix.
+- Style Studio is now the single appearance page. Its live sample scene and controls make it easier to see how themes, fonts, bars, colours and icons will look together.
+
 ## 2.11.3
 
 ### Changed

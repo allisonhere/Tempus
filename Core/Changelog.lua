@@ -1,6 +1,12 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.11.4", sections = {
+        { title = "Changed", items = {
+            { 0, "Settings pages use clearer labels and help text, and errors explain what to fix." },
+            { 0, "Style Studio is now the single appearance page. Its live sample scene and controls make it easier to see how themes, fonts, bars, colours and icons will look together." },
+        } },
+    } },
     { version = "2.11.3", sections = {
         { title = "Changed", items = {
             { 0, "New Tempus icon: a neon hourglass. The addon list, installer and Automation bar use the square version; the minimap button (docked or not) uses a round version with its neon ring." },

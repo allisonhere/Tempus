@@ -187,6 +187,9 @@ local RING = { 0.62, 0.47, 0.2 }
 local CIRCLE_MASK = "Interface\\CharacterFrame\\TempPortraitAlphaMask"
 
 -- A round gold-ringed icon like the day/night one: outer ring, dark inner rim, masked logo.
+-- The round neon hourglass (transparent outside its ring); T.LOGO is the square version.
+local MINIMAP_ICON = "Interface\\AddOns\\Tempus\\media\\icon-minimap"
+
 local function BuildRing()
     if mm.ringOuter then return end
     mm.ringOuter = mm:CreateTexture(nil, "BACKGROUND", nil, 1)
@@ -230,14 +233,15 @@ local function StyleMinimapButton()
         mm.icon:ClearAllPoints()
         mm.icon:SetPoint("TOPLEFT", 3, -3)
         mm.icon:SetPoint("BOTTOMRIGHT", -3, 3)
-        mm.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-        mm.icon:SetTexture("Interface\\AddOns\\Tempus\\media\\icon-minimap")   -- the logo without its tick marks
+        mm.icon:SetTexCoord(0, 1, 0, 1)   -- the round icon is drawn for a circle, neon ring included
+        mm.icon:SetTexture(MINIMAP_ICON)
         if not mm.iconMasked then mm.icon:AddMaskTexture(mm.iconMask); mm.iconMasked = true end
         mm:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
     else
         if mm.ringOuter then mm.ringOuter:Hide(); mm.ringInner:Hide() end
         if mm.iconMasked then mm.icon:RemoveMaskTexture(mm.iconMask); mm.iconMasked = false end
-        mm.icon:SetTexture(T.LOGO)
+        mm.icon:SetTexture(MINIMAP_ICON)   -- round, so it sits inside Blizzard's round border
+        mm.icon:SetTexCoord(0, 1, 0, 1)
         mm:SetScale(1)
         mm:SetSize(31, 31)
         mm:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight")
@@ -289,7 +293,7 @@ function T:InitMinimapButton()
     local icon = mm:CreateTexture(nil, "ARTWORK")
     mm.icon = icon
     icon:SetSize(20, 20)
-    icon:SetTexture(T.LOGO)
+    icon:SetTexture(MINIMAP_ICON)
     icon:SetPoint("TOPLEFT", 6, -5)
     mm:SetScript("OnClick", function(_, button)
         if button == "RightButton" then

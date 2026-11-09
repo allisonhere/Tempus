@@ -486,7 +486,7 @@ local function CreateWindow()
     logo:SetSize(46, 46)
     logo:SetPoint("LEFT", 4, 0)
     -- Animated hourglass: one 1024x512 TGA holding 30 frames of 128x128 (8 across, 4 down),
-    -- stepped with SetTexCoord. Only the settings header uses it; the minimap icon stays T.LOGO.
+    -- stepped with SetTexCoord. Only the settings header uses it; the minimap and addon-list icons use T.LOGO.
     logo:SetTexture("Interface\\AddOns\\Tempus\\media\\hourglass-animated")
     logo.tempus = true  -- skinning leaves Tempus's own art alone
     local COLS, ROWS, FRAMES = 8, 4, 30

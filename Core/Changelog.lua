@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.11.3", sections = {
+        { title = "Changed", items = {
+            { 0, "New Tempus icon: a neon hourglass. The addon list, installer and Automation bar use the square version; the minimap button (docked or not) uses a round version with its neon ring." },
+        } },
+    } },
     { version = "2.11.2", sections = {
         { title = "Changed", items = {
             { 0, "The settings window header has a new animated hourglass logo: the sand runs down, then the glass flips over, in 30 frames on a loop of about five seconds. It only animates while settings are open, and it stays still when the Animations setting is off. The minimap button keeps the clock icon." },

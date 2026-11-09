@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.11.3
+
+### Changed
+- New Tempus icon: a neon hourglass. The addon list, installer and Automation bar use the square version; the minimap button (docked or not) uses a round version with its neon ring.
+
 ## 2.11.2
 
 ### Changed

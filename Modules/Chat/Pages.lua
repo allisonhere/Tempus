@@ -11,8 +11,7 @@ T:RegisterPage("chat", { key = "chat", label = "Chat", order = 1, build = functi
     end
     p:Section("Links and copying")
     p:Check(cfg, "urls", "Clickable web links", "Web addresses in chat become blue links. Click one to get a box to copy it from.")
-    p:Check(cfg, "copyButton", "Copy button next to the tabs", "A small copy icon at the right end of the tab row opens the selected window's text for copying. Also /tempus copychat.")
-    p:Check(cfg, "selectMode", "Select mode for chat history", "Alt+click a chat window, or the I-beam button by the tabs, to show it as text you can select with the mouse or keyboard (Shift+arrows, Ctrl+A) and copy with Ctrl+C. Esc returns to normal chat, where links are clickable again. Also /tempus selectchat.")
+    p:Check(cfg, "copyButton", "Chat log button next to the tabs", "A small copy icon at the right end of the tab row opens the selected window's lines as text. Drag or Shift+arrows to select, Ctrl+A picks the lot, Ctrl+C copies. Colours are off so what you paste is plain text; the Colours button in the window turns them on. Alt+click a chat window opens it too, and so does /tempus copychat.")
     p:Section("Typing")
     p:Check(cfg, "editorKeys", "Arrow keys move the cursor", "Left, Right, Home and End move the cursor in the chat box and Shift selects, without holding Alt. Up and Down walk your sent messages. Ctrl+A, C, V and X work as usual, and SpellPower keeps working.")
     p:Section("Whisper alert", "Gets your attention when someone whispers you: a banner with who it is and what they said, a sound, and a flashing taskbar icon when the game is in the background. Press R to reply. Unlock the UI to move the banner.")

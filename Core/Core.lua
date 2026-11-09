@@ -761,8 +761,7 @@ local HELP = {
     { "install", "run the first-time setup again" },
     { "shop <item> <amount>", "add to your shopping list (also: shop remove <item>, shop clear)" },
     { "swing", "repeat the last fight's swing summary" },
-    { "copychat", "copy chat text into a box you can select from" },
-    { "selectchat", "select chat lines in place" },
+    { "copychat", "open the chat log to read and copy chat (also: selectchat)" },
     { "log", "list warnings and errors from this session" },
     { "reset", "reset this profile's settings (asks first)" },
     { "undo", "undo the last profile reset or copy" },
@@ -952,10 +951,8 @@ SlashCmdList.TEMPUS = function(msg)
         else
             T:Print("the Shopping list module is off.")
         end
-    elseif msg == "copychat" then
-        if T.Chat and T.Chat.Copy then T.Chat:Copy() else T:Print("the Chat module is off.") end
-    elseif msg == "selectchat" then
-        if T.Chat and T.Chat.db and T.Chat.ToggleSelect then T.Chat:ToggleSelect() else T:Print("the Chat module is off.") end
+    elseif msg == "copychat" or msg == "selectchat" then
+        if T.Chat and T.Chat.ToggleLog then T.Chat:ToggleLog() else T:Print("the Chat module is off.") end
     elseif msg == "probe" and (fullMsg or ""):lower():match("^%s*probe%s+dps") then
         local s = T:RunDPSProbe()
         T:Print("DPS probe: API %s, meter %s, enabled %s, live %s, top %s. /reload to save it.",

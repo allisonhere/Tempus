@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.11.5
+
+### Changed
+- **One chat log window**: reviewing and copying chat was split between a copy window and a separate select mode, each with its own icon by the tabs, its own setting and its own slash command. There is now one window that does both. Open it with the copy icon at the end of the tab row, by Alt+clicking a chat window, or with `/tempus copychat` (`/tempus selectchat` still works). Drag or Shift+arrows to select, Ctrl+A picks the lot, Ctrl+C copies, Esc closes. Colours start off, so what you paste outside the game is plain text; the **Colours** button shows the lines the way chat draws them. Lines that arrive while the window is open are counted and added by **Update**, so they cannot move the text under your selection. Typing in the window is put back, and the corner can be dragged to resize it. Chat settings now hold one checkbox, **Chat log button next to the tabs**, instead of two.
+
 ## 2.11.4
 
 ### Changed

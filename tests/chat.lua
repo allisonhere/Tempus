@@ -44,7 +44,7 @@ local _, sub = filter(nil, "CHAT_MSG_SAY", "see docs.google.com/a and mail a@b.c
 assert(sub:find("|Hurl:docs.google.com/a|h", 1, true), "subdomain linked whole")
 assert(sub:find("|Hurl:a@b.com|h", 1, true), "mail linked")
 
--- Select mode text: colours kept, link wrappers and textures dropped.
+-- Colours on: colours kept, link wrappers and textures dropped.
 local K = Chat.CleanKeepColor
 assert(K("|cffff0000|Hitem:1|h[Sword]|h|r |TInterface\\x:0|tok") == "|cffff0000[Sword]|r ok", "colour kept, link and texture stripped")
 
@@ -54,7 +54,7 @@ local bn = "|HBNplayer:|Ks8|k:10:921:BN_WHISPER:|Ks8|k|h[|Ks8|k]|h whispers: hi"
 assert(Chat.StripProtected(bn, look) == "|HBNplayer:|Ks8|k:10:921:BN_WHISPER:|Ks8|k|h[Sam]|h whispers: hi" or
     not Chat.StripProtected(bn, look):find("[|Ks8|k]", 1, true), "name inside the link replaced")
 assert(Chat.StripProtected(bn, look):find("|h[Sam]|h whispers: hi", 1, true), "friend's name shown")
-assert(K(bn) == "[friend] whispers: hi", "select text has no protected codes")
+assert(K(bn) == "[friend] whispers: hi", "coloured text has no protected codes")
 assert(not Chat.StripProtected("hello |Ks2|k there", look):find("|K", 1, true), "loose codes replaced too")
 assert(Chat.StripProtected("|HBNplayer:|Ks9|k:99:1:BN_WHISPER:|Ks9|k|h[|Ks9|k]|h: yo", look):find("[friend]", 1, true), "unknown friend")
 
@@ -70,8 +70,27 @@ local box = { tempusText = "keep", text = "keep!", GetText = function(self) retu
 Chat.GuardText(box, true); assert(box.text == "keep", "user edit undone")
 box.text = "code"; Chat.GuardText(box, false); assert(box.text == "code", "code changes left alone")
 
--- The select box must never look like a chat input box, or spell checkers would hook it.
-assert(not Chat.SELECT_BOX_NAME:find("^ChatFrame%d+EditBox$") and not Chat.SELECT_BOX_NAME:find("^WIM"))
+-- Colours off is the default cleaner, so what you paste outside the game is plain text.
+local one = { GetNumMessages = function() return 1 end,
+    GetMessageInfo = function() return "|cffff0000|Hitem:1|h[Sword]|h|r hi" end }
+assert(Chat.Lines(one)[1] == "[Sword] hi", "default cleaner strips colours and link wrappers")
+assert(Chat.Lines(one, K)[1] == "|cffff0000[Sword]|r hi", "colours kept when asked for")
+
+-- One window, one edit box, and it has no name at all: a spell checker that hooks chat
+-- input by name (SpellPower) cannot reach a box it cannot look up. The old in-place
+-- select overlay and its named box are gone.
+assert(Chat.SELECT_BOX_NAME == nil and Chat.OpenSelect == nil and Chat.CloseSelect == nil,
+    "the select overlay is gone")
+assert(Chat.ShowLog and Chat.ToggleLog and Chat.Copy == Chat.ShowLog and Chat.ToggleSelect == Chat.ToggleLog,
+    "the old names still open the one window")
+
+-- A profile that had only select mode on keeps the feature when the two settings merge.
+local db = { selectMode = true, copyButton = false }
+assert(Chat.MergeSelectMode(db) and db.copyButton == true and db.selectMode == nil, "select mode moved onto the one setting")
+local db2 = { selectMode = true, copyButton = true }
+assert(Chat.MergeSelectMode(db2) == false and db2.selectMode == nil, "already on, nothing to move")
+local db3 = { copyButton = false }
+assert(Chat.MergeSelectMode(db3) == false and db3.copyButton == false, "nothing saved, nothing changed")
 
 -- Typing: only the alt-arrow switch is flipped; Blizzard's handlers are never replaced.
 local calls = {}
@@ -113,4 +132,4 @@ assert(SF("%H:%M:%S ", true) == "|cff6f7787%H:%M:%S|r ", "wrapped")
 assert(SF(SF("%H:%M:%S ", true), true) == "|cff6f7787%H:%M:%S|r ", "wrapping twice is the same")
 assert(SF("|cff6f7787%H:%M:%S|r ", false) == "%H:%M:%S ", "unwrapped")
 assert(SF("none", true) == "none", "off stays off")
-print("PASS: chat links, secret handling, select mode, editor keys, short channels and timestamps")
+print("PASS: chat links, secret handling, the chat log window, editor keys, short channels and timestamps")

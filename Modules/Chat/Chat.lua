@@ -1,5 +1,5 @@
--- Tempus UI: chat features on top of Blizzard's own chat frames: a select mode that shows a window
--- as selectable text, arrow keys that move the cursor in the chat box, clickable links, a copy window,
+-- Tempus UI: chat features on top of Blizzard's own chat frames: a chat log window you can select
+-- and copy from, arrow keys that move the cursor in the chat box, clickable links,
 -- chat history that survives a reload, timestamps, and tabs that fade until the mouse is near.
 -- Blizzard still formats and delivers every line. Text is only touched when it is a plain string:
 -- during a boss fight or Mythic+ run the client hands chat over as secret values, which cannot be
@@ -13,12 +13,11 @@ T.Chat = Chat
 
 Chat.defaults = {
     urls = true,            -- web addresses become clickable links that open a copy box
-    copyButton = true,      -- small "copy" button in the corner of each chat window
+    copyButton = true,      -- the chat log icon at the end of the tab row, and Alt+click
     history = true,         -- keep recent lines across /reload and relog
     historyLines = 150,     -- per chat window
     timestamps = "KEEP",    -- KEEP leaves the game setting alone | NONE | H24 | H12
     fadeChrome = false,     -- hide tabs and buttons until the mouse is over the chat window
-    selectMode = true,      -- Alt+click or the I-beam button shows a window as selectable text
     editorKeys = true,      -- plain arrow keys move the cursor in the chat box; Up/Down walk history
     shortChannels = true,   -- [2. Trade - City] becomes [T]
     classNames = true,      -- player names in their class colour (the game's own setting)
@@ -136,9 +135,48 @@ local function UrlFilter(_, _, msg, ...)
 end
 
 ----------------------------------------------------------------------------------------
--- Copy window
+-- Chat log window
+--
+-- One window for reading and copying chat, opened from the icon at the end of the tab row,
+-- by Alt+clicking a chat window, or with /tempus copychat. The lines sit in a multi-line
+-- EditBox, so you can drag or Shift+arrow a selection and Ctrl+C it, or Ctrl+A for the lot.
+-- Colours are off by default, so what you paste outside the game is plain text; the Colours
+-- button shows the same lines the way chat draws them. Lines that arrive while the window is
+-- open are counted instead of added, so they cannot move the text under a selection.
+--
+-- The box is deliberately left unnamed: spell checkers that hook chat input by name
+-- (SpellPower) cannot reach a box that has no name at all.
 ----------------------------------------------------------------------------------------
 local win
+local Render
+
+-- Read-only: anything the user types or pastes is put back. Selecting and Ctrl+C never
+-- change the text, so they work as normal.
+function Chat.GuardText(box, user)
+    if user and box.tempusText and box:GetText() ~= box.tempusText then
+        box:SetText(box.tempusText)
+    end
+end
+
+-- Keep the cursor in sight while it moves with the keyboard.
+local function FollowCursor(scroll, y, h)
+    local top = -y
+    local cur = scroll:GetVerticalScroll()
+    local height = scroll:GetHeight()
+    if top < cur then
+        scroll:SetVerticalScroll(top)
+    elseif top + h > cur + height then
+        scroll:SetVerticalScroll(math.min(scroll:GetVerticalScrollRange(), top + h - height))
+    end
+end
+
+local LOG_HINT = "Drag or Shift+arrows to select, Ctrl+A then Ctrl+C copies the lot. Esc closes."
+local TEXT_HINT = "Click in the text and press Ctrl+A, then Ctrl+C. Esc closes this window."
+local MIN_W, MIN_H = 420, 240
+
+local function FitEdit()
+    if win then win.edit:SetWidth(math.max(120, (win:GetWidth() or MIN_W) - 44)) end
+end
 
 local function BuildWindow()
     local UI = T.UI
@@ -150,18 +188,38 @@ local function BuildWindow()
     win:SetToplevel(true)
     win:EnableMouse(true)
     win:SetMovable(true)
+    win:SetResizable(true)
+    if win.SetResizeBounds then pcall(win.SetResizeBounds, win, MIN_W, MIN_H)
+    elseif win.SetMinResize then pcall(win.SetMinResize, win, MIN_W, MIN_H) end
     win:RegisterForDrag("LeftButton")
     win:SetScript("OnDragStart", win.StartMoving)
-    win:SetScript("OnDragStop", win.StopMovingOrSizing)
+    win:SetScript("OnDragStop", function(self) self:StopMovingOrSizing(); FitEdit() end)
+    win:SetScript("OnSizeChanged", FitEdit)
     tinsert(UISpecialFrames, "TempusChatCopyFrame")
     UI.Tex(win, "BACKGROUND", C.bg, -7):SetAllPoints()
     UI.Border(win, { 1, 1, 1, 0.12 })
 
     win.title = UI.Text(win, 16, AC)
     win.title:SetPoint("TOPLEFT", 16, -14)
+
+    win.colorBtn = UI.FlatButton(win, "Colours", 78, 22, function(self)
+        win.colors = not win.colors
+        self:SetActive(win.colors and true or false)
+        Render()
+    end)
+    win.colorBtn:SetPoint("TOPRIGHT", -16, -12)
+    UI.Tooltip(win.colorBtn, "Colours", "Shows the lines the way chat draws them. Off means plain text, so what you paste outside the game has no colour codes in it.")
+
+    win.update = UI.FlatButton(win, "Update", 78, 22, function() Render() end)
+    win.update:SetPoint("RIGHT", win.colorBtn, "LEFT", -6, 0)
+    win.update:Hide()
+    UI.Tooltip(win.update, "Update", "New lines have arrived since this window opened. Adding them clears any selection you have made.")
+
     win.hint = UI.Text(win, 11, C.muted)
     win.hint:SetPoint("TOPLEFT", 16, -40)
-    win.hint:SetText("Click in the text and press Ctrl+A, then Ctrl+C. Esc closes this window.")
+    win.hint:SetPoint("RIGHT", win, "RIGHT", -16, 0)
+    win.hint:SetJustifyH("LEFT")
+    win.hint:SetText(LOG_HINT)
 
     local box = CreateFrame("Frame", nil, win)
     box:SetPoint("TOPLEFT", 16, -64)
@@ -183,20 +241,54 @@ local function BuildWindow()
         local range = math.max(0, edit:GetHeight() - self:GetHeight())
         self:SetVerticalScroll(math.max(0, math.min(range, self:GetVerticalScroll() - delta * 40)))
     end)
-    edit:SetScript("OnEscapePressed", edit.ClearFocus)
+    edit:SetScript("OnTextChanged", function(self, user) Chat.GuardText(self, user) end)
+    edit:SetScript("OnCursorChanged", function(_, _, y, _, h) FollowCursor(scroll, y, h) end)
+    edit:SetScript("OnEscapePressed", function() win:Hide() end)
     box:SetScript("OnMouseDown", function() edit:SetFocus() end)
     win.edit, win.scroll = edit, scroll
 
     win.close = UI.FlatButton(win, "Close", 100, 26, function() win:Hide() end)
-    win.close:SetPoint("BOTTOMRIGHT", -16, 16)
+    win.close:SetPoint("BOTTOMRIGHT", -22, 20)
+
+    -- Three stepped bars in the corner: drag to resize, since this window stands in for a
+    -- view that used to match the chat window's own size.
+    local grip = CreateFrame("Button", nil, win)
+    grip:SetSize(14, 14)
+    grip:SetPoint("BOTTOMRIGHT", -3, 3)
+    local bars = {}
+    for i = 1, 3 do
+        local t = grip:CreateTexture(nil, "OVERLAY")
+        t:SetTexture(S.WHITE)
+        t:SetSize(i * 4, 1)
+        t:SetPoint("BOTTOMRIGHT", grip, "BOTTOMRIGHT", 0, (i - 1) * 4)
+        t:SetVertexColor(0.5, 0.55, 0.62, 1)
+        bars[#bars + 1] = t
+    end
+    grip:SetScript("OnEnter", function()
+        local ac = T.accent
+        for _, t in ipairs(bars) do t:SetVertexColor(ac[1], ac[2], ac[3], 1) end
+    end)
+    grip:SetScript("OnLeave", function()
+        for _, t in ipairs(bars) do t:SetVertexColor(0.5, 0.55, 0.62, 1) end
+    end)
+    grip:SetScript("OnMouseDown", function() win:StartSizing("BOTTOMRIGHT") end)
+    grip:SetScript("OnMouseUp", function() win:StopMovingOrSizing(); FitEdit() end)
 end
 
+-- A plain block of text in the same window: used for a clicked web link, which is not a
+-- chat log, so the log's own buttons stay out of the way.
 function Chat:ShowText(title, text)
     if not win then BuildWindow() end
+    win.cf, win.pending = nil, 0
     win.title:SetText(title)
+    win.hint:SetText(TEXT_HINT)
+    win.colorBtn:Hide()
+    win.update:Hide()
+    win.edit.tempusText = text or ""
     win.edit:SetText(text or "")
     win.scroll:SetVerticalScroll(0)
     win:Show()
+    FitEdit()
     win.edit:SetFocus()
     win.edit:HighlightText()
 end
@@ -230,8 +322,8 @@ local function Clean(line)
     return line
 end
 
--- Same, but colours stay: the select view is an EditBox, which draws |c...|r itself.
--- Link wrappers go (an EditBox cannot click them) and the link text stays, coloured.
+-- Same, but colours stay: the window is an EditBox, which draws |c...|r itself. Link
+-- wrappers go (an EditBox cannot click them) and the link text stays, coloured.
 function Chat.CleanKeepColor(line)
     line = Chat.StripProtected(line)
     line = line:gsub("|T.-|t", ""):gsub("|A.-|a", "")
@@ -261,196 +353,77 @@ local function HiddenNote(hidden)
     return ("\n\n(%d line%s hidden by the game during a boss fight or Mythic+ run)"):format(hidden, hidden == 1 and "" or "s")
 end
 
-function Chat:Copy(cf)
-    cf = cf or SELECTED_CHAT_FRAME or ChatFrame1
-    local lines, hidden = Chat.Lines(cf)
+-- Fill the window from the chat frame it was opened on. Called again by Colours and Update.
+function Render()
+    if not (win and win.cf) then return end
+    local lines, hidden = Chat.Lines(win.cf, win.colors and Chat.CleanKeepColor or Clean)
     local text = table.concat(lines, "\n") .. HiddenNote(hidden)
-    self:ShowText("Chat window " .. ((cf:GetName() or ""):gsub("ChatFrame", "")), text)
+    if text == "" then text = "(No lines in this window that can be shown.)" end
+    win.count, win.pending = #lines, 0
+    win.update:Hide()
+    win.hint:SetText(LOG_HINT)
+    win.edit.tempusText = text
+    win.edit:SetText(text)
+    win.edit:SetFocus()
+    win.edit:HighlightText()
+    -- The box only knows its full height after layout; then jump to the newest line.
+    local function Bottom()
+        if win:IsShown() then win.scroll:SetVerticalScroll(win.scroll:GetVerticalScrollRange()) end
+    end
+    C_Timer.After(0, Bottom)
+    C_Timer.After(0.1, Bottom)
 end
+
+function Chat:ShowLog(cf)
+    cf = cf or SELECTED_CHAT_FRAME or ChatFrame1
+    if not cf then return end
+    if not win then BuildWindow() end
+    win.cf = cf
+    win.colors = win.colors or false
+    win.title:SetText("Chat window " .. ((cf:GetName() or ""):gsub("ChatFrame", "")))
+    win.colorBtn:Show()
+    win.colorBtn:SetActive(win.colors)
+    win:Show()
+    FitEdit()
+    Render()
+end
+
+function Chat:ToggleLog(cf)
+    if win and win:IsShown() then win:Hide() else self:ShowLog(cf) end
+end
+
+function Chat:LogShown() return win and win:IsShown() or false end
+
+-- Older names, kept so /tempus copychat, /tempus selectchat and anything else holding on
+-- to them still open the one window.
+Chat.Copy = Chat.ShowLog
+Chat.ToggleSelect = Chat.ToggleLog
 
 local function OnLink(link)
     local url = type(link) == "string" and not issecret(link) and link:match("^url:(.+)$")
     if url then Chat:ShowText("Link", url) end
 end
 
-----------------------------------------------------------------------------------------
--- Select mode: the chat window shown as text you can select like a text editor.
--- Blizzard's frame keeps drawing chat (links stay clickable, secret lines still show);
--- this view only sits on top of it while you select. The box is deliberately not named
--- ChatFrameNEditBox, so spell checkers that hook the chat input (SpellPower) leave it alone.
-----------------------------------------------------------------------------------------
-local view
-local SELECT_BOX_NAME = "TempusChatSelectBox"
-Chat.SELECT_BOX_NAME = SELECT_BOX_NAME
-
--- Read-only: anything the user types or pastes is put back. Selecting and Ctrl+C never
--- change the text, so they work as normal.
-function Chat.GuardText(box, user)
-    if user and box.tempusText and box:GetText() ~= box.tempusText then
-        box:SetText(box.tempusText)
-    end
-end
-
--- Keep the cursor in sight while it moves with the keyboard.
-local function FollowCursor(scroll, y, h)
-    local top = -y
-    local cur = scroll:GetVerticalScroll()
-    local height = scroll:GetHeight()
-    if top < cur then
-        scroll:SetVerticalScroll(top)
-    elseif top + h > cur + height then
-        scroll:SetVerticalScroll(math.min(scroll:GetVerticalScrollRange(), top + h - height))
-    end
-end
-
-local function BuildView()
-    local UI = T.UI
-    local C = S.C
-    view = CreateFrame("Frame", "TempusChatSelectFrame", UIParent)
-    view:SetFrameStrata("DIALOG")
-    view:EnableMouse(true)
-    view:Hide()
-    UI.Tex(view, "BACKGROUND", { 0.03, 0.035, 0.045, 0.97 }, -7):SetAllPoints()
-    UI.Border(view, { T.accent[1], T.accent[2], T.accent[3], 0.6 })
-
-    view.hint = UI.Text(view, 10, C.muted)
-    view.hint:SetPoint("TOPLEFT", 6, -4)
-    view.hint:SetPoint("RIGHT", view, "RIGHT", -60, 0)
-    view.hint:SetJustifyH("LEFT")
-
-    local close = CreateFrame("Button", nil, view)
-    close:SetSize(16, 16)
-    close:SetPoint("TOPRIGHT", -3, -2)
-    close.text = UI.Text(close, 13, C.muted)
-    close.text:SetPoint("CENTER")
-    close.text:SetText("x")
-    close:SetScript("OnClick", function() Chat:CloseSelect() end)
-    close:SetScript("OnEnter", function(self) self.text:SetTextColor(T.accent[1], T.accent[2], T.accent[3]) end)
-    close:SetScript("OnLeave", function(self) self.text:SetTextColor(C.muted[1], C.muted[2], C.muted[3]) end)
-
-    local refresh = CreateFrame("Button", nil, view)
-    refresh:SetSize(40, 16)
-    refresh:SetPoint("RIGHT", close, "LEFT", -4, 0)
-    refresh.text = UI.Text(refresh, 10, T.accent)
-    refresh.text:SetPoint("RIGHT")
-    refresh:SetScript("OnClick", function() if view.cf then Chat:OpenSelect(view.cf) end end)
-    refresh:Hide()
-    view.refresh = refresh
-
-    local scroll = CreateFrame("ScrollFrame", nil, view)
-    scroll:SetPoint("TOPLEFT", 4, -20)
-    scroll:SetPoint("BOTTOMRIGHT", -4, 4)
-    local edit = CreateFrame("EditBox", SELECT_BOX_NAME, scroll)
-    edit:SetMultiLine(true)
-    edit:SetAutoFocus(false)
-    edit:SetMaxLetters(0)
-    edit:EnableMouse(true)
-    edit:SetFontObject(ChatFontNormal or GameFontHighlightSmall)
-    scroll:SetScrollChild(edit)
-    scroll:EnableMouse(true)
-    scroll:EnableMouseWheel(true)
-    scroll:SetScript("OnMouseWheel", function(self, delta)
-        local range = self:GetVerticalScrollRange()
-        self:SetVerticalScroll(math.max(0, math.min(range, self:GetVerticalScroll() - delta * 40)))
-    end)
-    scroll:SetScript("OnMouseDown", function() edit:SetFocus() end)
-    edit:SetScript("OnTextChanged", function(self, user) Chat.GuardText(self, user) end)
-    edit:SetScript("OnCursorChanged", function(_, _, y, _, h) FollowCursor(scroll, y, h) end)
-    edit:SetScript("OnEscapePressed", function() Chat:CloseSelect() end)
-    edit:SetScript("OnEnterPressed", function() Chat:CloseSelect() end)
-    view.edit, view.scroll = edit, scroll
-end
-
-local function SetHint(newLines)
-    if newLines and newLines > 0 then
-        view.hint:SetText(("Select mode  -  %d new line%s"):format(newLines, newLines == 1 and "" or "s"))
-        view.refresh.text:SetText("update")
-        view.refresh:Show()
-    else
-        view.hint:SetText(("Select mode  -  %d lines  -  drag or Shift+arrows to select, Ctrl+C copies, Esc returns"):format(view.count or 0))
-        view.refresh:Hide()
-    end
-end
-
-function Chat:OpenSelect(cf)
-    cf = cf or SELECTED_CHAT_FRAME or ChatFrame1
-    if not cf then return end
-    if not view then BuildView() end
-    view.cf, view.pending = cf, 0
-    view:ClearAllPoints()
-    view:SetPoint("TOPLEFT", cf, "TOPLEFT", -4, 22)
-    view:SetPoint("BOTTOMRIGHT", cf, "BOTTOMRIGHT", 4, -4)
-    view:SetFrameLevel((cf:GetFrameLevel() or 1) + 20)
-    -- Match the chat window's font. If that fails, fall back to the chat font object.
-    -- Setting a font can reset the colour on newer clients, so colour and shadow are set after.
-    local edit = view.edit
-    local font, size, flags = cf:GetFont()
-    local ok, set = false, false
-    if font and size then ok, set = pcall(edit.SetFont, edit, font, size, flags or "") end
-    if not (ok and set ~= false) then edit:SetFontObject(ChatFontNormal or GameFontHighlightSmall) end
-    edit:SetTextColor(1, 1, 1, 1)
-    edit:SetShadowColor(0, 0, 0, 0.9)
-    edit:SetShadowOffset(1, -1)
-    edit:SetWidth(math.max(50, (cf:GetWidth() or 300) - 4))
-    view:Show()
-    local lines, hidden = Chat.Lines(cf, Chat.CleanKeepColor)
-    view.count = #lines
-    local text = table.concat(lines, "\n") .. HiddenNote(hidden)
-    if text == "" then text = "(No lines in this window that can be shown.)" end
-    edit.tempusText = text
-    edit:SetText(text)
-    SetHint(0)
-    edit:SetFocus()
-    edit:SetCursorPosition(#text)
-    -- The box only knows its full height after layout; then jump to the newest line.
-    local function Bottom()
-        if view:IsShown() then view.scroll:SetVerticalScroll(view.scroll:GetVerticalScrollRange()) end
-    end
-    C_Timer.After(0, Bottom)
-    C_Timer.After(0.1, Bottom)
-end
-
-function Chat:CloseSelect()
-    if not view or not view:IsShown() then return end
-    view.edit:ClearFocus()
-    view.edit.tempusText = nil
-    view.edit:SetText("")
-    view:Hide()
-    view.cf = nil
-end
-
-function Chat:ToggleSelect(cf)
-    if view and view:IsShown() then self:CloseSelect() else self:OpenSelect(cf) end
-end
-
-function Chat:SelectShown() return view and view:IsShown() or false end
-
--- New lines while the view is open are counted, not added: adding would drop the
--- selection you are making. "update" reloads the view with them.
+-- New lines while the window is open are counted, not added: adding would drop the
+-- selection you are making. Update reloads the window with them.
 local function NoteNewLine(cf, text)
-    if not (view and view:IsShown() and view.cf == cf) or not Plain(text) then return end
-    view.pending = (view.pending or 0) + 1
-    SetHint(view.pending)
+    if not (win and win:IsShown() and win.cf == cf) or not Plain(text) then return end
+    win.pending = (win.pending or 0) + 1
+    win.hint:SetText(("%d new line%s since this window opened - Update adds them."):format(win.pending, win.pending == 1 and "" or "s"))
+    win.update:Show()
 end
 
-function Chat:HookSelect()
+function Chat:HookChatLog()
     for _, cf in ipairs(Frames()) do
-        if not cf.tempusSelect then
-            cf.tempusSelect = true
+        if not cf.tempusChatLog then
+            cf.tempusChatLog = true
             cf:HookScript("OnMouseDown", function(self, button)
-                if button == "LeftButton" and Chat.db and Chat.db.selectMode and IsAltKeyDown and IsAltKeyDown() then
-                    pcall(Chat.OpenSelect, Chat, self)
+                if button == "LeftButton" and Chat.db and Chat.db.copyButton and IsAltKeyDown and IsAltKeyDown() then
+                    pcall(Chat.ShowLog, Chat, self)
                 end
-            end)
-            cf:HookScript("OnHide", function(self)
-                if view and view.cf == self then Chat:CloseSelect() end
             end)
             hooksecurefunc(cf, "AddMessage", function(self, text) pcall(NoteNewLine, self, text) end)
         end
-    end
-    if not self.selectTabHook and FCF_Tab_OnClick then
-        self.selectTabHook = true
-        hooksecurefunc("FCF_Tab_OnClick", function() Chat:CloseSelect() end)
     end
 end
 
@@ -493,7 +466,8 @@ end
 ----------------------------------------------------------------------------------------
 -- Copy buttons and fading tabs
 ----------------------------------------------------------------------------------------
--- One icon button at the right end of the tab row; it copies whichever chat window is selected.
+-- One icon button at the right end of the tab row; it opens the chat log for whichever
+-- chat window is selected.
 local function Outline(parent, x, y, size, list)
     local function line(point, rel, w, h, ox, oy)
         local t = parent:CreateTexture(nil, "OVERLAY")
@@ -529,55 +503,18 @@ local function BuildCopyButton()
         local ac = T.accent
         Tint(ac[1], ac[2], ac[3])
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Copy chat")
-        GameTooltip:AddLine("Opens this window's text so you can copy it.", 0.8, 0.85, 0.9, true)
+        GameTooltip:SetText("Chat log")
+        GameTooltip:AddLine("Opens this window's lines as text you can select and copy. Alt+click a chat window does the same.", 0.8, 0.85, 0.9, true)
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() Tint(0.75, 0.8, 0.9); GameTooltip:Hide() end)
-    b:SetScript("OnClick", function() Chat:Copy(SELECTED_CHAT_FRAME or ChatFrame1) end)
+    b:SetScript("OnClick", function() Chat:ToggleLog(SELECTED_CHAT_FRAME or ChatFrame1) end)
     Chat.copyButton = b
-end
-
--- An I-beam button left of the copy button: select mode for the selected window.
-local function BuildSelectButton()
-    local dock = _G.GeneralDockManager
-    if Chat.selectButton or not dock then return end
-    local b = CreateFrame("Button", nil, dock)
-    b:SetSize(20, 20)
-    b:SetPoint("RIGHT", dock, "RIGHT", -24, 0)
-    b:SetFrameLevel(dock:GetFrameLevel() + 5)
-    local lines = {}
-    local function bar(w, h, x, y)
-        local t = b:CreateTexture(nil, "OVERLAY")
-        t:SetTexture(S.WHITE)
-        t:SetSize(w, h)
-        t:SetPoint("TOPLEFT", b, "TOPLEFT", x, y)
-        lines[#lines + 1] = t
-    end
-    bar(1, 12, 10, -4)      -- stem
-    bar(5, 1, 8, -3)        -- top serif
-    bar(5, 1, 8, -16)       -- bottom serif
-    local function Tint(r, g, bl) for _, t in ipairs(lines) do t:SetVertexColor(r, g, bl, 1) end end
-    Tint(0.75, 0.8, 0.9)
-    b:SetScript("OnEnter", function(self)
-        local ac = T.accent
-        Tint(ac[1], ac[2], ac[3])
-        GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:SetText("Select text")
-        GameTooltip:AddLine("Shows this window as text you can select with the mouse or keyboard. Ctrl+C copies, Esc returns. Alt+click a chat window does the same.", 0.8, 0.85, 0.9, true)
-        GameTooltip:Show()
-    end)
-    b:SetScript("OnLeave", function() Tint(0.75, 0.8, 0.9); GameTooltip:Hide() end)
-    b:SetScript("OnClick", function() Chat:ToggleSelect(SELECTED_CHAT_FRAME or ChatFrame1) end)
-    Chat.selectButton = b
 end
 
 function Chat:ApplyButtons()
     BuildCopyButton()
-    BuildSelectButton()
     if self.copyButton then self.copyButton:SetShown(self.db.copyButton and true or false) end
-    if self.selectButton then self.selectButton:SetShown(self.db.selectMode and true or false) end
-    if not self.db.selectMode then self:CloseSelect() end
 end
 
 -- Tabs, the button column and the dock hide until the mouse is over a chat window. Alpha only.
@@ -604,7 +541,6 @@ local function FadeTick()
     if not (Chat.db and Chat.db.fadeChrome) then
         if fadeTicker then fadeTicker:Cancel(); fadeTicker = nil end
         if Chat.copyButton then Chat.copyButton:SetAlpha(1) end
-        if Chat.selectButton then Chat.selectButton:SetAlpha(1) end
         EachChrome(function(f) if f and f.SetAlpha then f:SetAlpha(1) end end)
         return
     end
@@ -620,10 +556,8 @@ local function FadeTick()
         local edit = _G[name .. "EditBox"]
         if edit and edit:HasFocus() then over = true end
     end
-    if Chat:SelectShown() then over = true end
     local alpha = over and 1 or 0
     if Chat.copyButton and Chat.copyButton:GetAlpha() ~= alpha then Chat.copyButton:SetAlpha(alpha) end
-    if Chat.selectButton and Chat.selectButton:GetAlpha() ~= alpha then Chat.selectButton:SetAlpha(alpha) end
     EachChrome(function(f)
         if f and f.SetAlpha and f:GetAlpha() ~= alpha then f:SetAlpha(alpha) end
     end)
@@ -762,21 +696,32 @@ end
 ----------------------------------------------------------------------------------------
 -- Module
 ----------------------------------------------------------------------------------------
+-- Select mode and the copy window used to be two settings. They are one window now, so a
+-- profile that had only select mode on keeps the feature instead of losing it quietly.
+function Chat.MergeSelectMode(db)
+    if type(db) ~= "table" or db.selectMode == nil then return false end
+    local moved = db.selectMode and not db.copyButton
+    if moved then db.copyButton = true end
+    db.selectMode = nil
+    return moved
+end
+
 function Chat:Apply()
     self.db = T.db.chat
     self:ApplyButtons()
     self:ApplyFade()
     self:ApplyInput()
-    self:HookSelect()
+    self:HookChatLog()
     if self.db.history then self:HookHistory() end
 end
 
 T:NewModule("chat", {
     label = "Chat",
-    desc = "Selectable chat text, editor-style cursor keys, clickable links, a copy window, chat history across reloads, timestamps and fading tabs on top of Blizzard's chat.",
+    desc = "A chat log window you can select and copy from, editor-style cursor keys, clickable links, chat history across reloads, timestamps and fading tabs on top of Blizzard's chat.",
     defaults = Chat.defaults,
     OnEnable = function()
         Chat.db = T.db.chat
+        Chat.MergeSelectMode(Chat.db)
         for _, event in ipairs(URL_EVENTS) do
             pcall(ChatFrame_AddMessageEventFilter, event, UrlFilter)
         end

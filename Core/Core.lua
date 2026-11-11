@@ -480,6 +480,31 @@ function T:ModuleEnabled(key)
     return T.db and T.db.modules and T.db.modules[key] ~= false
 end
 
+-- Optional addons (Catchy, SpellPower...) that add pages to this window. A plugin's pages carry
+-- `plugin = key` and are hidden from the sidebar and search while it is switched off under
+-- General > Modules. Plugins are on by default, so nothing disappears on upgrade.
+T.plugins, T.pluginOrder = {}, {}
+function T:RegisterPlugin(key, def)
+    if T.plugins[key] then return T.plugins[key] end
+    def = def or {}
+    def.key = key
+    T.plugins[key] = def
+    T.pluginOrder[#T.pluginOrder + 1] = key
+    return def
+end
+
+function T:PluginEnabled(key)
+    if not key then return true end
+    local plugins = T.db and T.db.plugins
+    return not (plugins and plugins[key] == false)
+end
+
+function T:SetPluginEnabled(key, enabled)
+    if not T.db then return end
+    T.db.plugins = T.db.plugins or {}
+    T.db.plugins[key] = enabled and true or false
+end
+
 -- Settings pages contributed by modules, shown in sidebar sections.
 T.pageSections = {
     { key = "general", label = "General" },

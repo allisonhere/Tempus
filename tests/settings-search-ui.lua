@@ -56,13 +56,15 @@ local color = {.1,.2,.3,1}
 local S = {WHITE="white",FONT="font",C=setmetatable({}, {__index=function() return color end}),
  CreateBorder=Frame, Accent=function(value) return value end, Second=function(value) return value end, OnAccent=function(fn) fn() end,
  FadeIn=function() end, SetGradient=function() end}
-local T = {Style=S,accent=color,moduleOrder={},modules={unitframes={enabled=true},disabled={enabled=false}},
+local T = {Style=S,accent=color,moduleOrder={},plugins={},pluginOrder={},modules={unitframes={enabled=true},disabled={enabled=false}},
  db={locked=true,minimap={},modules={}},version="test",pages={},
  pageSections={{key="general",label="General"},{key="unitframes",label="Unit Frames"},{key="disabled",label="Disabled module"},{key="spellpower",label="SpellPower"}},
  Layouts={Cancel=function() end}}
 function T:RegisterPage(section,def) def.section=section; self.pages[#self.pages+1]=def end
 function T:ProfileName() return "Default" end
 function T:ModuleEnabled() return true end
+function T:RegisterPlugin() end
+function T:PluginEnabled(key) return not (key and T.disabledPlugins and T.disabledPlugins[key]) end
 function T:ReportError(err) errors[#errors+1]=err end
 assert(loadfile("Config/Widgets.lua"))("Tempus",T)
 assert(loadfile("Config/Search.lua"))("Tempus",T)
@@ -245,3 +247,16 @@ for _,frame in ipairs(frames) do
     end
 end
 print("PASS: graphical dropdown samples and shared menu cleanup")
+
+-- A switched-off plugin's pages leave search and cannot be selected.
+T:RegisterPage("general",{key="plugged",label="Plugged page",plugin="demo",build=function(p) p:Section("Plugged") end})
+win.search:SetText("Plugged")
+local found=false
+for _,r in ipairs(O.searchResults) do if r.page=="plugged" then found=true end end
+assert(found,"enabled plugin pages are searchable")
+T.disabledPlugins={demo=true}
+win.search:SetText("Plugg")
+for _,r in ipairs(O.searchResults) do assert(r.page~="plugged","disabled plugin pages must not appear in search") end
+O:Select("plugged")
+assert(O.current~="plugged","disabled plugin pages cannot be selected")
+print("PASS: plugin pages follow the plugin switch")

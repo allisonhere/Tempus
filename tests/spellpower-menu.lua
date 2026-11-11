@@ -6,6 +6,8 @@ local function Load(sp, loaded, legacy)
     IsAddOnLoaded = legacy and function() return true end or nil
     local T={Style={C={}},UI={},accent={},pages={}}
     function T:RegisterPage(section,def) def.section=section; self.pages[#self.pages+1]=def end
+    function T:RegisterPlugin() end
+    function T:PluginEnabled() return true end
     assert(loadfile("Config/Window.lua"))("Tempus",T)
     local entries={}
     for _,def in ipairs(T.pages) do if def.section=="spellpower" then entries[#entries+1]=def end end

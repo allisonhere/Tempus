@@ -65,6 +65,25 @@ T:RegisterPage("general", { key = "modules", label = "Modules", order = 1, build
     end
     p:Newline()
     p:Add(UI.W.Button("Reload UI", function() ReloadUI() end, "Applies module changes."))
+    p:Section("Plugins", "Other addons that add their settings to this window. Turn one off to hide its pages here.")
+    if #T.pluginOrder == 0 then
+        p:Paragraph("No plugin addons are loaded.")
+    end
+    for _, key in ipairs(T.pluginOrder) do
+        local plugin = T.plugins[key]
+        p:Add(UI.W.Check(plugin.label or key, function() return T:PluginEnabled(key) end, function(v)
+            T:SetPluginEnabled(key, v)
+            local current
+            for _, def in ipairs(T.pages) do
+                if def.key == O.current then current = def end
+            end
+            if current and current.plugin and not T:PluginEnabled(current.plugin) then
+                O:Select("modules")
+            else
+                O:LayoutNav()
+            end
+        end, plugin.desc))
+    end
     p:Section("Layout", "Unlock (button at the top) to show a box for every movable element.")
     p:Tips({
         "Drag a box's label to move it. It snaps to nearby edges and centres; hold Alt to move freely.",
@@ -83,12 +102,15 @@ end })
 local SP = _G.SpellPower
 local spellPowerLoaded = (C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded("SpellPower"))
     or (IsAddOnLoaded and IsAddOnLoaded("SpellPower")) or SP ~= nil
+if spellPowerLoaded then
+    T:RegisterPlugin("spellpower", { label = "SpellPower", desc = "Show the SpellPower chat spell checker's pages in this window." })
+end
 if SP and SP.Settings and SP.Settings.pages and SP.Settings.Mixin then
     local rank = {}
     for i, section in ipairs(SP.Settings.sections or {}) do rank[section.key] = i end
     for _, def in ipairs(SP.Settings.pages) do
         T:RegisterPage("spellpower", {
-            key = "sp_" .. def.key, label = def.label,
+            key = "sp_" .. def.key, label = def.label, plugin = "spellpower",
             order = (rank[def.section] or 9) * 10 + (def.order or 0),
             build = function(p)
                 SP.Settings:Mixin(p)
@@ -97,7 +119,7 @@ if SP and SP.Settings and SP.Settings.pages and SP.Settings.Mixin then
         })
     end
 elseif spellPowerLoaded then
-    T:RegisterPage("spellpower", { key = "spellpower", label = "SpellPower", order = 1, build = function(p)
+    T:RegisterPage("spellpower", { key = "spellpower", label = "SpellPower", order = 1, plugin = "spellpower", build = function(p)
         p:Section("SpellPower", "Live spell checking and grammar hints in the chat box. It has its own settings window.")
         p:Add(UI.W.Button("Open SpellPower settings", function()
             local handler = SlashCmdList and SlashCmdList["SPELLPOWER"]
@@ -159,10 +181,16 @@ function O:SetSearch(query)
     if #T.SettingsSearch.Normalize(self.searchQuery) >= 2 and not InCombatLockdown() then
         for _, def in ipairs(T.pages) do
             local module = T.modules and T.modules[def.section]
-            if not def.unavailable and not def.pinned and (not module or module.enabled) then self:EnsurePage(def, true) end
+            if not def.unavailable and not def.pinned and (not module or module.enabled) and T:PluginEnabled(def.plugin) then
+                self:EnsurePage(def, true)
+            end
         end
     end
-    self.searchResults, self.searchTotal = T.SettingsSearch.Results(T.pages, self.pages, T.pageSections, self.searchQuery)
+    local visible = {}
+    for _, def in ipairs(T.pages) do
+        if T:PluginEnabled(def.plugin) then visible[#visible + 1] = def end
+    end
+    self.searchResults, self.searchTotal = T.SettingsSearch.Results(visible, self.pages, T.pageSections, self.searchQuery)
     self.searchPicked = nil
     nav:SetVerticalScroll(0)
     self:LayoutNav()
@@ -170,7 +198,7 @@ end
 function O:Select(key)
     local def = FindPage(key) or FindPage("modules")
     if not def then return end
-    if def.unavailable then def = FindPage("modules") end
+    if def.unavailable or not T:PluginEnabled(def.plugin) then def = FindPage("modules") end
     if not def then return end
     key = def.key
     if self.highlight then self.highlight:Hide(); self.highlight = nil end
@@ -255,7 +283,7 @@ end
 local function SectionPages(section)
     local list = {}
     for _, def in ipairs(T.pages) do
-        if def.section == section and not def.pinned then list[#list + 1] = def end
+        if def.section == section and not def.pinned and T:PluginEnabled(def.plugin) then list[#list + 1] = def end
     end
     table.sort(list, function(a, b) return (a.order or 50) < (b.order or 50) end)
     return list

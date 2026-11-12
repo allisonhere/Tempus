@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Center the Need/Greed loot-roll stack above the hotbars and style its panels, fonts and countdown bars with the Tempus Windows skin. Native voting buttons and item tooltips are preserved.
+
 ## 2.11.5
 
 ### Changed

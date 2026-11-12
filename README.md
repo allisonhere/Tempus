@@ -43,7 +43,7 @@ Built for the new Classic client (interface 16001), where the game hides health,
 - **Action Bars**: restyled bars with fading, hotkeys and range colouring, plus a movable, restyled micro menu and bag buttons.
 - **Minimap, Info Bar, XP & Reputation Bars**: a square minimap and a configurable info bar. The Tempus button sits in the map's lower right corner: left-click opens settings, right-click opens the tray of addon buttons. Addon minimap buttons can stay on the edge, fade until mouseover, or collect in that tray.
 - **Chat**: a chat log window that shows a window's lines as text you can select and copy like a text editor — open it from the icon by the tabs, by Alt+clicking a chat window, or with `/tempus copychat` — arrow keys that move the cursor in the chat box, clickable web links, chat history that survives a reload, timestamps and tabs that fade until mouseover, on top of Blizzard's chat (secret-value safe).
-- **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM. Includes a quest log search and a fully skinned quest tracker. **Stock skin** keeps the search but leaves Blizzard's own look in place.
+- **Skins**: Blizzard windows, tooltips, chat, and Bagnon and DBM. Includes centered loot-roll dialogs, a quest log search and a fully skinned quest tracker. **Stock skin** keeps the search but leaves Blizzard's own look in place.
 
 ## Themes
 

@@ -9,6 +9,10 @@ T:RegisterPage("skins", { key = "skins", label = "Skins", order = 1, build = fun
     p:Check(cfg, "stockSkin", "Stock skin (keep Tempus features)", "Leaves Blizzard's windows, tooltips, chat and quest tracker in their stock look, and Bagnon/DBM alone, while quest log search keeps working. Overrides the options below. Applies after a reload.")
     p:Section("Blizzard", "Re-themes the game's windows in the Tempus look. Most changes apply after a reload.")
     p:Check(cfg, "windows", "Windows", "Character sheet, spellbook, talents, merchant, mail, bank, loot, menus, friends and more.")
+    p:Newline()
+    p:Add(W.Button("Preview loot roll", function() T.Skins:PreviewLootRoll() end,
+        "Shows a centered sample. Clicking Need, Greed or Pass only closes the preview."))
+    p:Newline()
     p:Check(cfg, "parchment", "Parchment reading panels", "Quest dialogs, quest details, gossip, books and mail keep their parchment inside a Tempus frame. Off makes them fully dark with brightened text. Applies after a reload.")
     p:Check(cfg, "tooltips", "Tooltips", "Tempus panels with class, reaction and item-quality borders.")
     p:Check(cfg, "tooltipHealth", "Tooltip health bar")

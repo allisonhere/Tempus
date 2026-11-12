@@ -1,6 +1,14 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Fixed", items = {
+            { 0, "Center the Need/Greed loot-roll stack above the hotbars and style its panels, fonts and countdown bars with the Tempus Windows skin. Native voting buttons and item tooltips are preserved." },
+        } },
+        { title = "Added", items = {
+            { 0, "Add a Preview loot roll button under Skins to inspect the centered skin without waiting for loot." },
+        } },
+    } },
     { version = "2.11.5", sections = {
         { title = "Changed", items = {
             { 0, "|cffffffffOne chat log window|r: reviewing and copying chat was split between a copy window and a separate select mode, each with its own icon by the tabs, its own setting and its own slash command. There is now one window that does both. Open it with the copy icon at the end of the tab row, by Alt+clicking a chat window, or with |cff9fd6ff/tempus copychat|r (|cff9fd6ff/tempus selectchat|r still works). Drag or Shift+arrows to select, Ctrl+A picks the lot, Ctrl+C copies, Esc closes. Colours start off, so what you paste outside the game is plain text; the |cffffffffColours|r button shows the lines the way chat draws them. Lines that arrive while the window is open are counted and added by |cffffffffUpdate|r, so they cannot move the text under your selection. Typing in the window is put back, and the corner can be dragged to resize it. Chat settings now hold one checkbox, |cffffffffChat log button next to the tabs|r, instead of two." },

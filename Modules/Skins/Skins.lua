@@ -1606,6 +1606,7 @@ T:NewModule("skins", {
         for _, key in ipairs(RELOAD_SETTINGS) do SK.loadedSettings[key] = SK.db[key] end
         SK.loadedSettings.classicTheme = SK:ClassicTheme()
         SK:SkinWindows()
+        if SK.InitLootRolls then SK:Try("loot rolls", SK.InitLootRolls, SK) end
         if SK:On("windows") then
             SK:Try("readable text", SK.InitReadableText, SK)
             SK:Try("bar buttons", SK.SkinBarButtons, SK)
@@ -1619,6 +1620,7 @@ T:NewModule("skins", {
         ev:RegisterEvent("ADDON_LOADED")
         ev:SetScript("OnEvent", function(_, _, addon)
             SK:SkinWindows()
+            if SK.InitLootRolls then SK:Try("loot rolls", SK.InitLootRolls, SK) end
             if SK.OnAddonLoaded then SK:Try("addon " .. addon, SK.OnAddonLoaded, SK, addon) end
         end)
     end,

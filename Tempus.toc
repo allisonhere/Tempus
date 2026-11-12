@@ -87,6 +87,7 @@ Modules\Chat\Whisper.lua
 Modules\Chat\Pages.lua
 
 Modules\Skins\Skins.lua
+Modules\Skins\LootRolls.lua
 Modules\Skins\Quests.lua
 Modules\Skins\TrackerQuests.lua
 Modules\Skins\Tooltip.lua

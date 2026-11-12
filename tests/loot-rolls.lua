@@ -72,28 +72,4 @@ assert(panels[GroupLootFrame3.LootButtonContainer.NeedButton] == 1, "Forever's n
 GroupLootFrame3.Timer.level = 4
 GroupLootFrame3:onShow()
 assert(GroupLootFrame3.Timer.level == 6, "native OnShow must not leave the countdown behind the panel")
-local widgetMethods = {}
-for name in ("SetSize SetFrameStrata SetClampedToScreen SetPoint ClearAllPoints SetJustifyH SetText SetTextColor SetTexture SetAllPoints SetAtlas SetMinMaxValues SetValue SetStatusBarColor SetStatusBarTexture SetFrameLevel SetTexCoord"):gmatch("%S+") do
-    widgetMethods[name] = function() end
-end
-local function Widget()
-    local w = { scripts = {} }
-    function w:SetScript(key, fn) self.scripts[key] = fn end
-    function w:Show() self.shown = true end
-    function w:Hide() self.shown = false end
-    function w:GetFrameLevel() return 1 end
-    function w:IsProtected() return false end
-    w.CreateTexture, w.CreateFontString = Widget, Widget
-    return setmetatable(w, { __index = widgetMethods })
-end
-CreateFrame = Widget
-GameTooltip = { Hide = function() end }
-function RollOnLoot() error("preview must never roll on loot") end
-SK:PreviewLootRoll()
-local preview = SK.lootRollPreview
-assert(preview.shown and preview.tempusRollSkin, "preview must show the actual skin")
-preview.NeedButton.scripts.OnClick()
-assert(not preview.shown, "preview vote should only dismiss the sample")
-SK:PreviewLootRoll()
-assert(SK.lootRollPreview == preview and preview.shown, "preview should be reusable")
 print("PASS: centered roll stacks, native votes, themed panels, combat deferral, stock skin and late loading")

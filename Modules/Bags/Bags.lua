@@ -272,6 +272,13 @@ function B:HookTooltips()
 end
 
 function B:Render(storage)
+    -- The window re-renders on every bag change, which hides, repositions and shows the live item
+    -- buttons (secure item-use templates). Doing that in combat taints them and blocks right-click
+    -- use (e.g. quaffing a potion mid-fight shows the "action blocked by an AddOn" popup). Defer.
+    if InCombatLockdown() then
+        T:RunOOC(function() self:Render(storage) end, "bags-render-" .. storage)
+        return
+    end
     if self.viewing then
         if storage == "CARRIED" then return self:RenderViewing() end
         if storage == "BANK" then return end

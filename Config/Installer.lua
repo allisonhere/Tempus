@@ -258,6 +258,12 @@ local function Create()
         win:Hide()
     end)
     skip:SetPoint("BOTTOMLEFT", 18, 16)
+    -- Each step's body is a new frame created after these buttons, so without
+    -- an explicit level it can draw on top of them when its content overflows.
+    local navLevel = win:GetFrameLevel() + 10
+    win.next:SetFrameLevel(navLevel)
+    win.back:SetFrameLevel(navLevel)
+    skip:SetFrameLevel(navLevel)
 
     local close = CreateFrame("Button", nil, win)
     close:SetSize(24, 24)

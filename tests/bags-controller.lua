@@ -8,6 +8,8 @@ local T = {
     Print = function() end,
 }
 function UnitName() return "Tester" end
+local combat = false
+function InCombatLockdown() return combat end
 function CreateFrame()
     return { RegisterEvent = function() end, SetScript = function() end }
 end
@@ -110,6 +112,25 @@ do
     B:SetFilter("CARRIED", "GEAR")
     assert(B.filter.CARRIED == "GEAR" and B:ProjectOptions("CARRIED").filter == "GEAR", "filter chip state feeds the projection")
     B.Render = originalRender
+end
+
+-- Rendering in combat taints the live item buttons (see Modules/Bags/Window.lua), so B:Render must
+-- defer the whole redraw out of combat instead of touching the window while a fight is on.
+do
+    B.carriedWindow.frame.Show()
+    local rendered = 0
+    B.carriedWindow.Render = function() rendered = rendered + 1 end
+    local queued = {}
+    T.RunOOC = function(_, fn, key) queued[key] = fn end
+
+    combat = true
+    B:Refresh("CARRIED")
+    assert(rendered == 0, "a render in combat must not touch the live window")
+    assert(type(queued["bags-render-CARRIED"]) == "function", "the deferred redraw is queued under a per-storage key")
+
+    combat = false
+    queued["bags-render-CARRIED"]()
+    assert(rendered == 1, "the queued redraw runs once combat ends")
 end
 
 print("PASS: bag ownership is exclusive and character-local")

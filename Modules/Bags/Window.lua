@@ -1,6 +1,8 @@
 -- Tempus UI: carried-bag and personal-bank windows driven by inventory projections.
 -- Everything drawn on an item button lives in tempus* regions. Never write fields Blizzard's click
 -- handlers read (count, bagID, ...) or call the template's Update: that taints right-click use.
+-- Render() also Hides/Shows/repositions these buttons, which taints them if done in combat; Bags.lua
+-- defers the whole call out of combat via T:RunOOC, so this file can assume it never runs mid-fight.
 local _, T = ...
 local Bags = T.Bags
 local S, UI = T.Style, T.UI

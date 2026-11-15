@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.11.6
+
+### Fixed
+- The flight path map (opened from a flight master) showed solid black under the Tempus skin. It no longer gets stripped like other Blizzard windows, so the route map stays visible.
+
 ## 2.11.5
 
 ### Added

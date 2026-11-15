@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.11.6", sections = {
+        { title = "Fixed", items = {
+            { 0, "The flight path map (opened from a flight master) showed solid black under the Tempus skin. It no longer gets stripped like other Blizzard windows, so the route map stays visible." },
+        } },
+    } },
     { version = "2.11.5", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffPlugins|r section under General > Modules lists optional addons (currently SpellPower) that add their own pages to this settings window. Switch one off to hide its pages from the sidebar and search right away, no reload needed. Plugins are on by default, so nothing disappears after upgrading." },

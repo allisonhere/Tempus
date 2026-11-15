@@ -898,7 +898,23 @@ local function SkinCharacterFrame()
     end
 end
 
+----------------------------------------------------------------------------------------
+-- Flight map. Same rule as the world map: the route background is never stripped, only
+-- the window chrome (border, close button) gets the Tempus treatment.
+----------------------------------------------------------------------------------------
+local function SkinTaxiFrame()
+    local tf = TaxiFrame
+    if not tf then return end
+    for _, key in ipairs({ "NineSlice", "Bg", "TopTileStreaks", "PortraitContainer", "portrait", "Background" }) do
+        HideKey(tf, key)
+    end
+    if type(tf.Border) == "table" and tf.Border.GetObjectType then tf.Border:SetAlpha(0) end
+    SK:Panel(tf)
+    if type(tf.CloseButton) == "table" then SK:Close(tf.CloseButton) end
+end
+
 local EXTRA = {
+    TaxiFrame = SkinTaxiFrame,
     WorldMapFrame = function()
         SkinWorldMap()
         SK:LiveSweep(WorldMapFrame)
@@ -930,7 +946,7 @@ function SK:SkinWindows()
         local f = _G[name]
         if f and f.GetObjectType and (not SK.skinned[f] or EXTRA[name] and not SK.extrasSkinned[f]) then
             local ok, err = true, nil
-            if not SK.skinned[f] and name ~= "WorldMapFrame" then
+            if not SK.skinned[f] and name ~= "WorldMapFrame" and name ~= "TaxiFrame" then
                 ok, err = pcall(SK.Window, SK, f)
             end
             if ok and EXTRA[name] and not SK.extrasSkinned[f] then

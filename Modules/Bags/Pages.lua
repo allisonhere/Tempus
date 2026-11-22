@@ -14,6 +14,7 @@ T:RegisterPage("bags", { key = "bags", label = "Bags", order = 1, build = functi
     p:Section("Window", "Optional parts of the bag window.")
     p:Check(cfg, "showFilters", "Filter chips (gear, consumables, quest, junk)")
     p:Check(cfg, "showBagBar", "Bag bar (hover to highlight a bag, click to show only that bag)")
+    p:Check(cfg, "showBankBagBar", "Bank bag slots (the row of bank bags and tabs in the bank window)")
     p:Check(cfg, "showCurrencies", "Watched currencies in the footer")
     p:Section("Items", "Marks drawn on each item. Sections can be folded by clicking their headers.")
     p:Check(cfg, "sortItems", "Sort sections by quality, item level, then name", "Sections view only. Grid view always shows your real bag slots, so dragging one item onto another swaps them where you can see it. Use the Sort button to tidy the bags themselves.")

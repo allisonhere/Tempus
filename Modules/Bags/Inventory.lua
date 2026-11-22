@@ -91,6 +91,7 @@ I.filters = {
     { key = "ALL", label = "All" },
     { key = "GEAR", label = "Gear", categories = { EQUIPMENT = true } },
     { key = "CONSUMABLE", label = "Consumables", categories = { CONSUMABLE = true } },
+    { key = "TRADES", label = "Trades", categories = { TRADE_GOODS = true, RECIPE = true } },
     { key = "QUEST", label = "Quest", categories = { QUEST = true } },
     { key = "JUNK", label = "Junk", categories = { JUNK = true } },
 }

@@ -12,7 +12,7 @@ T:RegisterPage("bags", { key = "bags", label = "Bags", order = 1, build = functi
     p:Check(cfg, "showEmpty", "Show empty slots")
     p:Check(cfg, "showNew", "Mark newly acquired items")
     p:Section("Window", "Optional parts of the bag window.")
-    p:Check(cfg, "showFilters", "Filter chips (gear, consumables, quest, junk)")
+    p:Check(cfg, "showFilters", "Filter chips (gear, consumables, trades, quest, junk)")
     p:Check(cfg, "showBagBar", "Bag bar (hover to highlight a bag, click to show only that bag)")
     p:Check(cfg, "showBankBagBar", "Bank bag slots (the row of bank bags and tabs in the bank window)")
     p:Check(cfg, "showCurrencies", "Watched currencies in the footer")

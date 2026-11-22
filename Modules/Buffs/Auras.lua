@@ -228,7 +228,8 @@ local function WeaponEntry(slot, has, msLeft, charges)
     local now = GetTime()
     local e = { weapon = slot, index = slot, filter = "WEAPON" }
     e.icon = GetInventoryItemTexture("player", slot)
-    local itemName = GetItemInfo(GetInventoryItemLink("player", slot) or "")
+    local getInfo = GetItemInfo or (C_Item and C_Item.GetItemInfo)
+    local itemName = getInfo and getInfo(GetInventoryItemLink("player", slot) or "")
     local key = slot .. ":" .. tostring(GetInventoryItemID("player", slot))
     if not enchantNameCache[key] then enchantNameCache[key] = WeaponEnchantName(slot) end
     e.name = enchantNameCache[key] or itemName or (slot == 16 and "Main Hand" or "Off Hand")

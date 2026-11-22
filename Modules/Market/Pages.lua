@@ -10,6 +10,8 @@ T:RegisterPage("convenience", {key = "market", label = "Auction values", order =
     p:Section("Gear upgrades", "The Upgrades button in the top-left corner of the auction house window, or /tempus upgrades from anywhere, lists the best gear deals from your last scan: items above what you wear in that slot, that you can equip, ranked by item levels gained per gold.")
     p:Add(T.UI.W.Button("Open upgrades list", function() T.Market:ToggleUpgrades() end, "Opens the list from your last scan. It works anywhere; you do not need the auction house open. Drag it to move it. Also /tempus upgrades.", 200))
     p:Slider(cfg, "upgradeMinGain", "Minimum item level gain", 1, 30, 1, function(v) return "+" .. v end)
+    p:Slider(cfg, "upgradeMaxGold", "Maximum price (gold, 0 = no limit)", 0, 1000, 5, function(v) return v == 0 and "No limit" or (v .. "g") end, "Hides upgrades that cost more than this per item. You can also type a price in the upgrades window.")
     p:Check(cfg, "upgradeAffordable", "Only show upgrades I can afford")
+    p:Check(cfg, "upgradeUseAHFilters", "Use the auction house filters", "The list follows the rarity and level range set in the auction house search filter, once you have opened the auction house this session.")
     p:Paragraph("Items with no scan data show 'No scanned price'; older prices are marked stale. Re-hover an item after a scan to see its updated estimate.")
 end})

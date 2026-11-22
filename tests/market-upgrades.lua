@@ -12,6 +12,7 @@ local T = { accent = { 0.2, 0.7, 1 }, db = { market = { staleDays = 3, upgradeMi
     Num = function(v) return type(v) == 'number' end, issecret = function() return false end,
     ModuleEnabled = function() return true end, Print = function() end,
     NewModule = function(_, _, def) module = def end }
+T.UI = { StyledEditBox = function(parent) return CreateFrame('EditBox', nil, parent) end }
 assert(loadfile('Modules/Bags/Client.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Market.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Upgrades.lua'))('Tempus', T)
@@ -96,15 +97,24 @@ local stats = {
 C_Item.GetItemStats = function(link) return stats[link] end
 ITEM_MOD_CRIT_RATING_SHORT = 'Critical Strike Rating'
 local gains = M.StatGains('new', 'old', 3)
-assert(#gains == 3 and gains[1].label == 'Armor' and gains[1].amount == 200 and gains[2].label == 'Str' and gains[2].amount == 8
-    and gains[3].label == 'Spi' and gains[3].amount == 4, 'gains only, biggest first')
+assert(#gains == 3 and gains[1].label == 'Armor' and gains[1].amount == 200 and gains[2].label == 'Strength' and gains[2].amount == 8
+    and gains[3].label == 'Spirit' and gains[3].amount == 4, 'gains only, biggest first')
 local all = M.StatGains('new', nil, 8)
 assert(#all == 5, 'empty slot: every stat is a gain')
 local down = M.StatGains('old', 'new', 3)
-assert(#down == 1 and down[1].label == 'Sta' and down[1].amount == 5, 'a downgrade in most stats lists only what rises')
+assert(#down == 1 and down[1].label == 'Stamina' and down[1].amount == 5, 'a downgrade in most stats lists only what rises')
 assert(#M.StatGains('missing', 'old') == 0, 'uncached item has no stats yet')
-assert(all[1].label == 'Armor' and all[2].label == 'Sta' and all[3].label == 'Str' and all[4].label == 'Critical Strike'
-    and all[5].label == 'Spi', 'ordered by size; Rating suffix trimmed')
+local both = M.StatGains('old', 'new', 5, true)
+local sawLoss
+for _, g in ipairs(both) do if g.amount < 0 then sawLoss = true end end
+assert(sawLoss, 'withLosses lists stats that drop, including ones the new item lacks')
+-- bar sizing and colours
+assert(M.BarWidth(10, 10, 80) == 80 and M.BarWidth(5, 10, 80) == 40 and M.BarWidth(1, 100, 80) == 3, 'bar width scales, never a sliver')
+assert(M.BarWidth(0, 10, 80) == 0 and M.BarWidth(5, 0, 80) == 0 and M.BarWidth(nil, 10, 80) == 0, 'no gain, no bar')
+assert(M.BarColor('Agility', 'ITEM_MOD_AGILITY_SHORT') ~= M.BarColor('Stamina', 'ITEM_MOD_STAMINA_SHORT') and M.BarColor('Agi') ~= M.BarColor('Sta') and M.BarColor('Whatever')[1], 'known and unknown stats both coloured')
+assert(gains[1].old and gains[1].new == gains[1].old + gains[1].amount, 'gains carry the worn and new values')
+assert(all[1].label == 'Armor' and all[2].label == 'Stamina' and all[3].label == 'Strength' and all[4].label == 'Critical Strike Rating'
+    and all[5].label == 'Spirit', 'ordered by size, full names')
 
 -- grouping: headers in slot order, items best-first inside each group, robes join chest, ranged variants join
 local layout = M.Layout({
@@ -226,31 +236,126 @@ AuctionHouseFrame = Frame(); AuctionHouseFrame.shown = true
 M:ToggleUpgrades()
 assert(points[1][1] == 'TOPLEFT' and points[1][2] == AuctionHouseFrame and points[1][3] == 'TOPRIGHT', 'docks beside the AH when open')
 
--- tooltip goes beside the panel, level with the row, on whichever side has room
-assert(M.TooltipSide(800, 300, 1920) == 'right' and M.TooltipSide(1700, 300, 1920) == 'left')
-assert(M.TooltipSide(1580, 320, 1920) == 'right' and M.TooltipSide(1590, 320, 1920) == 'left', 'width and gap counted')
-assert(M.TooltipSide(nil, 300, 1920) == 'right' and M.TooltipSide(1700, nil, 1920) == 'left', 'unknown width assumes 320')
-local tipPoints, shown = {}, {}
-GameTooltip = { SetOwner = function(_, owner, anchor) shown.owner, shown.anchor = owner, anchor end,
-    SetHyperlink = function(_, l) shown.link = l end, Show = function() end, Hide = function() end,
-    GetWidth = function() return 300 end, ClearAllPoints = function() tipPoints = {} end,
-    SetPoint = function(_, ...) tipPoints[#tipPoints + 1] = { ... } end }
-UIParent.GetWidth = function() return 1920 end
-local row = { GetParent = function() return nil end }
-M.upgradePanel = { GetRight = function() return 800 end }
-M.PlaceTooltip(GameTooltip, row)
-assert(tipPoints[1][1] == 'TOPLEFT' and tipPoints[1][2] == row and tipPoints[1][3] == 'TOPRIGHT' and tipPoints[1][4] == 14, 'right of the panel')
-M.upgradePanel = { GetRight = function() return 1800 end }
-M.PlaceTooltip(GameTooltip, row)
-assert(tipPoints[1][1] == 'TOPRIGHT' and tipPoints[1][3] == 'TOPLEFT' and tipPoints[1][4] == -14, 'left of the panel when the right is full')
--- hovering a real row anchors with ANCHOR_NONE (not over the row) and shows the item
+-- hovering a row fills the detail pane (no tooltip), a header does not, refresh keeps it in sync
 M.upgradePanel = nil; AuctionHouseFrame = nil
 local pr = M:BuildUpgradePanel(); Seed({ [4] = 5 * G }); pr:Show()
 local hovered = pr.rows[2]
 rawset(hovered, 'header', false)   -- the stub returns a function for unset keys; real frames return nil
-pr.GetRight = function() return 800 end
-hovered.GetParent = function() return pr end
+assert(hovered.entry and hovered.entry.id == 4, 'row remembers its entry')
 hovered.OnEnter(hovered)
-assert(shown.anchor == 'ANCHOR_NONE' and shown.link == 'item:4' and tipPoints[1][1] == 'TOPLEFT', 'row hover uses the side anchor')
-pr.rows[1].OnEnter(pr.rows[1]); assert(shown.link == 'item:4', 'header rows show no tooltip')
+assert(M.detailEntry.id == 4, 'hover selects the item')
+local info = M.DetailInfo(hovered.entry)
+assert(info.slot ~= '' and info.price == hovered.entry.price and info.gain == hovered.entry.gain, 'detail info carries slot, price, gain')
+local before = M.detailEntry
+pr.rows[1].OnEnter(pr.rows[1]); assert(M.detailEntry == before, 'header rows leave the detail alone')
+M:RefreshUpgrades(); assert(M.detailEntry and M.detailEntry.id == 4, 'selection survives a refresh')
+Seed({}); M:RefreshUpgrades(); assert(M.detailEntry == nil, 'cleared when the item leaves the list')
+-- auction house filters: read from g_auctionHouseFilters, applied before the cap
+Enum = Enum or {}
+Enum.AuctionHouseFilter = { PoorQuality = 6, CommonQuality = 7, UncommonQuality = 8, RareQuality = 9, EpicQuality = 10,
+    LegendaryQuality = 11, ArtifactQuality = 12, UsableOnly = 2 }
+local function AHF(min, max, off)
+    local f = { [6] = true, [7] = true, [8] = true, [9] = true, [10] = true, [11] = true, [12] = true, [2] = false }
+    for _, id in ipairs(off or {}) do f[id] = false end
+    return { minLevel = min, maxLevel = max, filters = f }
+end
+g_auctionHouseFilters = nil
+assert(M.ReadAHFilters() == nil, 'AH never opened: no filters')
+g_auctionHouseFilters = AHF(0, 0)
+assert(M.ReadAHFilters() == nil, 'default filters mean nothing is filtered')
+g_auctionHouseFilters = AHF(20, 30, { 6, 7 })
+local rf = M.ReadAHFilters()
+assert(rf.minLevel == 20 and rf.maxLevel == 30 and rf.quality[0] == false and rf.quality[1] == false and rf.quality[2] == nil, 'level range and hidden rarities read')
+g_auctionHouseFilters = { minLevel = 'x', maxLevel = {}, filters = 5 }
+assert(M.ReadAHFilters() == nil, 'garbage is ignored')
+assert(M.PassesFilters(nil, 1, 5), 'no filters passes')
+assert(not M.PassesFilters(rf, 1, 25) and M.PassesFilters(rf, 2, 25), 'hidden rarity drops')
+assert(not M.PassesFilters(rf, 2, 19) and not M.PassesFilters(rf, 2, 31) and M.PassesFilters(rf, 2, 20) and M.PassesFilters(rf, 2, 30), 'level range inclusive')
+assert(M.PassesFilters(rf, nil, nil), 'unknown values pass')
+assert(M.PassesFilters({ minLevel = 0, maxLevel = 0, quality = {} }, 3, 99), '0 means unbounded')
+assert(M.FilterSummary(rf) == 'Uncommon+, level 20-30', M.FilterSummary(rf))
+assert(M.FilterSummary(M.ReadAHFilters and { minLevel = 0, maxLevel = 40, quality = { [0] = false, [1] = false, [2] = false } }) == 'Rare+, up to level 40')
+assert(M.FilterSummary({ minLevel = 0, maxLevel = 0, quality = { [1] = false } }) == 'Poor/Uncommon/Rare/Epic/Legendary/Artifact', 'non-contiguous lists names')
+
+-- all test items are common (quality 1), required level 40 except one at 61
+Seed({ [1] = 10 * G, [4] = 5 * G, [6] = 2 * G })
+T.db.market.upgradeMinGain = 1
+g_auctionHouseFilters = AHF(0, 0, { 7 })
+local fl, _, _, hid = M:FindUpgrades()
+assert(#fl == 0 and hid == 3, 'common hidden: everything filtered, counted')
+T.db.market.upgradeUseAHFilters = false
+assert(#(M:FindUpgrades()) == 3, 'setting off ignores AH filters')
+T.db.market.upgradeUseAHFilters = nil
+g_auctionHouseFilters = AHF(51, 0)
+assert(#(M:FindUpgrades()) == 0, 'level floor above the items')
+g_auctionHouseFilters = AHF(40, 40)
+assert(#(M:FindUpgrades()) == 2, 'level range 40-40 keeps the two level-40 items, drops the level-50 helm')
+-- the panel says why it is empty
+g_auctionHouseFilters = AHF(0, 0, { 7 })
+local pf = M:BuildUpgradePanel(); pf:Show(); M:RefreshUpgrades()
+assert(pf.status.text == 'No upgrades match the AH filters', tostring(pf.status.text))
+g_auctionHouseFilters = nil
+-- the open list notices an AH filter change on its own
+g_auctionHouseFilters = AHF(0, 0)
+assert(M.FilterSignature() == '', 'default filters have an empty signature')
+local pu = M.upgradePanel; pu:Show()
+Seed({ [4] = 5 * G, [6] = 2 * G }); M:RefreshUpgrades()
+assert(#M.Layout((M:FindUpgrades())) > 0)
+g_auctionHouseFilters = AHF(0, 0, { 7 })
+assert(M.FilterSignature() ~= '', 'a changed filter changes the signature')
+pu.OnUpdate(pu, 0.1); assert(pu.status.text ~= 'No upgrades match the AH filters', 'waits for the half second')
+pu.OnUpdate(pu, 0.5)
+assert(pu.status.text == 'No upgrades match the AH filters', 'refreshed after the filter changed: ' .. tostring(pu.status.text))
+g_auctionHouseFilters = nil
+-- the category picked in the AH list (for example two-handed weapons) applies too
+local function Cat(filters, name)
+    return { CategoriesList = { GetCategoryFilterData = function() return filters end, GetCategoryData = function() return { name = name } end } }
+end
+AuctionHouseFrame = nil; g_auctionHouseFilters = AHF(0, 0)
+assert(M.ReadAHCategory() == nil, 'no AH frame, no category')
+AuctionHouseFrame = Cat(nil, 'x'); assert(M.ReadAHCategory() == nil, 'nothing selected')
+AuctionHouseFrame = Cat({ { classID = 2, subClassID = 8 } }, 'Two-Handed Swords')
+local cf = M.ReadAHFilters()
+assert(cf and cf.categoryName == 'Two-Handed Swords' and #cf.categories == 1, 'category is read even with default filters')
+assert(M.PassesFilters(cf, 1, 1, 2, 8, 'INVTYPE_2HWEAPON') and not M.PassesFilters(cf, 1, 1, 2, 7, 'INVTYPE_WEAPON')
+    and not M.PassesFilters(cf, 1, 1, 4, 4, 'INVTYPE_HEAD'), 'class and subclass must match')
+assert(M.FilterSummary(cf) == 'Two-Handed Swords', M.FilterSummary(cf))
+AuctionHouseFrame = Cat({ { classID = 4, subClassID = 4, inventoryType = 1 } }, 'Plate Head')
+local hf = M.ReadAHFilters()
+assert(M.PassesFilters(hf, 1, 1, 4, 4, 'INVTYPE_HEAD') and not M.PassesFilters(hf, 1, 1, 4, 4, 'INVTYPE_LEGS'), 'inventory type must match')
+assert(M.FilterSignature() ~= '', 'category is part of the signature')
+-- through FindUpgrades: item 6 is a 2h sword (class 2, sub 8), the rest are armor
+Seed({ [1] = 10 * G, [4] = 5 * G, [6] = 2 * G })
+AuctionHouseFrame = Cat({ { classID = 2, subClassID = 8 } }, 'Two-Handed Swords')
+Same(Ids((M:FindUpgrades())), { 6 })
+T.db.market.upgradeUseAHFilters = false; assert(#(M:FindUpgrades()) == 3); T.db.market.upgradeUseAHFilters = nil
+AuctionHouseFrame = nil; g_auctionHouseFilters = nil
+-- side-by-side table lists unchanged stats too, with both values
+local cmp = M.StatGains('new', 'old', 8, true, true)
+local anyEqual, anyBoth
+for _, g in ipairs(cmp) do
+    if g.amount == 0 then anyEqual = true end
+    if g.old and g.new then anyBoth = true end
+end
+assert(anyBoth, 'every row carries current and new values')
+assert(#cmp >= #M.StatGains('new', 'old', 8, true), 'unchanged stats are added, never removed')
+Seed({ [4] = 5 * G }); AuctionHouseFrame = nil; g_auctionHouseFilters = nil
+local info2 = M.DetailInfo((M:FindUpgrades())[1])
+assert(type(info2.all) == 'table' and #info2.all >= #info2.stats, 'detail info has the comparison table rows')
+-- max price: setting and the box in the window
+Seed({ [1] = 10 * G, [2] = 1 * G, [4] = 5 * G, [6] = 2 * G })
+T.db.market.upgradeMaxGold = 3
+local cheap = M:FindUpgrades()
+for _, e in ipairs(cheap) do assert(e.price <= 3 * G, 'nothing above the cap') end
+assert(#cheap > 0 and #cheap < #(function() T.db.market.upgradeMaxGold = 0 return (M:FindUpgrades()) end)(), 'the cap hides the dearer items, 0 = no limit')
+local pp = M.upgradePanel; pp:Show()
+pp.price.GetText = function() return '1,0' end
+pp.price.OnTextChanged(pp.price, true)
+assert(T.db.market.upgradeMaxGold == 10, 'typing a price saves it (commas ignored)')
+pp.price.GetText = function() return 'abc' end
+pp.price.OnTextChanged(pp.price, true)
+assert(T.db.market.upgradeMaxGold == 0, 'junk means no limit')
+T.db.market.upgradeMaxGold = 0.5; M:RefreshUpgrades()
+assert(pp.status.text == 'No upgrades under 0.5 gold', tostring(pp.status.text))
+T.db.market.upgradeMaxGold = 0
 print('ok')

@@ -223,6 +223,9 @@ function M:EnsureButton()
     b:SetPoint("TOPRIGHT", AuctionHouseFrame, "BOTTOMRIGHT", 0, -2)
     b:SetText("Tempus scan")
     b:SetScript("OnClick", function() M:StartScan() end)
+    -- Match the Tempus window skin when it is on (stock skin and the Classic theme keep Blizzard's look).
+    local SK = T.Skins
+    if SK and SK.On and SK.Button and SK:On("windows") then pcall(SK.Button, SK, b) end
     self.button = b
 end
 

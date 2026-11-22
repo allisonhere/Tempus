@@ -60,6 +60,16 @@ C_AuctionHouse = {
 }
 assert(not M:StartScan()); assert(messages[#messages]:find('Open the auction house'))
 local ah = M.frame
+-- the scan button is skinned only when window skinning is on
+local skinned = {}
+T.Skins = { On = function(_, key) return key == 'windows' and T.skinOn end, Button = function(_, b) skinned[#skinned + 1] = b end }
+AuctionHouseFrame = CreateFrame('Frame')
+T.skinOn = true
+ah.OnEvent(ah, 'AUCTION_HOUSE_SHOW')
+assert(M.button and #skinned == 1 and skinned[1] == M.button, 'button skinned')
+M.button = nil; T.skinOn = false
+ah.OnEvent(ah, 'AUCTION_HOUSE_SHOW')
+assert(M.button and #skinned == 1, 'stock skin leaves the button alone')
 ah.OnEvent(ah, 'AUCTION_HOUSE_SHOW')
 assert(M:StartScan() and replicated == 1 and M.scanning)
 assert(not M:StartScan() and replicated == 1, 'no second scan while one runs')

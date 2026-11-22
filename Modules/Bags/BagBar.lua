@@ -46,7 +46,11 @@ local function Button(self, index)
         local free = math.min(client:FreeSlots(b.container), total)
         GameTooltip:AddLine(("%d slots  ·  %d used, %d free"):format(total, total - free, free), 0.85, 0.88, 0.92)
         GameTooltip:AddLine("Click to show only this bag", 0.6, 0.65, 0.72)
-        if self.storage ~= "CARRIED" then GameTooltip:Show() return end
+        if self.storage ~= "CARRIED" then
+            GameTooltip:AddLine("Drag it to your inventory to take it off; drop a bag here to swap", 0.6, 0.65, 0.72)
+            GameTooltip:Show()
+            return
+        end
         GameTooltip:AddLine("Right-click to empty it into your other bags, then take it off", 0.6, 0.65, 0.72)
         if b.container ~= 0 then
             GameTooltip:AddLine("Drag it to your inventory to take it off; drop a bag here to swap", 0.6, 0.65, 0.72)
@@ -61,18 +65,16 @@ local function Button(self, index)
     button:RegisterForDrag("LeftButton")
     -- Drag a bag off to an inventory slot, or drop a bag (or any item) on a slot here.
     button:SetScript("OnDragStart", function(b)
-        if self.storage == "CARRIED" then self.owner.client:PickupBag(b.container) end
+        self.owner.client:PickupBag(b.container)
     end)
     button:SetScript("OnReceiveDrag", function(b)
-        if self.storage == "CARRIED" then self.owner.client:DropOnBag(b.container) end
+        self.owner.client:DropOnBag(b.container)
     end)
     button:SetScript("OnClick", function(b, mouse)
-        if self.storage ~= "CARRIED" then            -- bank: only filtering, never moves a bag
-            self.owner:SetBagFilter(b.container, self.storage)
-        elseif CursorHasItem() then              -- click-to-drop, like the stock bag slots
+        if CursorHasItem() then              -- click-to-drop, like the stock bag slots
             self.owner.client:DropOnBag(b.container)
-        elseif mouse == "RightButton" then self.owner:EmptyBag(b.container)
-        else self.owner:SetBagFilter(b.container) end
+        elseif mouse == "RightButton" and self.storage == "CARRIED" then self.owner:EmptyBag(b.container)
+        else self.owner:SetBagFilter(b.container, self.storage) end
     end)
     self.buttons[index] = button
     return button
@@ -85,7 +87,8 @@ function BagBar:Refresh()
     for _, id in ipairs(client:ContainerIDs(self.storage)) do
         if self.storage == "CARRIED" then
             if id >= (client.env.BACKPACK_CONTAINER or 0) then ids[#ids + 1] = id end
-        elseif client:SlotCount(id) > 0 then      -- bank: only tabs / bags that exist and hold slots
+        elseif client:SlotCount(id) > 0 or client:IsBagSlot(id) then
+            -- bank: tabs / bags that hold slots, plus empty bag slots you can still equip a bag in
             ids[#ids + 1] = id
         end
     end

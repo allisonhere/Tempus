@@ -156,6 +156,12 @@ function Client:UnequipBag(container)
     return false, "no free slot left for the bag itself"
 end
 
+-- True when this container id is a bag slot you can equip a bag in (empty or not).
+function Client:IsBagSlot(container)
+    local env, C = self.env, self.env.C_Container
+    return T.Num(Call(C and C.ContainerIDToInventoryID or env.ContainerIDToInventoryID, container)) and true or false
+end
+
 -- Pick an equipped bag up onto the cursor, to drop on an inventory slot (or another bag slot).
 function Client:PickupBag(container)
     local env, C = self.env, self.env.C_Container

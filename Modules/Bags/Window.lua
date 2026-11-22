@@ -402,7 +402,7 @@ function Window:Layout()
         local showBar = (self.storage == "BANK" and db.showBankBagBar ~= false or self.storage ~= "BANK" and db.showBagBar)
             and not self.owner.viewing
             and (self.storage ~= "BANK" or self.owner.bankStorage == "BANK")
-        Place(self.bagBar.frame, 24, showBar)
+        Place(self.bagBar.frame, self.bagBar.height or 24, showBar)
         if showBar then self.bagBar:Refresh() end
     end
     self.scroll:ClearAllPoints()

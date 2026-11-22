@@ -1,6 +1,7 @@
 -- Cheapest gear upgrades from the Tempus auction scan. An upgrade is an item level above what you
--- wear in that slot (the same rule as the Bags arrow); results are ranked by item levels gained
--- per gold so a cheap +10 beats an expensive +12.
+-- wear in that slot (the same rule as the Bags arrow). Ranked by how much the stats you care about
+-- improve (item levels when stats are unreadable), balanced against price so neither a nearly free
+-- +1 nor a huge price tag wins on its own. Items whose stats are worse for your class are dropped.
 local _, T = ...
 local M = T.Market
 local S = T.Style
@@ -19,6 +20,42 @@ local ARMOR_TOP = { WARRIOR = 4, PALADIN = 4, DEATHKNIGHT = 4, HUNTER = 3, SHAMA
     PRIEST = 1, MAGE = 1, WARLOCK = 1 }
 local ARMOR_UNLOCK = { WARRIOR = 40, PALADIN = 40, HUNTER = 40, SHAMAN = 40 }
 local SHIELDS = { WARRIOR = true, PALADIN = true, SHAMAN = true }
+
+-- What a stat is worth to each class, relative to its main stat. Used to tell a real upgrade from a
+-- higher item level with the wrong stats (spirit on a cat's gloves). Unlisted stats count for nothing.
+local MELEE = { ITEM_MOD_STRENGTH_SHORT = 1, ITEM_MOD_AGILITY_SHORT = 1, ITEM_MOD_STAMINA_SHORT = 0.5,
+    ITEM_MOD_ATTACK_POWER_SHORT = 0.5, ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 6, RESISTANCE0_NAME = 0.02,
+    ITEM_MOD_CRIT_RATING_SHORT = 0.8, ITEM_MOD_HIT_RATING_SHORT = 0.8, ITEM_MOD_HASTE_RATING_SHORT = 0.7,
+    ITEM_MOD_EXPERTISE_RATING_SHORT = 0.7 }
+local CASTER = { ITEM_MOD_INTELLECT_SHORT = 1, ITEM_MOD_SPIRIT_SHORT = 0.4, ITEM_MOD_STAMINA_SHORT = 0.4,
+    ITEM_MOD_SPELL_POWER_SHORT = 0.9, ITEM_MOD_MANA_REGENERATION_SHORT = 0.5, RESISTANCE0_NAME = 0.01,
+    ITEM_MOD_CRIT_RATING_SHORT = 0.7, ITEM_MOD_HIT_RATING_SHORT = 0.7, ITEM_MOD_HASTE_RATING_SHORT = 0.7 }
+local WEIGHTS = {
+    WARRIOR = { ITEM_MOD_STRENGTH_SHORT = 1, ITEM_MOD_AGILITY_SHORT = 0.5, ITEM_MOD_STAMINA_SHORT = 0.6,
+        ITEM_MOD_ATTACK_POWER_SHORT = 0.5, ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 6, RESISTANCE0_NAME = 0.03,
+        ITEM_MOD_CRIT_RATING_SHORT = 0.8, ITEM_MOD_HIT_RATING_SHORT = 0.8, ITEM_MOD_EXPERTISE_RATING_SHORT = 0.7 },
+    PALADIN = { ITEM_MOD_STRENGTH_SHORT = 1, ITEM_MOD_STAMINA_SHORT = 0.6, ITEM_MOD_INTELLECT_SHORT = 0.5,
+        ITEM_MOD_ATTACK_POWER_SHORT = 0.4, ITEM_MOD_SPELL_POWER_SHORT = 0.4, ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 5,
+        RESISTANCE0_NAME = 0.03 },
+    DEATHKNIGHT = { ITEM_MOD_STRENGTH_SHORT = 1, ITEM_MOD_STAMINA_SHORT = 0.6, ITEM_MOD_ATTACK_POWER_SHORT = 0.5,
+        ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 6, RESISTANCE0_NAME = 0.03 },
+    ROGUE = { ITEM_MOD_AGILITY_SHORT = 1, ITEM_MOD_STRENGTH_SHORT = 0.4, ITEM_MOD_STAMINA_SHORT = 0.4,
+        ITEM_MOD_ATTACK_POWER_SHORT = 0.5, ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 6, ITEM_MOD_CRIT_RATING_SHORT = 0.8,
+        ITEM_MOD_HIT_RATING_SHORT = 0.8, ITEM_MOD_HASTE_RATING_SHORT = 0.7, ITEM_MOD_EXPERTISE_RATING_SHORT = 0.7 },
+    HUNTER = { ITEM_MOD_AGILITY_SHORT = 1, ITEM_MOD_STAMINA_SHORT = 0.4, ITEM_MOD_INTELLECT_SHORT = 0.3,
+        ITEM_MOD_ATTACK_POWER_SHORT = 0.5, ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 6, ITEM_MOD_CRIT_RATING_SHORT = 0.8,
+        ITEM_MOD_HIT_RATING_SHORT = 0.8 },
+    SHAMAN = { ITEM_MOD_AGILITY_SHORT = 0.8, ITEM_MOD_STRENGTH_SHORT = 0.6, ITEM_MOD_INTELLECT_SHORT = 0.8,
+        ITEM_MOD_STAMINA_SHORT = 0.5, ITEM_MOD_ATTACK_POWER_SHORT = 0.4, ITEM_MOD_SPELL_POWER_SHORT = 0.6,
+        ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 4, RESISTANCE0_NAME = 0.02 },
+    -- Druids are one class with several jobs; this favours the cat/bear side (agility, strength, stamina).
+    DRUID = { ITEM_MOD_AGILITY_SHORT = 1, ITEM_MOD_STRENGTH_SHORT = 0.9, ITEM_MOD_STAMINA_SHORT = 0.5,
+        ITEM_MOD_ATTACK_POWER_SHORT = 0.5, ITEM_MOD_INTELLECT_SHORT = 0.2, ITEM_MOD_SPIRIT_SHORT = 0.1,
+        ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 5, RESISTANCE0_NAME = 0.02, ITEM_MOD_CRIT_RATING_SHORT = 0.7,
+        ITEM_MOD_HIT_RATING_SHORT = 0.7 },
+    PRIEST = CASTER, MAGE = CASTER, WARLOCK = CASTER,
+}
+M.WEIGHTS = WEIGHTS
 
 local function Set(...) local t = {} for _, v in ipairs({ ... }) do t[v] = true end return t end
 -- Weapon subclasses by class: 0/1 axe, 2 bow, 3 gun, 4/5 mace, 6 polearm, 7/8 sword, 10 staff,
@@ -227,6 +264,8 @@ end
 
 -- Returns a ranked list, the number of items still waiting on item data, and how many were
 -- requested this pass. Entry: { id, price, age, gain, level, worn, loc, score }.
+local WornLink      -- defined with the detail code below
+
 function M:FindUpgrades()
     local store = self.Store()
     local db = T.db.market or {}
@@ -241,6 +280,9 @@ function M:FindUpgrades()
     local minGain = Num(db.upgradeMinGain) and db.upgradeMinGain or 1
     local now = time()
     local worn, out, pending, requested = {}, {}, 0, 0
+    local wornLinks = {}
+    local sort = db.upgradeSort or "VALUE"
+    local staleDays = Num(db.staleDays) and db.staleDays or 3
     local filters = db.upgradeUseAHFilters ~= false and M.ReadAHFilters() or nil
     local hidden = 0
     if type(instant) ~= "function" or type(getInfo) ~= "function" then return out, 0, 0 end
@@ -266,17 +308,36 @@ function M:FindUpgrades()
                     if not M.PassesFilters(filters, quality, minLevel, row.c, row.s, loc) then
                         hidden = hidden + 1
                     else
-                        out[#out + 1] = { id = id, price = row.p, gain = gain, level = ilvl, worn = base, loc = loc,
-                            age = Num(row.t) and math.max(0, math.floor((now - row.t) / 86400)) or nil,
-                            score = gain / math.max(row.p / 10000, 0.01), quality = quality }
+                        -- What the stats are worth to your class; nil when the client gives none.
+                        if wornLinks[loc] == nil then wornLinks[loc] = WornLink(loc) or false end
+                        local useful = M.UsefulScore("item:" .. id, wornLinks[loc] or nil, class)
+                        if not (useful and useful <= 0) then
+                            local gold = math.max(row.p / 10000, 0.01)
+                            local age = Num(row.t) and math.max(0, math.floor((now - row.t) / 86400)) or nil
+                            -- Worth, balanced against price: sqrt so a +1 for pennies does not beat a real
+                            -- upgrade for a few gold; older prices count a little less.
+                            local worth = useful or gain
+                            local rank = worth / math.sqrt(gold)
+                            if age and age > staleDays then rank = rank * 0.85 end
+                            out[#out + 1] = { id = id, price = row.p, gain = gain, level = ilvl, worn = base, loc = loc,
+                                age = age, score = gain / gold, quality = quality, useful = useful, worth = worth, rank = rank }
+                        end
                     end
                 end
             end
         end
     end
     table.sort(out, function(a, b)
-        if a.score ~= b.score then return a.score > b.score end
-        if a.price ~= b.price then return a.price < b.price end
+        if sort == "BIGGEST" then
+            if a.worth ~= b.worth then return a.worth > b.worth end
+            if a.price ~= b.price then return a.price < b.price end
+        elseif sort == "CHEAPEST" then
+            if a.price ~= b.price then return a.price < b.price end
+            if a.worth ~= b.worth then return a.worth > b.worth end
+        else
+            if a.rank ~= b.rank then return a.rank > b.rank end
+            if a.price ~= b.price then return a.price < b.price end
+        end
         return a.id < b.id
     end)
     -- Keep the best few per slot group so every slot is covered, not just the best-value one.
@@ -312,6 +373,24 @@ local function StatsOf(link)
     local ok, t = pcall(fn, link)
     return ok and type(t) == "table" and t or {}
 end
+
+-- How much better the stats get for this class when `newLink` replaces `oldLink` (negative when
+-- they get worse). nil when the client gives no stats for either, so callers fall back to item level.
+function M.UsefulScore(newLink, oldLink, class)
+    local w = WEIGHTS[class]
+    if not w then return nil end
+    local new, old = StatsOf(newLink), StatsOf(oldLink)
+    if next(new) == nil and next(old) == nil then return nil end
+    local total = 0
+    for key, weight in pairs(w) do
+        local n, o = Num(new[key]) and new[key] or 0, Num(old[key]) and old[key] or 0
+        total = total + (n - o) * weight
+    end
+    return total
+end
+
+-- Sort orders for the list.
+M.SORTS = { { "VALUE", "Best value" }, { "BIGGEST", "Biggest upgrade" }, { "CHEAPEST", "Cheapest" } }
 
 -- The stats that go up when `newLink` replaces `oldLink` (nil = empty slot): up to `max` entries,
 -- largest gain first, as { label, amount }.
@@ -355,7 +434,7 @@ end
 local function AmountText(a) return a == math.floor(a) and ("%d"):format(a) or ("%.1f"):format(a) end
 
 -- The worn item the candidate would replace: the lowest item level among its slots (empty = nil).
-local function WornLink(loc)
+function WornLink(loc)
     local slots = RANGED[loc] and { RANGED_SLOT } or T.Bags.Client.EQUIP_SLOTS[loc]
     local detailed = C_Item and C_Item.GetDetailedItemLevelInfo
     local best, bestLevel

@@ -57,8 +57,8 @@ local function Same(a, b) assert(table.concat(a, ',') == table.concat(b, ','), t
 Seed({ [1] = 10 * G, [2] = 1 * G, [3] = 1 * G, [4] = 5 * G, [5] = 1 * G, [6] = 2 * G, [7] = 1 * G, [8] = 1 * G,
     [9] = 1 * G, [10] = 1 * G, [11] = 3 * G, [12] = 4 * G, [13] = 6 * G })
 local list, pending, requested = M:FindUpgrades()
--- scores (gain per gold): 4 -> 11, 11 -> 1.67 (+5 over ranged 25), 12 -> 14.5 (+58 for 4g), 13 -> 8, 2 -> 2, 6 -> 2.5, 1 -> 1
-Same(Ids(list), { 12, 4, 13, 6, 2, 11, 1 })
+-- ranked by gain per square root of the price, so a big gain beats a tiny one for pennies
+Same(Ids(list), { 12, 4, 13, 6, 1, 11, 2 })
 assert(pending == 1 and requested == 1 and requests[1] == 9, 'uncached item counted and requested once')
 local byId = {} for _, e in ipairs(list) do byId[e.id] = e end
 assert(byId[4].gain == 55 and byId[4].worn == 0, 'empty slot counts as level 0')
@@ -76,7 +76,7 @@ T.db.market.upgradeMinGain = 6
 Same(Ids((M:FindUpgrades())), { 12, 4, 13, 1 })
 T.db.market.upgradeMinGain = 1
 T.db.market.upgradeAffordable = true; money = 3 * G
-Same(Ids((M:FindUpgrades())), { 6, 2, 11 })
+Same(Ids((M:FindUpgrades())), { 6, 11, 2 })
 T.db.market.upgradeAffordable = false; money = 10 ^ 9
 
 -- classes: a mage cannot use plate or swords-by-warrior sets; armor unlocks by level
@@ -358,4 +358,51 @@ assert(T.db.market.upgradeMaxGold == 0, 'junk means no limit')
 T.db.market.upgradeMaxGold = 0.5; M:RefreshUpgrades()
 assert(pp.status.text == 'No upgrades under 0.5 gold', tostring(pp.status.text))
 T.db.market.upgradeMaxGold = 0
+-- Stat-aware ranking: warriors value strength and stamina, not spirit.
+do
+    local stats = {
+        ['item:1'] = { ITEM_MOD_STRENGTH_SHORT = 10 }, ['worn:1'] = { ITEM_MOD_STRENGTH_SHORT = 4 },
+        ['item:2'] = { ITEM_MOD_SPIRIT_SHORT = 20 },                       -- wrong stats for a warrior
+        ['item:4'] = { ITEM_MOD_STAMINA_SHORT = 8 },
+        ['item:12'] = { ITEM_MOD_STRENGTH_SHORT = 3 },
+    }
+    C_Item.GetItemStats = function(link) return stats[link] end
+    T.db.market.upgradeMinGain = 1
+    worn[1] = 50
+    assert(M.UsefulScore('item:1', 'worn:1', 'WARRIOR') == 6, 'strength gain counts in full')
+    assert(M.UsefulScore('item:2', nil, 'WARRIOR') == 0, 'spirit is worth nothing to a warrior')
+    assert(M.UsefulScore('item:2', nil, 'PRIEST') > 0, 'but something to a priest')
+    assert(M.UsefulScore('item:1', 'worn:1', 'NOCLASS') == nil, 'unknown class: no stat score')
+    C_Item.GetItemStats = function() return {} end
+    assert(M.UsefulScore('item:1', 'worn:1', 'WARRIOR') == nil, 'no stats from the client: fall back to item level')
+    C_Item.GetItemStats = function(link) return stats[link] end
+
+    local ranked = M:FindUpgrades()
+    local ids = Ids(ranked)
+    for _, id in ipairs(ids) do assert(id ~= 2, 'wrong-stat item dropped') end
+    local e1
+    for _, e in ipairs(ranked) do if e.id == 1 then e1 = e end end
+    assert(e1 and e1.useful == 6 and e1.worth == 6, 'useful score kept on the entry')
+
+    T.db.market.upgradeSort = 'CHEAPEST'
+    local cheap = M:FindUpgrades()
+    local lastPrice = {}
+    for _, e in ipairs(cheap) do
+        local g = M.GroupKey(e.loc)
+        assert(not lastPrice[g] or lastPrice[g] <= e.price, 'cheapest first within a slot group')
+        lastPrice[g] = e.price
+    end
+    T.db.market.upgradeSort = 'BIGGEST'
+    local big = M:FindUpgrades()
+    local first = {}
+    for _, e in ipairs(big) do
+        local g = M.GroupKey(e.loc)
+        if first[g] and first[g].worth < e.worth then error('biggest first within a slot group') end
+        first[g] = first[g] or e
+    end
+    T.db.market.upgradeSort = 'VALUE'
+    C_Item.GetItemStats = nil
+    worn[1] = nil
+end
+
 print('ok')

@@ -284,6 +284,9 @@ local function Money(copper)
 end
 
 local DETAIL_STATS = 7
+local COL_W, BAR_COL = math.floor((DETAIL_W - 20) / DETAIL_STATS), 22
+local CHART_TOP, CHART_H = 136, 150
+local CHART_MID, HALF = CHART_TOP + CHART_H / 2, 58     -- centre line; tallest bar either way
 local GROUP_LABEL = {}
 for _, g in ipairs(GROUPS) do GROUP_LABEL[g[1]] = g[2] end
 
@@ -318,24 +321,28 @@ function M.BuildDetail(p, scroll)
         d.line[i]:SetWordWrap(false)
     end
     d.head = S.Text(d, 11, T.accent)
-    d.head:SetPoint("TOPLEFT", d.icon, "BOTTOMLEFT", 0, -82)
+    d.head:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(CHART_TOP - 16))
+    -- Vertical chart: gains rise above a centre line, losses hang below it, one column per stat.
+    d.axis = d:CreateTexture(nil, "ARTWORK")
+    d.axis:SetSize(DETAIL_W - 20, 1)
+    d.axis:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -CHART_MID)
+    d.axis:SetColorTexture(1, 1, 1, 0.25)
     d.stats = {}
     for i = 1, DETAIL_STATS do
-        local s = {}
-        s.label = S.Text(d, 11, S.C.text)
-        s.label:SetPoint("TOPLEFT", d.head, "BOTTOMLEFT", 0, -8 - (i - 1) * 24)
-        s.label:SetWidth(DETAIL_W - 20)
-        s.label:SetWordWrap(false)
-        s.track = d:CreateTexture(nil, "BACKGROUND")
-        s.track:SetSize(DETAIL_W - 20, 6)
-        s.track:SetPoint("TOPLEFT", s.label, "BOTTOMLEFT", 0, -2)
-        s.track:SetColorTexture(1, 1, 1, 0.06)
-        s.base = d:CreateTexture(nil, "ARTWORK")
-        s.base:SetHeight(6)
-        s.base:SetPoint("LEFT", s.track, "LEFT", 0, 0)
-        s.fill = d:CreateTexture(nil, "ARTWORK", nil, 1)
-        s.fill:SetHeight(6)
-        s.fill:SetPoint("LEFT", s.base, "RIGHT", 0, 0)
+        local s, cx = {}, (i - 0.5) * COL_W
+        s.back = d:CreateTexture(nil, "BACKGROUND")
+        s.back:SetSize(COL_W - 4, CHART_H)
+        s.back:SetPoint("TOPLEFT", d, "TOPLEFT", (i - 1) * COL_W + 2, -CHART_TOP)
+        s.back:SetColorTexture(1, 1, 1, 0.04)
+        s.bar = d:CreateTexture(nil, "ARTWORK")
+        s.bar:SetWidth(BAR_COL)
+        s.up = { "BOTTOM", d, "TOPLEFT", cx, -CHART_MID }
+        s.down = { "TOP", d, "TOPLEFT", cx, -CHART_MID }
+        s.val = S.Text(d, 10, S.C.text, "OUTLINE")
+        s.label = S.Text(d, 10, S.C.muted)
+        s.label:SetPoint("TOP", d, "TOPLEFT", cx, -(CHART_TOP + CHART_H + 3))
+        s.label:SetWidth(COL_W)
+        s.label:SetJustifyH("CENTER")
         d.stats[i] = s
     end
     d.hint = S.Text(d, 11, S.C.muted)
@@ -357,7 +364,8 @@ function M:ShowDetail(e)
     if not e then
         d.hint:Show(); d.icon:Hide(); d.name:SetText(""); d.slot:SetText(""); d.head:SetText("")
         for _, l in ipairs(d.line) do l:SetText("") end
-        for _, s in ipairs(d.stats) do s.label:SetText(""); s.track:Hide(); s.base:Hide(); s.fill:Hide() end
+        for _, s in ipairs(d.stats) do s.label:SetText(""); s.val:SetText(""); s.back:Hide(); s.bar:Hide() end
+        d.axis:Hide()
         return
     end
     local i = M.DetailInfo(e)
@@ -371,27 +379,28 @@ function M:ShowDetail(e)
     d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot"))
     d.line[3]:SetText("Price: |cffFFD140" .. Money(i.price) .. "|r  (" .. AgeText(i.age) .. ")")
     d.line[4]:SetText(i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or "")
-    d.head:SetText(#i.stats > 0 and "Stat changes (worn  >  new)" or "No stat changes known yet")
-    local maxima = M.GainMaxima({ i.stats })
+    d.head:SetText(#i.stats > 0 and "Stat changes: up = gain, down = loss" or "No stat changes known yet")
+    d.axis:Show()
     for k, s in ipairs(d.stats) do
         local g = i.stats[k]
         if g then
-            local c = M.BarColor(g.label)
+            -- Heights are the change as a share of the larger of old and new, so a +1 and a +30
+            -- of different stats can be compared by eye; the printed figure is the real amount.
             local lost = g.amount < 0
-            local top = math.max(g.old, g.new)
-            local w = DETAIL_W - 20
-            s.label:SetText(("%s   %s  >  %s   %s"):format(g.label, AmountText(g.old), AmountText(g.new),
-                lost and ("|cffFF6B6B-" .. AmountText(-g.amount) .. "|r") or ("|cff7CFF8A+" .. AmountText(g.amount) .. "|r")))
-            s.track:Show()
-            local keep = M.BarWidth(lost and g.new or g.old, top, w)
-            s.base:SetWidth(math.max(1, keep))
-            s.base:SetColorTexture(c[1], c[2], c[3], 0.35)
-            s.base:SetShown(keep > 0)
-            s.fill:SetWidth(M.BarWidth(math.abs(g.amount), top, w))
-            if lost then s.fill:SetColorTexture(0.9, 0.28, 0.28, 0.9) else s.fill:SetColorTexture(c[1], c[2], c[3], 0.95) end
-            s.fill:Show()
+            local h = M.BarWidth(math.abs(g.amount), math.max(g.old, g.new), HALF)
+            local c = lost and { 0.9, 0.28, 0.28 } or M.BarColor(g.label)
+            s.back:Show()
+            s.bar:ClearAllPoints()
+            s.bar:SetPoint(unpack(lost and s.down or s.up))
+            s.bar:SetHeight(h)
+            s.bar:SetColorTexture(c[1], c[2], c[3], 0.95)
+            s.bar:Show()
+            s.val:ClearAllPoints()
+            s.val:SetPoint(lost and "TOP" or "BOTTOM", s.bar, lost and "BOTTOM" or "TOP", 0, lost and -2 or 2)
+            s.val:SetText((lost and "|cffFF6B6B-" or "|cff7CFF8A+") .. AmountText(math.abs(g.amount)) .. "|r")
+            s.label:SetText(g.label)
         else
-            s.label:SetText(""); s.track:Hide(); s.base:Hide(); s.fill:Hide()
+            s.label:SetText(""); s.val:SetText(""); s.back:Hide(); s.bar:Hide()
         end
     end
 end

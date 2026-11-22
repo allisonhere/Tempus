@@ -785,6 +785,7 @@ local HELP = {
     { "test", "show sample buffs and frames while you set things up" },
     { "install", "run the first-time setup again" },
     { "shop <item> <amount>", "add to your shopping list (also: shop remove <item>, shop clear)" },
+    { "upgrades", "open the cheapest gear upgrades from your last auction scan (works anywhere)" },
     { "swing", "repeat the last fight's swing summary" },
     { "copychat", "open the chat log to read and copy chat (also: selectchat)" },
     { "log", "list warnings and errors from this session" },
@@ -824,6 +825,9 @@ SlashCmdList.TEMPUS = function(msg)
             T.Display:SetTestMode(not T.Display.testMode)
             T:Print("test mode %s.", T.Display.testMode and "on" or "off")
         end
+    elseif msg == "upgrades" or msg == "deals" then
+        if T.Market and T.Market.ToggleUpgrades and T:ModuleEnabled("market") then T.Market:ToggleUpgrades()
+        else T:Print("turn on the Auction values module to use the upgrades list.") end
     elseif msg == "reset" then
         T:ConfirmReset()
     elseif msg == "undo" then

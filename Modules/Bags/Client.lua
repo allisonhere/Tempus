@@ -369,10 +369,12 @@ local EQUIP_SLOTS = {
     INVTYPE_RANGEDRIGHT = { 16 },
 }
 
+Client.EQUIP_SLOTS = EQUIP_SLOTS
+
 -- Item level of what you wear in the slot(s) an item would replace: the lowest of them, nil if a
 -- slot is empty or unreadable (an empty slot counts as 0, so anything is an upgrade).
-function Client:EquippedLevel(equipLoc)
-    local slots, env = EQUIP_SLOTS[equipLoc], self.env
+function Client.WornLevel(env, equipLoc)
+    local slots = EQUIP_SLOTS[equipLoc]
     if not slots then return nil end
     local detailed = env.C_Item and env.C_Item.GetDetailedItemLevelInfo
     local lowest
@@ -383,6 +385,10 @@ function Client:EquippedLevel(equipLoc)
         if lowest == nil or level < lowest then lowest = level end
     end
     return lowest
+end
+
+function Client:EquippedLevel(equipLoc)
+    return Client.WornLevel(self.env, equipLoc)
 end
 
 function Client:Cooldown(location)

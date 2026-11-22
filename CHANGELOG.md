@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.12.0
+
+### Added
+- **Cheapest gear upgrades** from your auction scan. The **Upgrades** button in the top-left corner of the auction house window, `/tempus upgrades` and **Open upgrades list** on General > Auction values open a window that lists gear better than what you wear, that your class and level can equip. It is grouped by slot (head, back, waist and so on, the best eight per slot), ranked by item levels gained per gold, and shows each item's `+ilvl` and the stats that go up compared with your worn item. It works anywhere, not only at the auction house, because scanned prices are saved. Drag it to move it; item tooltips open beside it, not over the list. Settings: a minimum item level gain and an option to show only what you can afford.
+
+### Changed
+- **Tempus now scans the auction house itself.** Auction values no longer reads Auctionator. The **Tempus scan** button (top-left corner of the auction house window), **Scan auction house** on the settings page, or the new optional automatic scan read every listing in one request and keep the lowest buyout per item. Prices are saved per realm for all your characters and dropped after 30 days. The game allows about one full scan every 15 minutes. **Scan bag items** is gone, since it only drove Auctionator's searches. Prices from Auctionator are not imported, so scan once to fill the data.
+
+### Fixed
+- "Tempus: loaded. Type /tempus to configure." could show twice at login. Saved chat history replayed last session's copy next to the new one. The line is no longer saved, and copies already saved are skipped.
+
 ## 2.11.6
 
 ### Fixed

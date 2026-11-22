@@ -19,9 +19,14 @@ Run this checklist on both interface versions listed in `Tempus.toc`. Start with
 
 ## Auction values
 
-- Enable Auctionator. At an open auction house, use General > Auction values > Scan bag items. Confirm searches start and no items are bought or posted. Try again away from the AH and confirm the visit-an-auctioneer message.
-- Hover scanned items and stacks in Tempus bags. Check unit price, stack multiplication, scan age, stale labels and no duplicate Tempus lines on repeated hover. Check item-link tooltips too.
-- Hover an unscanned item, disable the tooltip setting, and disable Auctionator/reload. Confirm unknown prices are clear and unavailable data never causes Lua errors.
+- Open the auction house. Confirm **Tempus scan** and **Upgrades** sit in the top-left corner of the AH window, use the Tempus button skin (Stock skin and the Classic theme keep Blizzard's look), and are not covered by the AH art.
+- Click **Tempus scan**. Confirm the button shows progress, a finished message reports items and auctions, nothing is bought or posted, and a second scan inside 15 minutes says how long to wait. Close the AH mid-scan and confirm the scan stops with a message. Turn on the automatic scan and confirm it starts when the AH opens.
+- Hover scanned items and stacks in Tempus bags and item links. Check unit price, stack multiplication, scan age, stale labels and no duplicate lines on repeated hover. Before the first scan on a realm, tooltips show nothing. After a scan, an item nobody lists keeps its older price with an older age.
+- Switch characters on the same realm and confirm the prices are still there. Disable the tooltip setting and the module, reload, and confirm no Lua errors (`/tempus log`).
+- Click **Upgrades**. Confirm results are grouped under slot headers (Head, Back, Waist and so on, up to eight each), each row shows `+N ilvl` and the stats that rise compared with what you wear, only gear your class and level can equip appears, and prices past the stale setting say "(old)". Scroll with the mouse wheel past the first screenful.
+- Hover a row and confirm the item tooltip opens beside the panel, level with the row, never over the list (try with the panel near the right screen edge). Shift-click a row to link it in chat.
+- Close the AH and confirm the Upgrades window stays open. Open it away from the AH with `/tempus upgrades` and **Open upgrades list** on the settings page. Drag it, reload, reopen, and confirm it returns to its place; Escape and the x close it.
+- Change the minimum gain slider and "Only show upgrades I can afford", and equip a better item, then confirm the list updates. First open after login should show "Loading item data" and then fill in.
 
 ## Combat safety
 

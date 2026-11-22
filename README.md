@@ -55,7 +55,9 @@ Every settings page has a live preview. Unlock the UI to drag any element into p
 
 ## Auction values
 
-With Auctionator enabled, **Convenience > Auction values** adds its last scanned per-item price and data age to item tooltips, plus stack estimates in Tempus bags. At an auctioneer, open the AH and click **Scan bag items** to search your carried item names through Auctionator. Use Auctionator's Full Scan for broader coverage. Unknown prices stay unknown and older prices are marked stale. These are listing estimates, not guaranteed sale prices.
+**Convenience > Auction values** adds the lowest scanned buyout per item to item tooltips, plus stack estimates in Tempus bags. Tempus scans the auction house itself and needs no other addon: open the auction house and click **Tempus scan** in the top-left corner of its window (or **Scan auction house** on the settings page, or turn on the automatic scan). One scan reads every listing in a single request, so the game's limit of about one full scan every 15 minutes applies. Prices are kept per realm, shared by all your characters, and dropped after 30 days. Unknown prices stay unknown and older prices are marked stale. These are listing estimates, not guaranteed sale prices.
+
+The **Upgrades** button next to Tempus scan opens a panel with the best gear deals from your last scan: items above what you wear in that slot (the same item-level rule as the bag upgrade arrow) that your class and level can equip, ranked by item levels gained per gold and grouped by slot (head, back, waist and so on, up to eight per slot). Each row shows the item levels gained ("+12 ilvl") and the stats that go up compared with what you wear, such as "+8 Str, +30 Armor". The list also opens anywhere, with no auction house needed, using `/tempus upgrades` or **Open upgrades list** on the settings page, since scanned prices are saved. Drag it to move it; it remembers its place. Hover a row for the item tooltip. You can set a minimum gain and limit it to what you can afford on the settings page.
 
 ## Install
 
@@ -69,6 +71,7 @@ Copy the `Tempus` folder into `World of Warcraft/_classic_/Interface/AddOns/` (o
 | `/tempus unlock` / `lock` | Show / hide the boxes for dragging elements |
 | `/tempus install` | Run the first-run setup again |
 | `/tempus test` | Preview buff displays with sample auras |
+| `/tempus upgrades` | Open the cheapest gear upgrades from your last auction scan (works anywhere) |
 | `/tempus safe` | Turn off everything except buffs and reload (escape hatch) |
 | `/tempus debug` | Show aura status and the last error |
 | `/tempus log` | Show recent Lua errors and blocked-action messages |

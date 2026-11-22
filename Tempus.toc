@@ -75,6 +75,7 @@ Modules\CombatPulse\CombatPulse.lua
 Modules\CombatPulse\Pages.lua
 
 Modules\Market\Market.lua
+Modules\Market\Upgrades.lua
 Modules\Market\Pages.lua
 
 Modules\Vendor\Vendor.lua

@@ -116,13 +116,22 @@ client.IsBagSlot = function(_, id) return id == 8 end
 CursorHasItem = function() return false end
 GameTooltip = Widget("Frame"); GameTooltip.SetOwner = function() end; GameTooltip.SetText = function() end; GameTooltip.AddLine = function() end
 bank.bagBar:Refresh()
+bank:Layout()
+assert(bank.bagBar.frame.shown, "bank bag row is on by default")
+owner.db.showBankBagBar = false; bank:Layout()
+assert(not bank.bagBar.frame.shown, "bank bag row can be switched off")
+owner.db.showBagBar = false; owner.db.showBankBagBar = true; bank:Layout()
+assert(bank.bagBar.frame.shown, "bank row is independent of the carried bag bar setting")
+owner.db.showBagBar = true; bank:Layout()
 assert(bank.bagBar.buttons[1].container == 6 and bank.bagBar.buttons[2].container == 7 and bank.bagBar.buttons[3].container == 8
     and not bank.bagBar.buttons[4], "bank shows containers with slots and empty bag slots, not unusable ids")
 bank.bagBar.buttons[2].scripts.OnClick(bank.bagBar.buttons[2], "LeftButton")
 assert(calls.SetBagFilter[1] == 7 and calls.SetBagFilter[2] == "BANK", "bank click filters the bank, storage passed")
 bank.bagBar.buttons[2].scripts.OnEnter(bank.bagBar.buttons[2])
 assert(calls.SetHoverBag[1] == 7 and calls.SetHoverBag[2] == "BANK", "bank hover dims the other bank bags")
-client.ContainerIDs, client.SlotCount, client.FreeSlots, client.IsBagSlot = realIDs, realCount, nil, nil
+client.ContainerIDs, client.FreeSlots = realIDs, nil
+client.SlotCount = realCount or function() return 0 end
+client.IsBagSlot = function() return false end
 assert(#window.chips == #I.filters, "one chip per filter")
 
 local function RenderMode(mode, opts)

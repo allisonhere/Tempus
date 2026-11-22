@@ -399,7 +399,8 @@ function Window:Layout()
     if self.bankRow then Place(self.bankRow, 22, true) end
     if self.bagBar then
         -- The bank bar lists bank bags / tabs, so it belongs to the Personal view, not Reagents.
-        local showBar = db.showBagBar and not self.owner.viewing
+        local showBar = (self.storage == "BANK" and db.showBankBagBar ~= false or self.storage ~= "BANK" and db.showBagBar)
+            and not self.owner.viewing
             and (self.storage ~= "BANK" or self.owner.bankStorage == "BANK")
         Place(self.bagBar.frame, 24, showBar)
         if showBar then self.bagBar:Refresh() end

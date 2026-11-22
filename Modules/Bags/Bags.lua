@@ -17,6 +17,7 @@ B.defaults = {
     trackChars = true,       -- keep every character's bags and bank for the Alts viewer and tooltips
     showAltCounts = true,    -- "Alt: Bags 4  Bank 12" lines on item tooltips
     showBagBar = true,
+    showBankBagBar = true,      -- the bag / tab slots row in the bank window
     showFilters = true,
     sortItems = true,
     collapsed = {},          -- [characterKey][sectionKey] = true

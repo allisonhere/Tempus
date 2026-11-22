@@ -108,9 +108,9 @@ assert(all[1].label == 'Armor' and all[2].label == 'Sta' and all[3].label == 'St
 
 -- list is capped
 local many = {}
-for i = 100, 160 do info[i] = { 4, 4, 'INVTYPE_HEAD', 70, 40 }; many[i] = i * 100 end
+for i = 100, 260 do info[i] = { 4, 4, 'INVTYPE_HEAD', 70, 40 }; many[i] = i * 100 end
 Seed(many)
-assert(#M:FindUpgrades() == 20, 'rows are capped')
+assert(#M:FindUpgrades() == 100, 'results are capped at 100')
 
 -- never scanned: nothing, no errors
 TempusDB.auctions = {}
@@ -127,6 +127,10 @@ local function Frame()
     function f:RegisterEvent() end function f:UnregisterEvent() end
     function f:CreateTexture() return Frame() end
     function f:SetText(t) self.text = t end
+    function f:GetVerticalScroll() return self.vs or 0 end
+    function f:SetVerticalScroll(v) self.vs = v end
+    function f:SetHeight(h) self.height = h end
+    function f:GetHeight() return self.height or 0 end
     return setmetatable(f, { __index = function() return function() end end })
 end
 CreateFrame = function() return Frame() end
@@ -141,5 +145,17 @@ local p = M.upgradePanel
 assert(p and p:IsShown(), 'panel opens')
 assert(p.rows[1].shown and p.rows[1].itemID == 4 and not p.rows[2].shown)
 assert(p.status.text:find('Loading item data %(1%)'), p.status.text)
+assert(p.content.height == 22, 'scroll content sized to the results')
+p:Hide()
+-- many results: content grows past the viewport, scroll position is clamped when the list shrinks
+local big = {}
+for i = 300, 340 do info[i] = { 4, 4, 'INVTYPE_HEAD', 70, 40 }; big[i] = i * 100 end
+Seed(big)
+p:Show()
+assert(p.content.height == 41 * 22 and p.rows[41].shown and not p.rows[42].shown)
+p.scroll:SetVerticalScroll(500)
+Seed({ [4] = 5 * G })
+M:RefreshUpgrades()
+assert(p.scroll:GetVerticalScroll() == 0, 'scroll clamped back when the list is short')
 M:HideUpgrades(); assert(not p:IsShown())
 print('ok')

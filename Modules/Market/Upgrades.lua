@@ -5,7 +5,8 @@ local _, T = ...
 local M = T.Market
 local S = T.Style
 
-local LIMIT = 20                  -- rows in the panel
+local LIMIT = 100                 -- results kept
+local VISIBLE = 14                -- rows visible at once; the rest scroll
 local REQUESTS_PER_PASS = 150     -- uncached items asked for per refresh, so the client is not flooded
 local SKIP_LOCS = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
 local RANGED = { INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_THROWN = true }
@@ -212,7 +213,7 @@ end
 function M:BuildUpgradePanel()
     if self.upgradePanel then return self.upgradePanel end
     local p = CreateFrame("Frame", "TempusUpgradePanel", AuctionHouseFrame)
-    p:SetSize(WIDTH, 60 + LIMIT * ROW_H)
+    p:SetSize(WIDTH, 60 + VISIBLE * ROW_H)
     p:SetPoint("TOPLEFT", AuctionHouseFrame, "TOPRIGHT", 6, 0)
     p:SetFrameStrata("HIGH")
     if S and S.Backdrop then S.Backdrop(p, {}) end
@@ -226,11 +227,23 @@ function M:BuildUpgradePanel()
     p.status:SetPoint("TOPRIGHT", -12, -12)
     p.foot = S.Text(p, 11, S.C.muted)
     p.foot:SetPoint("BOTTOMLEFT", 12, 10)
+    local scroll = CreateFrame("ScrollFrame", nil, p)
+    scroll:SetPoint("TOPLEFT", 10, -34)
+    scroll:SetSize(WIDTH - 20, VISIBLE * ROW_H)
+    scroll:EnableMouseWheel(true)
+    local content = CreateFrame("Frame", nil, scroll)
+    content:SetSize(WIDTH - 20, 1)
+    scroll:SetScrollChild(content)
+    scroll:SetScript("OnMouseWheel", function(sf, delta)
+        local max = math.max(0, content:GetHeight() - sf:GetHeight())
+        sf:SetVerticalScroll(math.max(0, math.min(max, sf:GetVerticalScroll() - delta * ROW_H * 3)))
+    end)
+    p.scroll, p.content = scroll, content
     p.rows = {}
     for i = 1, LIMIT do
-        local r = CreateFrame("Button", nil, p)
+        local r = CreateFrame("Button", nil, content)
         r:SetSize(WIDTH - 20, ROW_H)
-        r:SetPoint("TOPLEFT", 10, -34 - (i - 1) * ROW_H)
+        r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
         r.icon = r:CreateTexture(nil, "ARTWORK")
         r.icon:SetSize(18, 18)
         r.icon:SetPoint("LEFT", 2, 0)
@@ -271,7 +284,11 @@ function M:BuildUpgradePanel()
         p.rows[i] = r
     end
     -- Item data arrives asynchronously; refresh the open panel as it lands.
-    p:SetScript("OnShow", function(f) f:RegisterEvent("ITEM_DATA_LOAD_RESULT"); M:RefreshUpgrades() end)
+    p:SetScript("OnShow", function(f)
+        f:RegisterEvent("ITEM_DATA_LOAD_RESULT")
+        f.scroll:SetVerticalScroll(0)
+        M:RefreshUpgrades()
+    end)
     p:SetScript("OnHide", function(f) f:UnregisterEvent("ITEM_DATA_LOAD_RESULT") end)
     p:SetScript("OnEvent", function() M:ScheduleUpgradeRefresh() end)
     p:Hide()
@@ -316,6 +333,9 @@ function M:RefreshUpgrades()
             r:Hide()
         end
     end
+    p.content:SetHeight(math.max(1, #list * ROW_H))
+    local max = math.max(0, #list * ROW_H - VISIBLE * ROW_H)
+    if p.scroll:GetVerticalScroll() > max then p.scroll:SetVerticalScroll(max) end
     if not Num(store.scanned) then
         p.status:SetText("Scan the auction house first")
     elseif pending > 0 then

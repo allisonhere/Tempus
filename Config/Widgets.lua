@@ -482,7 +482,7 @@ function W.Button(label, onClick, tip, width)
 end
 
 -- Editable name list with add box, optional "pick from active buffs", and remove buttons.
-function W.List(listKey, placeholder)
+function W.List(listKey, placeholder, noPick)
     local f = CreateFrame("Frame", nil, nil)
     f.searchLabel = placeholder or listKey
     f.searchText = listKey .. " " .. (placeholder or "")
@@ -520,6 +520,7 @@ function W.List(listKey, placeholder)
         OpenMenu(self, items, function(v) if v ~= "" then T:ListAdd(listKey, v) end end)
     end)
     pick:SetPoint("LEFT", add, "RIGHT", 8, 0)
+    if noPick then pick:Hide() end
 
     local box = CreateFrame("Frame", nil, f)
     box:SetPoint("TOPLEFT", 0, -34)

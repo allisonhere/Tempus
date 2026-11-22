@@ -75,4 +75,35 @@ assert(TK.ColorFor("FSR", "mana") == TK.FSR_COLOR, "violet during the five-secon
 assert(TK.ColorFor("TICK", "mana") == TK.MANA_COLOR)
 assert(TK.ColorFor("TICK", "energy") == TK.ENERGY_COLOR)
 assert(TK.ColorFor(nil, "energy") == TK.ENERGY_COLOR)
+-- Afford strip: now / next tick / later, and how the brightness follows the tick.
+local st, a = TK.AffordState(50, 40, 20, 0.5)
+assert(st == "NOW" and a == 1, "enough energy now")
+st, a = TK.AffordState(30, 40, 20, 0)
+assert(st == "TICK" and math.abs(a - 0.35) < 1e-9, "the next tick gets there, dim at the start of the tick")
+st, a = TK.AffordState(30, 40, 20, 1)
+assert(st == "TICK" and math.abs(a - 1) < 1e-9, "fully lit just as the tick lands")
+st, a = TK.AffordState(30, 40, 20, 0.5)
+assert(a > 0.35 and a < 1, "brightness rises through the tick")
+assert(TK.AffordState(10, 40, 20, 0.9) == "LATER", "even the next tick is not enough")
+assert(TK.AffordState(nil, 40, 20, 0) == nil and TK.AffordState(30, nil, 20, 0) == nil and TK.AffordState(30, 0, 20, 0) == nil, "no data, no state")
+assert(TK.AffordState(30, 40, nil, 0.5) == "LATER", "unknown tick size cannot promise the next tick")
+
+-- Which spells are tracked: class defaults you know, or your own list.
+local known = { [1082] = true, [5221] = true, [1822] = true }
+IsPlayerSpell = function(id) return known[id] == true end
+C_Spell = {
+    GetSpellInfo = function(name) return ({ Claw = { spellID = 1082, name = "Claw" }, Shred = { spellID = 5221, name = "Shred" }, Rake = { spellID = 1822, name = "Rake" } })[name] end,
+    GetSpellPowerCost = function(id) return ({ [1082] = { { type = 3, cost = 40 } }, [5221] = { { type = 3, cost = 60 } }, [1822] = { { type = 3, cost = 35 } } })[id] end,
+}
+local tracked = TK.TrackedSpells(3, {}, "DRUID")
+assert(#tracked == 2 and tracked[1].name == "Claw" and tracked[1].cost == 40 and tracked[2].name == "Shred" and tracked[2].cost == 60, "druid defaults")
+assert(#TK.TrackedSpells(3, {}, "MAGE") == 0, "no defaults for other classes")
+local own = TK.TrackedSpells(3, { rake = "Rake", claw = "Claw" }, "DRUID")
+assert(#own == 2 and own[1].name == "Claw" and own[2].name == "Rake", "own list replaces defaults, sorted by name")
+assert(#TK.TrackedSpells(0, {}, "DRUID") == 0, "spells that cost another power are not shown")
+known[5221] = nil
+assert(#TK.TrackedSpells(3, {}, "DRUID") == 1, "spells you do not know are skipped")
+local many = TK.TrackedSpells(3, { a = "Claw", b = "Shred", c = "Rake", d = 1082, e = 5221 }, "DRUID")
+assert(#many <= TK.MAX_SEGMENTS, "capped")
+
 print("ticker ok")

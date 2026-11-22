@@ -14,6 +14,8 @@ TK.defaults = {
     mana = true,                -- mana ticks and the five-second rule
     showFsr = true,             -- the 5-second countdown after spending mana
     showText = true,            -- current power on the bar
+    afford = true,              -- the strip under the bar: can you afford your spells now / at the next tick
+    affordHeight = 12,
     width = 220, height = 8,
     visibility = "AUTO",        -- AUTO (in combat or not full) | COMBAT | ALWAYS
     point = { "CENTER", "UIParent", "CENTER", 0, -238 },
@@ -55,6 +57,83 @@ end
 function TK.Mode(kind, lastTick, fsrEnd, now, showFsr)
     if kind == "mana" and showFsr and fsrEnd and now < fsrEnd then return "FSR" end
     if lastTick then return "TICK" end
+end
+
+-- Afford strip ---------------------------------------------------------------------------
+-- A strip under the bar with one segment per tracked spell (the "builders" you press on a tick:
+-- Claw and Shred for a cat, Sinister Strike for a rogue, or your own list). Each segment is
+--   NOW   bright green: you can afford the spell right now,
+--   TICK  amber, fading up as the tick approaches: the coming tick gets you there,
+--   LATER dim: even the next tick will not be enough.
+local AFFORD = { NOW = { 0.35, 0.9, 0.45 }, TICK = { 1, 0.8, 0.3 }, LATER = { 0.5, 0.52, 0.58 } }
+TK.AFFORD_COLORS = AFFORD
+TK.DEFAULT_SPELLS = { DRUID = { "Claw", "Shred" }, ROGUE = { "Sinister Strike", "Backstab" } }
+TK.MAX_SEGMENTS = 4
+
+-- State and brightness of one segment. done is how far through the tick we are (0-1).
+function TK.AffordState(power, cost, expected, done)
+    if not (T.Num(power) and T.Num(cost)) or cost <= 0 then return nil end
+    if power >= cost then return "NOW", 1 end
+    if T.Num(expected) and power + expected >= cost then
+        return "TICK", 0.35 + 0.65 * math.max(0, math.min(1, T.Num(done) and done or 0))
+    end
+    return "LATER", 0.35
+end
+
+local function SpellID(entry)
+    local id = tonumber(entry)
+    if id then return id end
+    if C_Spell and C_Spell.GetSpellInfo then
+        local ok, info = pcall(C_Spell.GetSpellInfo, entry)
+        if ok and type(info) == "table" and T.Num(info.spellID) then return info.spellID end
+    elseif GetSpellInfo then
+        local ok, _, _, _, _, _, _, id2 = pcall(GetSpellInfo, entry)
+        if ok and T.Num(id2) then return id2 end
+    end
+end
+
+local function SpellKnown(id)
+    local ok, known = pcall(IsPlayerSpell or IsSpellKnown, id)
+    return ok and known == true
+end
+
+-- What a spell costs in the given power type (nil when it costs none or the client will not say).
+function TK.SpellCost(id, ptype)
+    local fn = (C_Spell and C_Spell.GetSpellPowerCost) or GetSpellPowerCost
+    if type(fn) ~= "function" then return nil end
+    local ok, costs = pcall(fn, id)
+    if not ok or type(costs) ~= "table" then return nil end
+    for _, c in ipairs(costs) do
+        if type(c) == "table" and c.type == ptype and T.Num(c.cost) and c.cost > 0 then return c.cost end
+    end
+end
+
+-- The spells to watch: your own list if you made one, else the class defaults. Each is
+-- { name, cost } for spells you know that cost the current power; at most MAX_SEGMENTS.
+function TK.TrackedSpells(ptype, listed, class)
+    local entries = {}
+    for _, v in pairs(listed or {}) do entries[#entries + 1] = v end
+    table.sort(entries, function(a, b) return tostring(a):lower() < tostring(b):lower() end)
+    if #entries == 0 then entries = TK.DEFAULT_SPELLS[class] or {} end
+    local out = {}
+    for _, entry in ipairs(entries) do
+        local id = SpellID(entry)
+        if id and SpellKnown(id) then
+            local cost = TK.SpellCost(id, ptype)
+            if cost then
+                local name = tonumber(entry) and ((C_Spell and C_Spell.GetSpellInfo and (C_Spell.GetSpellInfo(id) or {}).name)
+                    or (GetSpellInfo and GetSpellInfo(id))) or entry
+                out[#out + 1] = { name = tostring(name), cost = cost }
+                if #out >= TK.MAX_SEGMENTS then break end
+            end
+        end
+    end
+    return out
+end
+
+function TK:RebuildSpells()
+    local class = UnitClass and select(2, UnitClass("player"))
+    self.spells = self.ptype and TK.TrackedSpells(self.ptype, T.db.lists and T.db.lists.tickspells, class) or {}
 end
 
 -- Regen per tick the client reports for the current power.
@@ -149,6 +228,62 @@ local function BuildView(v, f)
     S.ApplyFont(v.label, 9, nil, "OUTLINE")
 end
 
+local function BuildStrip(f)
+    local strip = CreateFrame("Frame", nil, f)
+    strip.segs = {}
+    for i = 1, TK.MAX_SEGMENTS do
+        local seg = CreateFrame("Frame", nil, strip)
+        S.Backdrop(seg)
+        seg.fill = seg:CreateTexture(nil, "ARTWORK")
+        seg.fill:SetPoint("TOPLEFT", 1, -1)
+        seg.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+        seg.fill:SetColorTexture(1, 1, 1, 1)
+        seg.text = seg:CreateFontString(nil, "OVERLAY")
+        seg.text:SetPoint("CENTER")
+        S.ApplyFont(seg.text, 9, nil, "OUTLINE")
+        seg:Hide()
+        strip.segs[i] = seg
+    end
+    return strip
+end
+
+-- Lay the strip under the bar and paint it: one equal segment per spell.
+function TK:PaintStrip(now)
+    local strip, db = self.strip, self.db
+    if not strip then return end
+    local spells = self.preview and { { name = "Claw", cost = 45 }, { name = "Shred", cost = 60 } } or self.spells
+    if not (db.afford and spells and #spells > 0 and self.last and self.kind) then
+        strip:Hide()
+        return
+    end
+    local width, gap = self.frame:GetWidth(), 2
+    local h = db.affordHeight
+    local n = #spells
+    local w = (width - gap * (n - 1)) / n
+    local _, done = TK.Phase(self.lastTick, now)
+    local expected = ExpectedTick(self.kind, self.fsrEnd and now < self.fsrEnd)
+    strip:SetSize(width, h)
+    strip:ClearAllPoints()
+    strip:SetPoint("TOPLEFT", self.frame, "BOTTOMLEFT", 0, -2)
+    strip:Show()
+    for i, seg in ipairs(strip.segs) do
+        local sp = spells[i]
+        if sp then
+            local state, alpha = TK.AffordState(self.last, sp.cost, expected, done)
+            seg:SetSize(w, h)
+            seg:ClearAllPoints()
+            seg:SetPoint("TOPLEFT", strip, "TOPLEFT", (i - 1) * (w + gap), 0)
+            local c = AFFORD[state or "LATER"]
+            seg.fill:SetVertexColor(c[1], c[2], c[3], alpha or 0.35)
+            seg.text:SetShown(h >= 9)
+            seg.text:SetText(sp.name .. " " .. sp.cost)
+            seg:Show()
+        else
+            seg:Hide()
+        end
+    end
+end
+
 -- Power changed: learn the tick phase and, for mana, start the five-second rule on a spend.
 function TK:OnPower()
     if self.preview then return end
@@ -187,6 +322,7 @@ local function OnUpdate()
         self.last, self.max = 60 + 10 * ((self.previewN or 0) % 4), 100
     end
     Paint(self, self.db, now)
+    self:PaintStrip(now)
 end
 
 function TK:SetPreview(on)
@@ -233,6 +369,7 @@ function TK:Refresh()
         if kind ~= self.kind then self.kind, self.ptype, self.lastTick, self.fsrEnd, self.last = kind, ptype, nil, nil, nil end
         if self.ptype then self.last, self.max = Power(self.ptype) end
     end
+    self:RebuildSpells()
     self:UpdateShown()
 end
 
@@ -302,6 +439,7 @@ T:NewModule("ticker", {
         S.Backdrop(f)
         TK.frame = f
         BuildView(TK, f)
+        TK.strip = BuildStrip(f)
         f:SetScript("OnUpdate", T:Wrap("ticker.update", OnUpdate))
         T.Movers.ApplyPoint(f, TK.db)
         T.Movers:Register(f, {
@@ -312,7 +450,7 @@ T:NewModule("ticker", {
         })
         local ev = CreateFrame("Frame")
         for _, event in ipairs({ "PLAYER_ENTERING_WORLD", "UPDATE_SHAPESHIFT_FORM", "PLAYER_REGEN_DISABLED",
-            "PLAYER_REGEN_ENABLED" }) do
+            "PLAYER_REGEN_ENABLED", "SPELLS_CHANGED", "PLAYER_TALENT_UPDATE" }) do
             pcall(ev.RegisterEvent, ev, event)
         end
         for _, event in ipairs({ "UNIT_POWER_FREQUENT", "UNIT_MAXPOWER", "UNIT_DISPLAYPOWER" }) do
@@ -326,6 +464,8 @@ T:NewModule("ticker", {
                 TK:UpdateShown()
             elseif event == "UNIT_POWER_FREQUENT" then
                 TK:OnPower()
+            elseif event == "SPELLS_CHANGED" or event == "PLAYER_TALENT_UPDATE" then
+                TK:RebuildSpells()
             else
                 TK:Refresh()
                 TK:OnPower()

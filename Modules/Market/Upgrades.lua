@@ -504,6 +504,18 @@ end
 local GOLD = { 1, 0.80, 0.32 }
 local function Paint(tex, c, a) tex:SetVertexColor(c[1], c[2], c[3], a or 1) return tex end
 
+-- Heat map for the value meters: cold red for a weak deal through yellow to green for the best.
+local function HeatColor(t)
+    t = math.max(0, math.min(1, Num(t) and t or 0))
+    if t < 0.5 then
+        local u = t / 0.5
+        return 0.95 + 0.05 * u, 0.25 + 0.55 * u, 0.25 + 0.07 * u
+    end
+    local u = (t - 0.5) / 0.5
+    return 1 - 0.68 * u, 0.80 + 0.12 * u, 0.32 + 0.16 * u
+end
+M.HeatColor = HeatColor
+
 local DETAIL_STATS = 7
 local COL_W, BAR_COL = math.floor((DETAIL_W - 20) / DETAIL_STATS), 28
 local TABLE_Y, TABLE_ROW, TABLE_ROWS = 118, 16, 8      -- current / buy comparison table
@@ -827,9 +839,7 @@ function M:BuildUpgradePanel()
         for _, r in ipairs(p.rows) do
             S.SetGradient(r.hl, "HORIZONTAL", a[1], a[2], a[3], 0.26, a[1], a[2], a[3], 0)
             r.hbg:SetColorTexture(0.18, 0.2, 0.4, 0.45)
-            -- Meter: green where the deal is good, shading to gold at the end.
             r.meter:SetColorTexture(1, 1, 1, 1)
-            S.SetGradient(r.meter, "HORIZONTAL", 0.30, 0.85, 0.50, 0.9, a[1], a[2], a[3], 0.9)
         end
     end
     -- Item data arrives asynchronously; refresh the open panel as it lands.
@@ -924,7 +934,12 @@ function M:RefreshUpgrades()
             end
             local top = maxRank[GROUP_OF[e.loc]]
             if top and top > 0 and Num(e.rank) then
-                r.meter:SetWidth(math.max(2, (WIDTH - 20 - 36) * (e.rank / top)))
+                local t = e.rank / top
+                r.meter:SetWidth(math.max(2, (WIDTH - 20 - 36) * t))
+                -- Heat map: the bar runs from red up to the colour its deal quality reaches.
+                local r1, g1, b1 = HeatColor(0)
+                local r2, g2, b2 = HeatColor(t)
+                S.SetGradient(r.meter, "HORIZONTAL", r1, g1, b1, 0.95, r2, g2, b2, 0.95)
                 r.meter:Show()
             else
                 r.meter:Hide()

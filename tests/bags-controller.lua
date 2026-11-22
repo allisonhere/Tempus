@@ -109,6 +109,11 @@ do
     assert(B.bagFilter == 2, "bag filter selects a bag")
     B:SetBagFilter(2)
     assert(B.bagFilter == nil, "clicking the same bag again clears the filter")
+    B.bankBagFilter = nil
+    B:SetBagFilter(7, "BANK")
+    assert(B.bankBagFilter == 7 and B.bagFilter == nil and B:ProjectOptions("BANK").container == 7, "bank bag filter is separate and feeds the bank view")
+    B:SetBagFilter(7, "BANK")
+    assert(B.bankBagFilter == nil, "clicking the same bank bag clears it")
     B:SetFilter("CARRIED", "GEAR")
     assert(B.filter.CARRIED == "GEAR" and B:ProjectOptions("CARRIED").filter == "GEAR", "filter chip state feeds the projection")
     B.Render = originalRender

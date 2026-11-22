@@ -105,7 +105,22 @@ local snapshot = I.Snapshot("CARRIED", locations, function(l) return data[I.Key(
 
 local window = Bags.Window.New(owner, "CARRIED", "Bags", "point")
 local bank = Bags.Window.New(owner, "BANK", "Bank", "bankPoint")
-assert(window.bagBar and not bank.bagBar and bank.bankRow, "bag bar is carried-only, bank tabs are bank-only")
+assert(window.bagBar and bank.bagBar and bank.bankRow, "both windows have a bag bar; the bank also has its Personal/Reagents tabs")
+assert(window.bagBar.storage == "CARRIED" and bank.bagBar.storage == "BANK", "each bar knows its storage")
+-- the bank bar lists only tabs / bags that have slots, and clicking one filters the bank view
+local realIDs, realCount = client.ContainerIDs, client.SlotCount
+client.ContainerIDs = function(_, storage) return storage == "BANK" and { 6, 7, 8, 9 } or { 0, 1, 2 } end
+client.SlotCount = function(_, id) return id == 6 and 48 or id == 7 and 12 or 0 end
+client.FreeSlots = function() return 5 end
+GameTooltip = Widget("Frame"); GameTooltip.SetOwner = function() end; GameTooltip.SetText = function() end; GameTooltip.AddLine = function() end
+bank.bagBar:Refresh()
+assert(bank.bagBar.buttons[1].container == 6 and bank.bagBar.buttons[2].container == 7 and not bank.bagBar.buttons[3],
+    "empty bank containers are not drawn")
+bank.bagBar.buttons[2].scripts.OnClick(bank.bagBar.buttons[2], "LeftButton")
+assert(calls.SetBagFilter[1] == 7 and calls.SetBagFilter[2] == "BANK", "bank click filters the bank, storage passed")
+bank.bagBar.buttons[2].scripts.OnEnter(bank.bagBar.buttons[2])
+assert(calls.SetHoverBag[1] == 7 and calls.SetHoverBag[2] == "BANK", "bank hover dims the other bank bags")
+client.ContainerIDs, client.SlotCount, client.FreeSlots = realIDs, realCount, nil
 assert(#window.chips == #I.filters, "one chip per filter")
 
 local function RenderMode(mode, opts)

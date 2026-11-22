@@ -96,12 +96,12 @@ local stats = {
 C_Item.GetItemStats = function(link) return stats[link] end
 ITEM_MOD_CRIT_RATING_SHORT = 'Critical Strike Rating'
 local gains = M.StatGains('new', 'old', 3)
-assert(#gains == 3 and gains[1].label == 'Armor' and gains[1].amount == 200 and gains[2].label == 'Str' and gains[2].amount == 8
-    and gains[3].label == 'Spi' and gains[3].amount == 4, 'gains only, biggest first')
+assert(#gains == 3 and gains[1].label == 'Armor' and gains[1].amount == 200 and gains[2].label == 'Strength' and gains[2].amount == 8
+    and gains[3].label == 'Spirit' and gains[3].amount == 4, 'gains only, biggest first')
 local all = M.StatGains('new', nil, 8)
 assert(#all == 5, 'empty slot: every stat is a gain')
 local down = M.StatGains('old', 'new', 3)
-assert(#down == 1 and down[1].label == 'Sta' and down[1].amount == 5, 'a downgrade in most stats lists only what rises')
+assert(#down == 1 and down[1].label == 'Stamina' and down[1].amount == 5, 'a downgrade in most stats lists only what rises')
 assert(#M.StatGains('missing', 'old') == 0, 'uncached item has no stats yet')
 local both = M.StatGains('old', 'new', 5, true)
 local sawLoss
@@ -110,10 +110,10 @@ assert(sawLoss, 'withLosses lists stats that drop, including ones the new item l
 -- bar sizing and colours
 assert(M.BarWidth(10, 10, 80) == 80 and M.BarWidth(5, 10, 80) == 40 and M.BarWidth(1, 100, 80) == 3, 'bar width scales, never a sliver')
 assert(M.BarWidth(0, 10, 80) == 0 and M.BarWidth(5, 0, 80) == 0 and M.BarWidth(nil, 10, 80) == 0, 'no gain, no bar')
-assert(M.BarColor('Agi') ~= M.BarColor('Sta') and M.BarColor('Whatever')[1], 'known and unknown stats both coloured')
+assert(M.BarColor('Agility', 'ITEM_MOD_AGILITY_SHORT') ~= M.BarColor('Stamina', 'ITEM_MOD_STAMINA_SHORT') and M.BarColor('Agi') ~= M.BarColor('Sta') and M.BarColor('Whatever')[1], 'known and unknown stats both coloured')
 assert(gains[1].old and gains[1].new == gains[1].old + gains[1].amount, 'gains carry the worn and new values')
-assert(all[1].label == 'Armor' and all[2].label == 'Sta' and all[3].label == 'Str' and all[4].label == 'Critical Strike'
-    and all[5].label == 'Spi', 'ordered by size; Rating suffix trimmed')
+assert(all[1].label == 'Armor' and all[2].label == 'Stamina' and all[3].label == 'Strength' and all[4].label == 'Critical Strike Rating'
+    and all[5].label == 'Spirit', 'ordered by size, full names')
 
 -- grouping: headers in slot order, items best-first inside each group, robes join chest, ranged variants join
 local layout = M.Layout({

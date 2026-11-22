@@ -294,11 +294,15 @@ local SHORT = { ITEM_MOD_STRENGTH_SHORT = "Str", ITEM_MOD_AGILITY_SHORT = "Agi",
     ITEM_MOD_INTELLECT_SHORT = "Int", ITEM_MOD_SPIRIT_SHORT = "Spi", ITEM_MOD_ATTACK_POWER_SHORT = "AP",
     ITEM_MOD_DAMAGE_PER_SECOND_SHORT = "DPS", RESISTANCE0_NAME = "Armor" }
 
+-- Shown in full ("Strength", not "Str"): the game's own stat names, with plain fallbacks.
+local FULL = { ITEM_MOD_STRENGTH_SHORT = "Strength", ITEM_MOD_AGILITY_SHORT = "Agility", ITEM_MOD_STAMINA_SHORT = "Stamina",
+    ITEM_MOD_INTELLECT_SHORT = "Intellect", ITEM_MOD_SPIRIT_SHORT = "Spirit", ITEM_MOD_ATTACK_POWER_SHORT = "Attack Power",
+    ITEM_MOD_DAMAGE_PER_SECOND_SHORT = "Damage Per Second", RESISTANCE0_NAME = "Armor" }
+
 local function StatLabel(key)
-    if SHORT[key] then return SHORT[key] end
     local text = _G[key]
-    if type(text) ~= "string" then return nil end
-    return (text:gsub(" Rating$", ""))
+    if type(text) == "string" and text ~= "" then return text end
+    return FULL[key]
 end
 
 local function StatsOf(link)
@@ -337,7 +341,8 @@ local BAR_COLORS = { Str = { 0.86, 0.36, 0.30 }, Agi = { 0.36, 0.78, 0.42 }, Sta
     Armor = { 0.62, 0.68, 0.74 } }
 local BAR_DEFAULT = { 0.45, 0.78, 0.78 }
 
-function M.BarColor(label) return BAR_COLORS[label] or BAR_DEFAULT end
+-- Colour by stat: pass the item-stat key when known (so full names still map), else the short label.
+function M.BarColor(label, key) return BAR_COLORS[SHORT[key or ""] or label] or BAR_DEFAULT end
 
 -- Fill width for one stat: its share of the biggest gain of that stat in the list, never a bare
 -- sliver, so small upgrades still show a bar.
@@ -434,7 +439,7 @@ function M.BuildDetail(p, scroll)
     d.head = S.Text(d, 11, T.accent)
     d.head:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(CHART_TOP - 16))
     -- Side-by-side table: what you wear now against what you would buy.
-    local cols = { { 0, 70, "LEFT" }, { 74, 70, "RIGHT" }, { 150, 70, "RIGHT" }, { 226, DETAIL_W - 20 - 226, "RIGHT" } }
+    local cols = { { 0, 130, "LEFT" }, { 132, 60, "RIGHT" }, { 196, 60, "RIGHT" }, { 260, DETAIL_W - 20 - 260, "RIGHT" } }
     local function Cell(c, y, text, color)
         local fs = S.Text(d, 11, color or S.C.text)
         fs:SetPoint("TOPLEFT", d, "TOPLEFT", c[1], -y)
@@ -473,6 +478,7 @@ function M.BuildDetail(p, scroll)
         s.label:SetPoint("TOP", d, "TOPLEFT", cx, -(CHART_TOP + CHART_H + 3))
         s.label:SetWidth(COL_W)
         s.label:SetJustifyH("CENTER")
+        s.label:SetWordWrap(true)
         d.stats[i] = s
     end
     d.hint = S.Text(d, 11, S.C.muted)
@@ -515,7 +521,7 @@ function M:ShowDetail(e)
     for r, row in ipairs(d.table) do
         local g = i.all[r]
         if g then
-            local c = M.BarColor(g.label)
+            local c = M.BarColor(g.label, g.key)
             row[1]:SetText(g.label); row[1]:SetTextColor(c[1], c[2], c[3])
             row[2]:SetText(AmountText(g.old))
             row[3]:SetText(AmountText(g.new))
@@ -535,7 +541,7 @@ function M:ShowDetail(e)
             -- of different stats can be compared by eye; the printed figure is the real amount.
             local lost = g.amount < 0
             local h = M.BarWidth(math.abs(g.amount), math.max(g.old, g.new), HALF)
-            local c = lost and { 0.9, 0.28, 0.28 } or M.BarColor(g.label)
+            local c = lost and { 0.9, 0.28, 0.28 } or M.BarColor(g.label, g.key)
             s.back:Show()
             s.bar:ClearAllPoints()
             s.bar:SetPoint(unpack(lost and s.down or s.up))

@@ -387,6 +387,16 @@ local function OnUpdate()
         end
         self.last, self.max = 60 + 10 * ((self.previewN or 0) % 4), 100
     end
+    -- Self-heal: a form change can fire its event before the power type has switched, which
+    -- would leave the bar on the old kind and the strip with no spells.
+    if not self.preview and now - (self.healAt or 0) >= 0.5 then
+        self.healAt = now
+        local kind = CurrentKind(self.db)
+        if kind ~= self.kind or (kind and #(self.spells or {}) == 0) then
+            self:Refresh()
+            self:OnPower()
+        end
+    end
     Paint(self, self.db, now)
     self:PaintStrip(now)
 end
@@ -535,6 +545,10 @@ T:NewModule("ticker", {
             else
                 TK:Refresh()
                 TK:OnPower()
+                -- The power type and spell book can lag the form event; look again shortly.
+                if C_Timer and C_Timer.After then
+                    C_Timer.After(0.3, function() TK:Refresh() TK:OnPower() end)
+                end
             end
         end))
         TK:Refresh()

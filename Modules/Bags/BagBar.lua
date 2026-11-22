@@ -13,9 +13,12 @@ local SIZE, GAP = 24, 4
 
 local function Money(copper)
     copper = math.floor((copper or 0) + 0.5)
-    if copper >= 10000 then return ("%dg"):format(math.floor(copper / 10000)) end
-    return ("%ds"):format(math.floor(copper / 100))
+    local g, sv, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
+    if g > 0 then return sv > 0 and ("%dg %ds"):format(g, sv) or ("%dg"):format(g) end
+    if sv > 0 then return c > 0 and ("%ds %dc"):format(sv, c) or ("%ds"):format(sv) end
+    return ("%dc"):format(c)
 end
+BagBar.Money = Money
 
 function BagBar.New(window, storage)
     local self = setmetatable({ window = window, owner = window.owner, storage = storage or "CARRIED", buttons = {} }, BagBar)
@@ -54,10 +57,18 @@ local function Button(self, index)
             local info = self.tabInfo
             if not b.tab.bought then
                 GameTooltip:SetText(b.tab.name .. " (not bought)", 1, 1, 1)
+                local costs = self.owner.db and self.owner.db.tabCosts or {}
                 if b.buyable then
-                    GameTooltip:AddLine("Click to buy this tab" .. (info and info.nextCost and (" for " .. Money(info.nextCost)) or ""), 0.4, 0.95, 0.5)
+                    GameTooltip:AddLine("Price: " .. (info and info.nextCost and Money(info.nextCost) or "unknown"), 1, 0.82, 0.25)
+                    GameTooltip:AddLine("Click to buy this tab", 0.4, 0.95, 0.5)
                     if info and info.canAfford == false then GameTooltip:AddLine("You cannot afford it yet", 0.95, 0.4, 0.35) end
                 else
+                    local seen = costs[tostring(b.index)]
+                    if seen then
+                        GameTooltip:AddLine("Price: " .. Money(seen) .. " (as last seen)", 1, 0.82, 0.25)
+                    else
+                        GameTooltip:AddLine("Price: shown once it is the next tab to buy", 0.6, 0.65, 0.72)
+                    end
                     GameTooltip:AddLine("Buy the tabs before it first", 0.6, 0.65, 0.72)
                 end
                 GameTooltip:Show()
@@ -127,11 +138,18 @@ function BagBar:RefreshTabs(info)
     local owner = self.owner
     local accent = T.accent
     self.tabInfo = info
+    -- The game only tells us the price of the NEXT tab; remember each one when it is, so the
+    -- later ones can show their last seen price.
+    local db = owner.db
+    if db and info.nextCost and info.bought < info.total then
+        db.tabCosts = db.tabCosts or {}
+        db.tabCosts[tostring(info.bought + 1)] = info.nextCost
+    end
     local x = 0
     local nextBuy = true
     for n, tab in ipairs(info.tabs) do
         local button = Button(self, n)
-        button.container, button.tab = tab.container, tab
+        button.container, button.tab, button.index = tab.container, tab, n
         button:ClearAllPoints()
         button:SetPoint("TOPLEFT", self.frame, "TOPLEFT", x, 0)
         if tab.bought then

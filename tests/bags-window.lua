@@ -146,6 +146,16 @@ tb[3].scripts.OnClick(tb[3], "LeftButton"); assert(not bought, "locked tab canno
 tb[2].scripts.OnClick(tb[2], "LeftButton"); assert(bought, "next tab buys through the client")
 tb[1].scripts.OnClick(tb[1], "LeftButton"); assert(calls.SetBagFilter[1] == 6, "bought tab filters")
 tb[2].scripts.OnEnter(tb[2])
+assert(owner.db.tabCosts["2"] == 150000, "next tab price is remembered under its tab number")
+assert(Bags.BagBar.Money(150000) == "15g" and Bags.BagBar.Money(123456) == "12g 34s" and Bags.BagBar.Money(4505) == "45s 5c", "price formatting")
+local lines = {}
+GameTooltip.AddLine = function(_, text) lines[#lines + 1] = text end
+GameTooltip.SetText = function(_, text) lines[#lines + 1] = text end
+tb[2].scripts.OnEnter(tb[2]); assert(table.concat(lines, "|"):find("Price: 15g"), "next tab shows its price")
+lines = {}; tb[3].scripts.OnEnter(tb[3]); assert(table.concat(lines, "|"):find("shown once it is the next"), "unseen later price says why")
+owner.db.tabCosts["3"] = 400000
+lines = {}; tb[3].scripts.OnEnter(tb[3]); assert(table.concat(lines, "|"):find("Price: 40g %(as last seen%)"), "remembered later price shown")
+owner.db.tabCosts = nil
 client.BankTabs = nil
 client.ContainerIDs, client.FreeSlots = realIDs, nil
 client.SlotCount = realCount or function() return 0 end

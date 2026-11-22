@@ -8,7 +8,9 @@ Here's what's included:
 - **Nameplates** that make threat, interrupts, quest progress, and important auras easier to spot.
 - **Buffs and debuffs** with timers, watch lists, and expiry warnings.
 - **Action bars and Combat Pulse** for your abilities and useful combat cues.
-- **Combined bags** with search, categories, and a way to check what your other characters are carrying.
+- **Combined bags** with search, categories, a bank row for your bank tabs (with the ones you can still buy), and a way to check what your other characters are carrying.
+- **Auction house tools**: Tempus scans the auction house itself, adds prices to item tooltips, and lists the cheapest gear upgrades for your class and level, filtered the way the auction house is.
+- **Stat tooltips** that explain what an item's stats do for your character.
 - **Chat improvements** including copyable chat, saved history, whisper alerts, cleaner text, and easier typing. If [SpellPower](https://www.curseforge.com/wow/addons/spellpower) is installed, its spellcheck and grammar options are available from Tempus's Chat settings.
 - **A square minimap and Blizzard window skins** that fit the rest of the UI.
 - **Style Studio** to preview themes, fonts, bars, colours, and icons together.

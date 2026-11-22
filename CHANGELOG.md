@@ -1,9 +1,23 @@
 # Changelog
 
+## 2.13.0
+
+### Added
+- **Upgrades list detail pane.** Hovering a row fills a pane inside the window (no tooltip any more): item level against what you wear, price and age, every stat side by side (current against the one you would buy, with the change) and a vertical chart where gains rise above a centre line and losses hang below it in red. Stat names are written out in full. The list is narrower, the window taller.
+- **Upgrades list follows the auction house filters.** The category you pick on the left (for example Two-Handed Swords), the rarity boxes and the level range apply to the list as well, and it refreshes when you change them. The footer says when they are active. A switch on General > Auction values turns this off.
+- **Maximum price for the upgrades list**, a box in the window and a slider on General > Auction values.
+- **Bank bag slots.** The bank window now has a row for your bank tabs and bags: hover to dim everything else, click to show only that tab, drag bags on and off. Tabs you have not bought show as locked, the next one can be bought (through the game's own confirmation), and a line shows how many tabs you own, the free slots and how many are left to buy. Tooltips give each tab's price: the next tab live, later ones as last seen. Turn it off with **Bank bag slots** in Bags > Window.
+- **Stat tooltips** (Convenience > Stat tooltips): item tooltips explain what the stats do for your character, such as attack power, crit chance, health, mana and armor, using the game's own conversion rules. Unequipped items can show the change against what they would replace.
+- **Trades filter** in the bags: trade goods and recipes together.
+- **Combo points** are now a little taller with each point and shade from red through yellow to green.
+
+### Fixed
+- A weapon enchant or poison on a weapon could throw "attempt to call a nil value" in Buffs on clients without the old `GetItemInfo` function.
+
 ## 2.12.0
 
 ### Added
-- **Cheapest gear upgrades** from your auction scan. The **Upgrades** button in the top-left corner of the auction house window, `/tempus upgrades` and **Open upgrades list** on General > Auction values open a window that lists gear better than what you wear, that your class and level can equip. It is grouped by slot (head, back, waist and so on, the best eight per slot), ranked by item levels gained per gold, and shows each item's `+ilvl` and its price. It works anywhere, not only at the auction house, because scanned prices are saved. Drag it to move it; hovering a row fills a detail pane inside the window (item level against worn, price, age, every stat side by side (current against the one you would buy) and a vertical chart of the changes: gains rise, losses hang below) instead of opening a tooltip. The list follows the auction house search filters (the category you pick on the left, rarity and level range) when you have set any. Settings: a maximum price (also a box in the window), a minimum item level gain, an option to show only what you can afford, and a switch for the auction house filters.
+- **Cheapest gear upgrades** from your auction scan. The **Upgrades** button in the top-left corner of the auction house window, `/tempus upgrades` and **Open upgrades list** on General > Auction values open a window that lists gear better than what you wear, that your class and level can equip. It is grouped by slot (head, back, waist and so on, the best eight per slot), ranked by item levels gained per gold, and shows each item's `+ilvl` and the stats that go up compared with your worn item. It works anywhere, not only at the auction house, because scanned prices are saved. Drag it to move it; item tooltips open beside it, not over the list. Settings: a minimum item level gain and an option to show only what you can afford.
 
 ### Changed
 - **Tempus now scans the auction house itself.** Auction values no longer reads Auctionator. The **Tempus scan** button (top-left corner of the auction house window), **Scan auction house** on the settings page, or the new optional automatic scan read every listing in one request and keep the lowest buyout per item. Prices are saved per realm for all your characters and dropped after 30 days. The game allows about one full scan every 15 minutes. **Scan bag items** is gone, since it only drove Auctionator's searches. Prices from Auctionator are not imported, so scan once to fill the data.

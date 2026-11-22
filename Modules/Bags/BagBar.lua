@@ -11,8 +11,8 @@ Bags.BagBar = BagBar
 
 local SIZE, GAP = 24, 4
 
-function BagBar.New(window)
-    local self = setmetatable({ window = window, owner = window.owner, buttons = {} }, BagBar)
+function BagBar.New(window, storage)
+    local self = setmetatable({ window = window, owner = window.owner, storage = storage or "CARRIED", buttons = {} }, BagBar)
     self.frame = CreateFrame("Frame", nil, window.frame)
     self.frame:SetHeight(SIZE)
     return self
@@ -32,7 +32,7 @@ local function Button(self, index)
     button.border = S.CreateBorder(button, "OVERLAY", 2)
     button.border:SetThickness(1, button)
     button:SetScript("OnEnter", function(b)
-        self.owner:SetHoverBag(b.container)
+        self.owner:SetHoverBag(b.container, self.storage)
         GameTooltip:SetOwner(b, "ANCHOR_TOP")
         local client = self.owner.client
         local total = client:SlotCount(b.container)
@@ -46,6 +46,7 @@ local function Button(self, index)
         local free = math.min(client:FreeSlots(b.container), total)
         GameTooltip:AddLine(("%d slots  ·  %d used, %d free"):format(total, total - free, free), 0.85, 0.88, 0.92)
         GameTooltip:AddLine("Click to show only this bag", 0.6, 0.65, 0.72)
+        if self.storage ~= "CARRIED" then GameTooltip:Show() return end
         GameTooltip:AddLine("Right-click to empty it into your other bags, then take it off", 0.6, 0.65, 0.72)
         if b.container ~= 0 then
             GameTooltip:AddLine("Drag it to your inventory to take it off; drop a bag here to swap", 0.6, 0.65, 0.72)
@@ -53,20 +54,22 @@ local function Button(self, index)
         GameTooltip:Show()
     end)
     button:SetScript("OnLeave", function()
-        self.owner:SetHoverBag(nil)
+        self.owner:SetHoverBag(nil, self.storage)
         GameTooltip:Hide()
     end)
     button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     button:RegisterForDrag("LeftButton")
     -- Drag a bag off to an inventory slot, or drop a bag (or any item) on a slot here.
     button:SetScript("OnDragStart", function(b)
-        self.owner.client:PickupBag(b.container)
+        if self.storage == "CARRIED" then self.owner.client:PickupBag(b.container) end
     end)
     button:SetScript("OnReceiveDrag", function(b)
-        self.owner.client:DropOnBag(b.container)
+        if self.storage == "CARRIED" then self.owner.client:DropOnBag(b.container) end
     end)
     button:SetScript("OnClick", function(b, mouse)
-        if CursorHasItem() then              -- click-to-drop, like the stock bag slots
+        if self.storage ~= "CARRIED" then            -- bank: only filtering, never moves a bag
+            self.owner:SetBagFilter(b.container, self.storage)
+        elseif CursorHasItem() then              -- click-to-drop, like the stock bag slots
             self.owner.client:DropOnBag(b.container)
         elseif mouse == "RightButton" then self.owner:EmptyBag(b.container)
         else self.owner:SetBagFilter(b.container) end
@@ -78,9 +81,15 @@ end
 -- Rebuild icons for the containers that exist right now (bags can be swapped at any time).
 function BagBar:Refresh()
     local owner, ids = self.owner, {}
-    for _, id in ipairs(owner.client:ContainerIDs("CARRIED")) do
-        if id >= (owner.client.env.BACKPACK_CONTAINER or 0) then ids[#ids + 1] = id end
+    local client = owner.client
+    for _, id in ipairs(client:ContainerIDs(self.storage)) do
+        if self.storage == "CARRIED" then
+            if id >= (client.env.BACKPACK_CONTAINER or 0) then ids[#ids + 1] = id end
+        elseif client:SlotCount(id) > 0 then      -- bank: only tabs / bags that exist and hold slots
+            ids[#ids + 1] = id
+        end
     end
+    local filter = self.storage == "CARRIED" and owner.bagFilter or owner.bankBagFilter
     local accent = T.accent
     local x = 0
     for index, id in ipairs(ids) do
@@ -88,10 +97,12 @@ function BagBar:Refresh()
         button.container = id
         button:ClearAllPoints()
         button:SetPoint("LEFT", self.frame, "LEFT", x, 0)
-        local texture = owner.client:BagIcon(id)
+        local texture = client:BagIcon(id)
+        -- Bank tabs have no bag item to show an icon for: a plain bag picture stands in.
+        if not texture and self.storage ~= "CARRIED" then texture = "Interface\\Buttons\\Button-Backpack-Up" end
         button.icon:SetTexture(texture)
         button.icon:SetShown(texture ~= nil)
-        if owner.bagFilter == id then button.border:SetColor(accent[1], accent[2], accent[3], 1)
+        if filter == id then button.border:SetColor(accent[1], accent[2], accent[3], 1)
         else button.border:SetColor(1, 1, 1, 0.12) end
         button:Show()
         x = x + SIZE + GAP

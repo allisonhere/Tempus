@@ -105,7 +105,61 @@ local snapshot = I.Snapshot("CARRIED", locations, function(l) return data[I.Key(
 
 local window = Bags.Window.New(owner, "CARRIED", "Bags", "point")
 local bank = Bags.Window.New(owner, "BANK", "Bank", "bankPoint")
-assert(window.bagBar and not bank.bagBar and bank.bankRow, "bag bar is carried-only, bank tabs are bank-only")
+assert(window.bagBar and bank.bagBar and bank.bankRow, "both windows have a bag bar; the bank also has its Personal/Reagents tabs")
+assert(window.bagBar.storage == "CARRIED" and bank.bagBar.storage == "BANK", "each bar knows its storage")
+-- the bank bar lists only tabs / bags that have slots, and clicking one filters the bank view
+local realIDs, realCount = client.ContainerIDs, client.SlotCount
+client.ContainerIDs = function(_, storage) return storage == "BANK" and { 6, 7, 8, 9 } or { 0, 1, 2 } end
+client.SlotCount = function(_, id) return id == 6 and 48 or id == 7 and 12 or 0 end
+client.FreeSlots = function() return 5 end
+client.IsBagSlot = function(_, id) return id == 8 end
+CursorHasItem = function() return false end
+GameTooltip = Widget("Frame"); GameTooltip.SetOwner = function() end; GameTooltip.SetText = function() end; GameTooltip.AddLine = function() end
+bank.bagBar:Refresh()
+bank:Layout()
+assert(bank.bagBar.frame.shown, "bank bag row is on by default")
+owner.db.showBankBagBar = false; bank:Layout()
+assert(not bank.bagBar.frame.shown, "bank bag row can be switched off")
+owner.db.showBagBar = false; owner.db.showBankBagBar = true; bank:Layout()
+assert(bank.bagBar.frame.shown, "bank row is independent of the carried bag bar setting")
+owner.db.showBagBar = true; bank:Layout()
+assert(bank.bagBar.buttons[1].container == 6 and bank.bagBar.buttons[2].container == 7 and bank.bagBar.buttons[3].container == 8
+    and not bank.bagBar.buttons[4], "bank shows containers with slots and empty bag slots, not unusable ids")
+bank.bagBar.buttons[2].scripts.OnClick(bank.bagBar.buttons[2], "LeftButton")
+assert(calls.SetBagFilter[1] == 7 and calls.SetBagFilter[2] == "BANK", "bank click filters the bank, storage passed")
+bank.bagBar.buttons[2].scripts.OnEnter(bank.bagBar.buttons[2])
+assert(calls.SetHoverBag[1] == 7 and calls.SetHoverBag[2] == "BANK", "bank hover dims the other bank bags")
+-- tab mode: every tab drawn, bought ones plain, the next one buyable, summary line under the row
+client.BankTabs = function()
+    return { total = 3, bought = 1, free = 20, canBuy = true, nextCost = 150000, canAfford = true, tabs = {
+        { container = 6, slots = 48, free = 20, bought = true, name = "Main" },
+        { container = 7, slots = 0, free = 0, bought = false, name = "Bank tab 2" },
+        { container = 8, slots = 0, free = 0, bought = false, name = "Bank tab 3" } } }
+end
+local bought
+client.BuyBankTab = function() bought = true end
+bank.bagBar:Refresh()
+local tb = bank.bagBar.buttons
+assert(tb[1].tab.bought and not tb[1].buyable and tb[2].buyable and not tb[3].buyable, "only the next unbought tab is buyable")
+assert(bank.bagBar.summary.text:find("1 of 3 tabs") and bank.bagBar.summary.text:find("20 free") and bank.bagBar.summary.text:find("2 to buy"), bank.bagBar.summary.text)
+tb[3].scripts.OnClick(tb[3], "LeftButton"); assert(not bought, "locked tab cannot be bought")
+tb[2].scripts.OnClick(tb[2], "LeftButton"); assert(bought, "next tab buys through the client")
+tb[1].scripts.OnClick(tb[1], "LeftButton"); assert(calls.SetBagFilter[1] == 6, "bought tab filters")
+tb[2].scripts.OnEnter(tb[2])
+assert(owner.db.tabCosts["2"] == 150000, "next tab price is remembered under its tab number")
+assert(Bags.BagBar.Money(150000) == "15g" and Bags.BagBar.Money(123456) == "12g 34s" and Bags.BagBar.Money(4505) == "45s 5c", "price formatting")
+local lines = {}
+GameTooltip.AddLine = function(_, text) lines[#lines + 1] = text end
+GameTooltip.SetText = function(_, text) lines[#lines + 1] = text end
+tb[2].scripts.OnEnter(tb[2]); assert(table.concat(lines, "|"):find("Price: 15g"), "next tab shows its price")
+lines = {}; tb[3].scripts.OnEnter(tb[3]); assert(table.concat(lines, "|"):find("shown once it is the next"), "unseen later price says why")
+owner.db.tabCosts["3"] = 400000
+lines = {}; tb[3].scripts.OnEnter(tb[3]); assert(table.concat(lines, "|"):find("Price: 40g %(as last seen%)"), "remembered later price shown")
+owner.db.tabCosts = nil
+client.BankTabs = nil
+client.ContainerIDs, client.FreeSlots = realIDs, nil
+client.SlotCount = realCount or function() return 0 end
+client.IsBagSlot = function() return false end
 assert(#window.chips == #I.filters, "one chip per filter")
 
 local function RenderMode(mode, opts)

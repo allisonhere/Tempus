@@ -52,6 +52,29 @@ local tabbed = Client.New({
 local tabSlots = tabbed:Locations("BANK")
 assert(#tabSlots == 98 and tabSlots[1].container == 6, "character bank tabs give the bank its slots")
 
+-- tab summary: three of nine bought, free slots counted, next tab buyable with a cost
+local popup
+local sold = Client.New({
+    NUM_BAG_SLOTS = 4, NUM_TOTAL_EQUIPPED_BAG_SLOTS = 5,
+    Constants = { InventoryConstants = { NumCharacterBankSlots = 9 } },
+    Enum = { BagIndex = { CharacterBankTab_1 = 6, CharacterBankTab_2 = 7, CharacterBankTab_3 = 8, CharacterBankTab_4 = 9,
+        CharacterBankTab_5 = 10, CharacterBankTab_6 = 11, CharacterBankTab_7 = 12, CharacterBankTab_8 = 13, CharacterBankTab_9 = 14 },
+        BankType = { Character = 0 } },
+    C_Bank = { CanPurchaseBankTab = function() return true end,
+        FetchNextPurchasableBankTabData = function() return { tabCost = 250000, canAfford = false } end,
+        FetchPurchasedBankTabData = function() return { { ID = 6, name = "Main" } } end },
+    C_Container = { GetContainerNumSlots = function(bag) return ({ [6] = 48, [7] = 48, [8] = 48 })[bag] or 0 end,
+        GetContainerNumFreeSlots = function(bag) return ({ [6] = 10, [7] = 48, [8] = 0 })[bag] or 0 end },
+    StaticPopupDialogs = { CONFIRM_BUY_BANK_TAB = {} },
+    StaticPopup_Show = function(name, _, _, data) popup = { name = name, data = data } end,
+})
+local info = sold:BankTabs()
+assert(info.total == 9 and info.bought == 3 and info.free == 58, "tabs bought / free slots counted")
+assert(#info.tabs == 9 and info.tabs[1].name == "Main" and info.tabs[2].name == "Bank tab 2" and not info.tabs[4].bought, "tab names and bought flags")
+assert(info.canBuy and info.nextCost == 250000 and info.canAfford == false, "next tab cost and affordability")
+assert(sold:BuyBankTab() and popup.name == "CONFIRM_BUY_BANK_TAB" and popup.data.bankType == 0, "buying goes through Blizzard's confirmation")
+assert(Client.New({}):BankTabs() == nil, "no tabs on clients that do not sell them")
+
 local a, b = modern:Read(carried[1]), legacy:Read(carried[1])
 for _, key in ipairs({ "itemID", "link", "name", "icon", "count", "quality", "classID", "subClassID", "equipLoc" }) do
     assert(a[key] == b[key], "modern and legacy normalize " .. key)

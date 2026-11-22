@@ -17,6 +17,7 @@ B.defaults = {
     trackChars = true,       -- keep every character's bags and bank for the Alts viewer and tooltips
     showAltCounts = true,    -- "Alt: Bags 4  Bank 12" lines on item tooltips
     showBagBar = true,
+    showBankBagBar = true,      -- the bag / tab slots row in the bank window
     showFilters = true,
     sortItems = true,
     collapsed = {},          -- [characterKey][sectionKey] = true
@@ -359,7 +360,7 @@ end
 function B:ProjectOptions(storage)
     return {
         filter = self.filter[storage],
-        container = storage == "CARRIED" and self.bagFilter or nil,
+        container = storage == "CARRIED" and self.bagFilter or storage == "BANK" and self.bankBagFilter or nil,
         -- Grid view always shows the real bag slots, so dragging one item onto another
         -- visibly swaps them; only Sections view sorts its display.
         sort = self.db.sortItems and self.db.mode ~= "GRID",
@@ -378,7 +379,12 @@ function B:SetFilter(storage, key)
     self:Render(storage)
 end
 
-function B:SetBagFilter(container)
+function B:SetBagFilter(container, storage)
+    if storage == "BANK" then
+        self.bankBagFilter = self.bankBagFilter ~= container and container or nil
+        self:Render("BANK")
+        return
+    end
     self.bagFilter = self.bagFilter ~= container and container or nil
     self:Render("CARRIED")
 end
@@ -436,7 +442,12 @@ function B:EmptyBag(container)
     Step()
 end
 
-function B:SetHoverBag(container)
+function B:SetHoverBag(container, storage)
+    if storage == "BANK" then
+        self.bankHoverBag = container
+        if self.bankWindow then self.bankWindow:ApplyHighlight() end
+        return
+    end
     self.hoverBag = container
     if self.carriedWindow then self.carriedWindow:ApplyHighlight() end
 end
@@ -517,6 +528,7 @@ end
 function B:SetBankStorage(storage)
     if storage == "REAGENT" and not self.client:IsReagentAvailable() then return end
     self.bankStorage = storage
+    self.bankBagFilter = nil
     self:Refresh(storage)
 end
 

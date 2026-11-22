@@ -156,6 +156,64 @@ function Client:UnequipBag(container)
     return false, "no free slot left for the bag itself"
 end
 
+-- The character bank's tabs on clients that sell them (WoW Forever: nine, containers 6-14):
+-- { tabs = { {container, slots, free, bought, name} ... }, bought, free, total, nextCost, canBuy,
+-- canAfford }. nil when this client has no bank tabs. A tab counts as bought when it has slots,
+-- which holds while the bank is open; C_Bank's own count is unreliable with the frame hidden.
+function Client:BankTabs()
+    local env = self.env
+    local index = env.Enum and env.Enum.BagIndex
+    local btype = env.Enum and env.Enum.BankType and env.Enum.BankType.Character
+    local consts = env.Constants and env.Constants.InventoryConstants
+    local total = consts and consts.NumCharacterBankSlots
+    if not (index and index.CharacterBankTab_1 and T.Num(total) and total > 0) then return nil end
+    local names = {}
+    if env.C_Bank and btype ~= nil and env.C_Bank.FetchPurchasedBankTabData then
+        local data = Call(env.C_Bank.FetchPurchasedBankTabData, btype)
+        if type(data) == "table" then
+            for _, d in ipairs(data) do
+                if type(d) == "table" and d.ID ~= nil and T.Str(d.name) then names[d.ID] = d.name end
+            end
+        end
+    end
+    local out = { tabs = {}, bought = 0, free = 0, total = total }
+    for n = 1, total do
+        local id = index["CharacterBankTab_" .. n]
+        if id == nil then id = index.CharacterBankTab_1 + n - 1 end
+        local slots = self:SlotCount(id)
+        local free = slots > 0 and math.min(self:FreeSlots(id), slots) or 0
+        out.tabs[n] = { container = id, slots = slots, free = free, bought = slots > 0, name = names[id] or ("Bank tab " .. n) }
+        if slots > 0 then out.bought, out.free = out.bought + 1, out.free + free end
+    end
+    if env.C_Bank and btype ~= nil then
+        out.canBuy = Call(env.C_Bank.CanPurchaseBankTab, btype) == true and out.bought < total
+        local nextTab = Call(env.C_Bank.FetchNextPurchasableBankTabData, btype)
+        if type(nextTab) == "table" then
+            out.nextCost = T.Num(nextTab.tabCost) and nextTab.tabCost or nil
+            out.canAfford = nextTab.canAfford == true
+        end
+    end
+    return out
+end
+
+-- Ask the game to sell the next bank tab, through Blizzard's own confirmation (it shows the cost).
+function Client:BuyBankTab()
+    local env = self.env
+    local btype = env.Enum and env.Enum.BankType and env.Enum.BankType.Character
+    if btype ~= nil and type(env.StaticPopup_Show) == "function" and env.StaticPopupDialogs
+        and env.StaticPopupDialogs.CONFIRM_BUY_BANK_TAB then
+        env.StaticPopup_Show("CONFIRM_BUY_BANK_TAB", nil, nil, { bankType = btype })
+        return true
+    end
+    return false
+end
+
+-- True when this container id is a bag slot you can equip a bag in (empty or not).
+function Client:IsBagSlot(container)
+    local env, C = self.env, self.env.C_Container
+    return T.Num(Call(C and C.ContainerIDToInventoryID or env.ContainerIDToInventoryID, container)) and true or false
+end
+
 -- Pick an equipped bag up onto the cursor, to drop on an inventory slot (or another bag slot).
 function Client:PickupBag(container)
     local env, C = self.env, self.env.C_Container

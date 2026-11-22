@@ -123,9 +123,8 @@ function Window.New(owner, storage, title, pointKey)
         self.personalTab:SetPoint("RIGHT")
         self.reagentTab = SmallButton(self.bankRow, "Reagents", 72, function() owner:SetBankStorage("REAGENT") end)
         self.reagentTab:SetPoint("RIGHT", self.personalTab, "LEFT", -4, 0)
-    else
-        self.bagBar = Bags.BagBar.New(self)
     end
+    self.bagBar = Bags.BagBar.New(self, storage)
 
     local scroll = CreateFrame("ScrollFrame", nil, frame)
     scroll:EnableMouseWheel(true)
@@ -316,10 +315,10 @@ end
 
 -- Dim every item outside the hovered bag.
 function Window:ApplyHighlight()
-    local hover = self.owner.hoverBag
+    local hover = self.storage == "CARRIED" and self.owner.hoverBag or self.storage == "BANK" and self.owner.bankHoverBag or nil
     for _, button in pairs(self.buttons) do
         local base = button.tempusAlpha or 1
-        if hover ~= nil and self.storage == "CARRIED" and button.tempusContainer ~= hover then base = base * 0.25 end
+        if hover ~= nil and button.tempusContainer ~= hover then base = base * 0.25 end
         button:SetAlpha(base)
     end
 end
@@ -399,8 +398,11 @@ function Window:Layout()
     Place(self.chipRow, 20, db.showFilters)
     if self.bankRow then Place(self.bankRow, 22, true) end
     if self.bagBar then
-        local showBar = db.showBagBar and not self.owner.viewing
-        Place(self.bagBar.frame, 24, showBar)
+        -- The bank bar lists bank bags / tabs, so it belongs to the Personal view, not Reagents.
+        local showBar = (self.storage == "BANK" and db.showBankBagBar ~= false or self.storage ~= "BANK" and db.showBagBar)
+            and not self.owner.viewing
+            and (self.storage ~= "BANK" or self.owner.bankStorage == "BANK")
+        Place(self.bagBar.frame, self.bagBar.height or 24, showBar)
         if showBar then self.bagBar:Refresh() end
     end
     self.scroll:ClearAllPoints()

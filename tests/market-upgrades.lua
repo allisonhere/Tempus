@@ -306,4 +306,27 @@ pu.OnUpdate(pu, 0.1); assert(pu.status.text ~= 'No upgrades match the AH filters
 pu.OnUpdate(pu, 0.5)
 assert(pu.status.text == 'No upgrades match the AH filters', 'refreshed after the filter changed: ' .. tostring(pu.status.text))
 g_auctionHouseFilters = nil
+-- the category picked in the AH list (for example two-handed weapons) applies too
+local function Cat(filters, name)
+    return { CategoriesList = { GetCategoryFilterData = function() return filters end, GetCategoryData = function() return { name = name } end } }
+end
+AuctionHouseFrame = nil; g_auctionHouseFilters = AHF(0, 0)
+assert(M.ReadAHCategory() == nil, 'no AH frame, no category')
+AuctionHouseFrame = Cat(nil, 'x'); assert(M.ReadAHCategory() == nil, 'nothing selected')
+AuctionHouseFrame = Cat({ { classID = 2, subClassID = 8 } }, 'Two-Handed Swords')
+local cf = M.ReadAHFilters()
+assert(cf and cf.categoryName == 'Two-Handed Swords' and #cf.categories == 1, 'category is read even with default filters')
+assert(M.PassesFilters(cf, 1, 1, 2, 8, 'INVTYPE_2HWEAPON') and not M.PassesFilters(cf, 1, 1, 2, 7, 'INVTYPE_WEAPON')
+    and not M.PassesFilters(cf, 1, 1, 4, 4, 'INVTYPE_HEAD'), 'class and subclass must match')
+assert(M.FilterSummary(cf) == 'Two-Handed Swords', M.FilterSummary(cf))
+AuctionHouseFrame = Cat({ { classID = 4, subClassID = 4, inventoryType = 1 } }, 'Plate Head')
+local hf = M.ReadAHFilters()
+assert(M.PassesFilters(hf, 1, 1, 4, 4, 'INVTYPE_HEAD') and not M.PassesFilters(hf, 1, 1, 4, 4, 'INVTYPE_LEGS'), 'inventory type must match')
+assert(M.FilterSignature() ~= '', 'category is part of the signature')
+-- through FindUpgrades: item 6 is a 2h sword (class 2, sub 8), the rest are armor
+Seed({ [1] = 10 * G, [4] = 5 * G, [6] = 2 * G })
+AuctionHouseFrame = Cat({ { classID = 2, subClassID = 8 } }, 'Two-Handed Swords')
+Same(Ids((M:FindUpgrades())), { 6 })
+T.db.market.upgradeUseAHFilters = false; assert(#(M:FindUpgrades()) == 3); T.db.market.upgradeUseAHFilters = nil
+AuctionHouseFrame = nil; g_auctionHouseFilters = nil
 print('ok')

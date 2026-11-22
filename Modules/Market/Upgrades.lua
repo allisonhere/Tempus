@@ -117,12 +117,44 @@ local QUALITY_FILTERS = { [0] = "PoorQuality", "CommonQuality", "UncommonQuality
     "LegendaryQuality", "ArtifactQuality" }
 local QUALITY_NAMES = { [0] = "Poor", "Common", "Uncommon", "Rare", "Epic", "Legendary", "Artifact" }
 
+-- The numbers the AH category filters use for an item's equip slot.
+local INVENTORY_TYPE = { INVTYPE_HEAD = 1, INVTYPE_NECK = 2, INVTYPE_SHOULDER = 3, INVTYPE_BODY = 4, INVTYPE_CHEST = 5,
+    INVTYPE_WAIST = 6, INVTYPE_LEGS = 7, INVTYPE_FEET = 8, INVTYPE_WRIST = 9, INVTYPE_HAND = 10, INVTYPE_FINGER = 11,
+    INVTYPE_TRINKET = 12, INVTYPE_WEAPON = 13, INVTYPE_SHIELD = 14, INVTYPE_RANGED = 15, INVTYPE_CLOAK = 16,
+    INVTYPE_2HWEAPON = 17, INVTYPE_BAG = 18, INVTYPE_TABARD = 19, INVTYPE_ROBE = 20, INVTYPE_WEAPONMAINHAND = 21,
+    INVTYPE_WEAPONOFFHAND = 22, INVTYPE_HOLDABLE = 23, INVTYPE_AMMO = 24, INVTYPE_THROWN = 25, INVTYPE_RANGEDRIGHT = 26 }
+
+-- The selected AH category as a list of { classID, subClassID, inventoryType } (any may be nil =
+-- any), plus its name; nil when no category is selected or the AH frame is not there.
+function M.ReadAHCategory(env)
+    env = env or _G
+    local frame = rawget(env, "AuctionHouseFrame")
+    local list = type(frame) == "table" and frame.CategoriesList
+    if type(list) ~= "table" or type(list.GetCategoryFilterData) ~= "function" then return nil end
+    local ok, filters = pcall(list.GetCategoryFilterData, list)
+    if not ok or type(filters) ~= "table" or #filters == 0 then return nil end
+    local out = {}
+    for _, f in ipairs(filters) do
+        if type(f) == "table" and (f.classID ~= nil or f.subClassID ~= nil or f.inventoryType ~= nil) then
+            out[#out + 1] = { classID = Num(f.classID) and f.classID or nil, subClassID = Num(f.subClassID) and f.subClassID or nil,
+                inventoryType = Num(f.inventoryType) and f.inventoryType or nil }
+        end
+    end
+    if #out == 0 then return nil end
+    local name
+    if type(list.GetCategoryData) == "function" then
+        local ok2, data = pcall(list.GetCategoryData, list)
+        if ok2 and type(data) == "table" and type(data.name) == "string" then name = data.name end
+    end
+    return out, name
+end
+
 -- nil = nothing is filtered (or the AH has never been opened); otherwise
 -- { minLevel, maxLevel, quality = { [0..6] = false for hidden rarities } }.
 function M.ReadAHFilters(env)
     env = env or _G
     local g = rawget(env, "g_auctionHouseFilters")
-    if type(g) ~= "table" then return nil end
+    if type(g) ~= "table" then g = {} end
     local out, active = { minLevel = 0, maxLevel = 0, quality = {} }, false
     local lo, hi = g.minLevel, g.maxLevel
     if Num(lo) and lo > 0 then out.minLevel, active = lo, true end
@@ -134,12 +166,23 @@ function M.ReadAHFilters(env)
             if id ~= nil and flags[id] == false then out.quality[q], active = false, true end
         end
     end
+    -- The category picked in the AH's left-hand list (for example Weapons > Two-Handed Swords).
+    local cat, name = M.ReadAHCategory(env)
+    if cat then out.categories, out.categoryName, active = cat, name, true end
     return active and out or nil
 end
 
 -- Does an item of this quality and required level survive the filters? Unknown values pass.
-function M.PassesFilters(filters, quality, requiredLevel)
+function M.PassesFilters(filters, quality, requiredLevel, classID, subClassID, equipLoc)
     if not filters then return true end
+    if filters.categories then
+        local inv, any = INVENTORY_TYPE[equipLoc or ""], false
+        for _, f in ipairs(filters.categories) do
+            if (f.classID == nil or f.classID == classID) and (f.subClassID == nil or f.subClassID == subClassID)
+                and (f.inventoryType == nil or f.inventoryType == inv) then any = true break end
+        end
+        if not any then return false end
+    end
     if Num(quality) and filters.quality[quality] == false then return false end
     if Num(requiredLevel) then
         if filters.minLevel > 0 and requiredLevel < filters.minLevel then return false end
@@ -154,12 +197,16 @@ function M.FilterSignature()
     if not f then return "" end
     local parts = { f.minLevel, f.maxLevel }
     for q = 0, 6 do parts[#parts + 1] = f.quality[q] == false and 0 or 1 end
+    for _, c in ipairs(f.categories or {}) do
+        parts[#parts + 1] = (c.classID or "-") .. "." .. (c.subClassID or "-") .. "." .. (c.inventoryType or "-")
+    end
     return table.concat(parts, ",")
 end
 
 function M.FilterSummary(filters)
     if not filters then return "" end
     local parts, shown = {}, {}
+    if filters.categories then parts[#parts + 1] = filters.categoryName or "category" end
     for q = 0, 6 do if filters.quality[q] ~= false then shown[#shown + 1] = q end end
     if #shown < 7 and #shown > 0 then
         local contiguous = shown[#shown] - shown[1] == #shown - 1
@@ -215,7 +262,7 @@ function M:FindUpgrades()
                     end
                 elseif ilvl - base >= minGain and M.CanUse(class, level, row.c, row.s, loc, minLevel) then
                     local gain = ilvl - base
-                    if not M.PassesFilters(filters, quality, minLevel) then
+                    if not M.PassesFilters(filters, quality, minLevel, row.c, row.s, loc) then
                         hidden = hidden + 1
                     else
                         out[#out + 1] = { id = id, price = row.p, gain = gain, level = ilvl, worn = base, loc = loc,

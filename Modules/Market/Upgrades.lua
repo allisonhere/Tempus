@@ -148,6 +148,15 @@ function M.PassesFilters(filters, quality, requiredLevel)
     return true
 end
 
+-- A string that changes whenever the AH filters do, so the open list can notice.
+function M.FilterSignature()
+    local f = M.ReadAHFilters()
+    if not f then return "" end
+    local parts = { f.minLevel, f.maxLevel }
+    for q = 0, 6 do parts[#parts + 1] = f.quality[q] == false and 0 or 1 end
+    return table.concat(parts, ",")
+end
+
 function M.FilterSummary(filters)
     if not filters then return "" end
     local parts, shown = {}, {}
@@ -541,10 +550,24 @@ function M:BuildUpgradePanel()
     -- Item data arrives asynchronously; refresh the open panel as it lands.
     p:SetScript("OnShow", function(f)
         f:RegisterEvent("ITEM_DATA_LOAD_RESULT")
+        f.filterSig = M.FilterSignature()
         f.scroll:SetVerticalScroll(0)
         M:RefreshUpgrades()
     end)
     p:SetScript("OnHide", function(f) f:UnregisterEvent("ITEM_DATA_LOAD_RESULT") end)
+    -- The AH keeps its filters in a plain table with no event when they change (the level range is
+    -- stored when you press Search), so while the list is open, look for a change twice a second.
+    local waited = 0
+    p:SetScript("OnUpdate", function(f, elapsed)
+        waited = waited + (elapsed or 0)
+        if waited < 0.5 then return end
+        waited = 0
+        local sig = M.FilterSignature()
+        if sig ~= f.filterSig then
+            f.filterSig = sig
+            M:RefreshUpgrades()
+        end
+    end)
     p:SetScript("OnEvent", function() M:ScheduleUpgradeRefresh() end)
     p:Hide()
     self.upgradePanel = p

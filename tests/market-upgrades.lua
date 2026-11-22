@@ -294,4 +294,16 @@ g_auctionHouseFilters = AHF(0, 0, { 7 })
 local pf = M:BuildUpgradePanel(); pf:Show(); M:RefreshUpgrades()
 assert(pf.status.text == 'No upgrades match the AH filters', tostring(pf.status.text))
 g_auctionHouseFilters = nil
+-- the open list notices an AH filter change on its own
+g_auctionHouseFilters = AHF(0, 0)
+assert(M.FilterSignature() == '', 'default filters have an empty signature')
+local pu = M.upgradePanel; pu:Show()
+Seed({ [4] = 5 * G, [6] = 2 * G }); M:RefreshUpgrades()
+assert(#M.Layout((M:FindUpgrades())) > 0)
+g_auctionHouseFilters = AHF(0, 0, { 7 })
+assert(M.FilterSignature() ~= '', 'a changed filter changes the signature')
+pu.OnUpdate(pu, 0.1); assert(pu.status.text ~= 'No upgrades match the AH filters', 'waits for the half second')
+pu.OnUpdate(pu, 0.5)
+assert(pu.status.text == 'No upgrades match the AH filters', 'refreshed after the filter changed: ' .. tostring(pu.status.text))
+g_auctionHouseFilters = nil
 print('ok')

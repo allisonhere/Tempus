@@ -1,107 +1,112 @@
-local module, messages, post, prices, age = nil, {}, nil, 12345, 4
-local secret={}
+local module, messages, post = nil, {}, nil
+local secret = {}
+local now = 1000000
+function time() return now end
+GetRealmName = function() return 'Realm' end
+UnitFactionGroup = function() return 'Horde' end
+TempusDB = {}
+local timeouts = {}
+C_Timer = { After = function(d, fn) if d == 0 then fn() else timeouts[#timeouts + 1] = fn end end }
+local frames = {}
+function CreateFrame(kind)
+    local f = { events = {}, texts = {} }
+    function f:RegisterEvent(e) self.events[e] = true end
+    function f:UnregisterEvent(e) self.events[e] = nil end
+    function f:SetScript(n, fn) self[n] = fn end
+    function f:SetSize() end function f:SetPoint() end
+    function f:SetText(t) self.text = t end
+    function f:IsShown() return true end
+    frames[#frames + 1] = f
+    return f
+end
 local function Tip()
-    local t={lines={},scripts={},link='item:123:0:0:0:0:0:7',owner={tempusRecord={count=5}}}
-    function t:GetItem() return 'Test item',self.link end
+    local t = { lines = {}, scripts = {}, link = 'item:123:0:0:0:0:0:7', owner = { tempusRecord = { count = 5 } } }
+    function t:GetItem() return 'Test item', self.link end
     function t:GetOwner() return self.owner end
-    function t:AddDoubleLine(left,right) self.lines[#self.lines+1]={left,right} end
-    function t:HookScript(event,fn) self.scripts[event]=fn end
+    function t:AddDoubleLine(l, r) self.lines[#self.lines + 1] = { l, r } end
+    function t:HookScript(e, fn) self.scripts[e] = fn end
     return t
 end
-GameTooltip=Tip(); ItemRefTooltip=Tip()
-Enum={TooltipDataType={Item=1}}
-TooltipDataProcessor={AddTooltipPostCall=function(_,fn) post=fn end}
-local T={db={market={tooltips=true,staleDays=3}},
-    Num=function(v) return type(v)=='number' end, issecret=function(v) return v==secret end,
-    ModuleEnabled=function() return true end,
-    Print=function(_,fmt,...) messages[#messages+1]=fmt:format(...) end,
-    NewModule=function(_,_,def) module=def end}
-assert(loadfile('Modules/Market/Market.lua'))('Tempus',T)
-local M=T.Market
-local q,why=M:Quote('item:123',123)
-assert(not q and why=='unavailable')
-local linkCalls,idCalls=0,0
-Auctionator={API={v1={
-    GetAuctionPriceByItemLink=function(caller,link) assert(caller=='Tempus' and link:find('item:')); linkCalls=linkCalls+1; return prices end,
-    GetAuctionAgeByItemLink=function() return age end,
-    GetAuctionPriceByItemID=function() idCalls=idCalls+1; return prices end,
-    GetAuctionAgeByItemID=function() return age end,
-}}}
-local api=Auctionator.API.v1
+GameTooltip = Tip()
+Enum = { TooltipDataType = { Item = 1 } }
+TooltipDataProcessor = { AddTooltipPostCall = function(_, fn) post = fn end }
+local T = { db = { market = { tooltips = true, staleDays = 3, autoScan = false } },
+    Num = function(v) return type(v) == 'number' end, issecret = function(v) return v == secret end,
+    ModuleEnabled = function() return true end,
+    Print = function(_, fmt, ...) messages[#messages + 1] = fmt:format(...) end,
+    NewModule = function(_, _, def) module = def end }
+assert(loadfile('Modules/Market/Market.lua'))('Tempus', T)
+local M = T.Market
+
+-- before any scan: nothing stored, tooltip stays quiet
+assert(not M:Quote('item:123', 123))
 module.OnEnable(); module.OnEnable()
-post(GameTooltip,{id=123})
-assert(#GameTooltip.lines==3 and GameTooltip.lines[1][2]=='1g 23s 45c')
-assert(GameTooltip.lines[2][2]=='6g 17s 25c' and GameTooltip.lines[3][2]:find('stale'))
-assert(linkCalls==1 and idCalls==0,'prefer variant link to bare item ID')
-post(GameTooltip,{id=123}); assert(#GameTooltip.lines==3,'no duplicate callback lines')
-GameTooltip.scripts.OnTooltipCleared(GameTooltip); GameTooltip.lines={}
-prices=23456; age=0
-post(GameTooltip,{id=123})
-assert(GameTooltip.lines[1][2]=='2g 34s 56c' and GameTooltip.lines[3][2]=='Seen today','do not cache old scan results')
-prices=nil
-q,why=M:Quote('item:123',123); assert(not q and why=='unknown')
-prices=-1; assert(not M:Quote(nil,123))
-prices=0/0; assert(not M:Quote(nil,123))
-prices=math.huge; assert(not M:Quote(nil,123))
-prices=secret; assert(not M:Quote(nil,123))
-prices=100; age=nil
-q=M:Quote(nil,123); assert(q.price==100 and q.age==nil)
-api.GetAuctionPriceByItemLink=function() error('provider unavailable') end
-local before=idCalls
-assert(not M:Quote('item:123',123) and idCalls==before,'never silently substitute another variant')
-assert(not M:Quote(secret,secret))
-T.db.market.tooltips=false
-local lines=#GameTooltip.lines
-M:AddTooltip(GameTooltip,999); assert(#GameTooltip.lines==lines)
-T.db.market.tooltips=true
-local scans,terms=0
-api.MultiSearchExact=function(caller,list)
-    assert(caller=='Tempus')
-    for _,term in ipairs(list) do assert(not term:find('"'), 'API rejects caller-quoted names') end
-    scans=scans+1; terms=list
-end
-assert(not M:ScanBags() and scans==0,'scan requires open AH')
-AuctionFrame={IsShown=function() return true end}
-NUM_BAG_SLOTS=0
-local items={
-    {hyperlink='item:1'}, {hyperlink='item:1'}, {hyperlink='item:2'},
-    {hyperlink='item:3',isBound=true}, {hyperlink='item:4'}, {hyperlink=secret},
+post(GameTooltip, { id = 123 }); assert(#GameTooltip.lines == 0, 'quiet before first scan')
+
+-- scanning needs the API and an open house
+assert(not M:StartScan()); assert(messages[#messages]:find('no auction house scan API'))
+local auctions = {
+    -- name, tex, count, q, usable, lvl, lvlType, minBid, minInc, buyout, bid, highBidder, bidderName, owner, ownerName, sale, itemID
+    { 'a', 1, 5, 1, 1, 1, 1, 0, 0, 61725, 0, 0, 0, 0, 0, 0, 123 },    -- 12345 per item
+    { 'a', 1, 1, 1, 1, 1, 1, 0, 0, 20000, 0, 0, 0, 0, 0, 0, 123 },
+    { 'b', 1, 2, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 777 },        -- no buyout: ignored
+    { 'c', 1, 3, 1, 1, 1, 1, 0, 0, 1001, 0, 0, 0, 0, 0, 0, 555 },     -- ceil(333.67) = 334
 }
-C_Container={GetContainerNumSlots=function() return #items end, GetContainerItemInfo=function(_,slot) return items[slot] end}
-C_Item={GetItemInfo=function(link) return ({['item:1']='Silk Cloth',['item:2']='Linen Cloth',['item:3']='Bound Sword'})[link] end}
-assert(M:ScanBags() and scans==1 and #terms==2)
-assert(terms[1]=='Linen Cloth' and terms[2]=='Silk Cloth','unique exact names, excluding bound and uncached items')
-assert(messages[#messages]:find('uncached'))
-api.MultiSearchExact=nil
-api.MultiSearch=function() scans=scans+1 end
-assert(M:ScanBags(), 'older API uses basic name searches')
-api.MultiSearch=function() error('busy') end
-assert(not M:ScanBags() and messages[#messages]:find('could not start'))
--- Every modern item surface participates, including tooltips created after startup.
-api.GetAuctionPriceByItemLink=function() return 100 end
-local comparison=Tip()
-post(comparison,{id=123})
-assert(#comparison.lines==3 and comparison.scripts.OnTooltipCleared)
-post(comparison,{id=123}); assert(#comparison.lines==3)
-comparison.scripts.OnTooltipCleared(comparison); comparison.lines={}
-post(comparison,{id=123}); assert(#comparison.lines==3,'reused comparison tip must show price again')
-local embedded=Tip(); embedded.GetItem=false; embedded.owner=nil
-post(embedded,{id=123})
-assert(#embedded.lines==2,'embedded items can use callback ID when no item link is available')
-post({}, {id=123}) -- a non-tooltip surface is ignored safely
--- Legacy tooltip path also hooks and renders, without the modern data processor.
-TooltipDataProcessor=nil; M.hooked=nil
-GameTooltip=Tip(); ItemRefTooltip=Tip()
-ShoppingTooltip1=Tip(); ItemRefShoppingTooltip1=Tip()
-EmbeddedItemTooltip={ItemTooltip=Tip()}
-api.GetAuctionPriceByItemLink=function() return 100 end
-M:HookTooltips()
-GameTooltip.scripts.OnTooltipSetItem(GameTooltip)
-assert(GameTooltip.lines[1][2]=='0g 1s 0c')
-GameTooltip.scripts.OnTooltipCleared(GameTooltip)
-assert(GameTooltip.tempusMarketKey==nil)
-for _,tip in ipairs({ShoppingTooltip1,ItemRefShoppingTooltip1,EmbeddedItemTooltip.ItemTooltip}) do
-    tip.scripts.OnTooltipSetItem(tip)
-    assert(tip.lines[1][2]=='0g 1s 0c','legacy comparison/embedded tooltips include prices')
-end
-print('PASS: auction estimates, variants, age, stack totals, missing/invalid data, tooltip lifecycle, and explicit AH scans')
+local replicated = 0
+C_AuctionHouse = {
+    ReplicateItems = function() replicated = replicated + 1 end,
+    GetNumReplicateItems = function() return #auctions end,
+    GetReplicateItemInfo = function(i) return unpack(auctions[i + 1]) end,
+}
+assert(not M:StartScan()); assert(messages[#messages]:find('Open the auction house'))
+local ah = M.frame
+ah.OnEvent(ah, 'AUCTION_HOUSE_SHOW')
+assert(M:StartScan() and replicated == 1 and M.scanning)
+assert(not M:StartScan() and replicated == 1, 'no second scan while one runs')
+ah.OnEvent(ah, 'REPLICATE_ITEM_LIST_UPDATE')
+assert(not M.scanning and messages[#messages]:find('2 items priced from 3 auctions'), messages[#messages])
+local q = M:Quote('item:123:0:0', nil)
+assert(q and q.price == 12345 and q.age == 0, 'keeps the lowest unit buyout')
+assert(M:Quote(nil, 555).price == 334 and not M:Quote(nil, 777))
+
+-- tooltip shows our scan, and stack total
+post(GameTooltip, { id = 123 })
+assert(GameTooltip.lines[1][2] == '1g 23s 45c' and GameTooltip.lines[2][2] == '6g 17s 25c', GameTooltip.lines[1][2])
+assert(GameTooltip.lines[3][2] == 'Seen today')
+GameTooltip.scripts.OnTooltipCleared(GameTooltip); GameTooltip.lines = {}
+post(GameTooltip, { id = 123 }); local n = #GameTooltip.lines
+post(GameTooltip, { id = 123 }); assert(#GameTooltip.lines == n, 'no duplicate lines')
+
+-- cooldown, aging, stale
+assert(not M:StartScan()); assert(messages[#messages]:find('scanned again in 15 min'))
+now = now + 4 * 86400 + 16 * 60
+q = M:Quote(nil, 123); assert(q.age == 4)
+GameTooltip.scripts.OnTooltipCleared(GameTooltip); GameTooltip.lines = {}
+post(GameTooltip, { id = 123 }); assert(GameTooltip.lines[3][2]:find('stale'))
+
+-- second scan merges: unlisted items keep their old price, relisted ones update
+auctions = { { 'a', 1, 1, 1, 1, 1, 1, 0, 0, 5000, 0, 0, 0, 0, 0, 0, 123 } }
+assert(M:StartScan()); ah.OnEvent(ah, 'REPLICATE_ITEM_LIST_UPDATE')
+assert(M:Quote(nil, 123).price == 5000 and M:Quote(nil, 555).price == 334 and M:Quote(nil, 555).age == 4, 'unlisted item keeps its old timestamp')
+
+-- a server that never answers times out
+now = now + 20 * 60
+timeouts = {}
+assert(M:StartScan()); assert(#timeouts == 1); timeouts[1]()
+assert(not M.scanning and messages[#messages]:find('no answer'), messages[#messages])
+now = now + 20 * 60
+-- closing mid-scan fails cleanly; auto scan; secret values skipped; old rows pruned
+now = now + 20 * 60
+assert(M:StartScan()); ah.OnEvent(ah, 'AUCTION_HOUSE_CLOSED')
+assert(not M.scanning and messages[#messages]:find('stopped'))
+ah.OnEvent(ah, 'AUCTION_HOUSE_SHOW')
+T.db.market.autoScan = true
+auctions = { { 'a', 1, secret, 1, 1, 1, 1, 0, 0, 100, 0, 0, 0, 0, 0, 0, 900 }, { 'a', 1, 1, 1, 1, 1, 1, 0, 0, 100, 0, 0, 0, 0, 0, 0, 901 } }
+ah.OnEvent(ah, 'AUCTION_HOUSE_SHOW')
+assert(M.scanning, 'auto scan starts when the house opens'); ah.OnEvent(ah, 'REPLICATE_ITEM_LIST_UPDATE')
+assert(not M:Quote(nil, 900) and M:Quote(nil, 901).price == 100)
+now = now + 31 * 86400 + 1000
+auctions = { { 'a', 1, 1, 1, 1, 1, 1, 0, 0, 100, 0, 0, 0, 0, 0, 0, 901 } }
+assert(M:StartScan()); ah.OnEvent(ah, 'REPLICATE_ITEM_LIST_UPDATE')
+assert(not M:Quote(nil, 123) and M:Quote(nil, 901), 'prices older than 30 days are dropped')
+print('ok')

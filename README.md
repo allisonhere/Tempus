@@ -55,7 +55,7 @@ Every settings page has a live preview. Unlock the UI to drag any element into p
 
 ## Auction values
 
-With Auctionator enabled, **Convenience > Auction values** adds its last scanned per-item price and data age to item tooltips, plus stack estimates in Tempus bags. At an auctioneer, open the AH and click **Scan bag items** to search your carried item names through Auctionator. Use Auctionator's Full Scan for broader coverage. Unknown prices stay unknown and older prices are marked stale. These are listing estimates, not guaranteed sale prices.
+**Convenience > Auction values** adds the lowest scanned buyout per item to item tooltips, plus stack estimates in Tempus bags. Tempus scans the auction house itself and needs no other addon: open the auction house and click **Tempus scan** under its window (or **Scan auction house** on the settings page, or turn on the automatic scan). One scan reads every listing in a single request, so the game's limit of about one full scan every 15 minutes applies. Prices are kept per realm, shared by all your characters, and dropped after 30 days. Unknown prices stay unknown and older prices are marked stale. These are listing estimates, not guaranteed sale prices.
 
 ## Install
 

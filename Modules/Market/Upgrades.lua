@@ -257,10 +257,21 @@ end
 
 function M:BuildUpgradePanel()
     if self.upgradePanel then return self.upgradePanel end
-    local p = CreateFrame("Frame", "TempusUpgradePanel", AuctionHouseFrame)
+    -- A free-standing window (not a child of the auction house) so it works anywhere: prices are saved.
+    local p = CreateFrame("Frame", "TempusUpgradePanel", UIParent)
     p:SetSize(WIDTH, 60 + VISIBLE * ROW_H)
-    p:SetPoint("TOPLEFT", AuctionHouseFrame, "TOPRIGHT", 6, 0)
     p:SetFrameStrata("HIGH")
+    p:SetClampedToScreen(true)
+    p:SetMovable(true)
+    p:EnableMouse(true)
+    p:RegisterForDrag("LeftButton")
+    p:SetScript("OnDragStart", function(f) f:StartMoving() end)
+    p:SetScript("OnDragStop", function(f)
+        f:StopMovingOrSizing()
+        local point, _, rel, x, y = f:GetPoint()
+        if point and T.db.market then T.db.market.upgradePos = { point, rel, x, y } end
+    end)
+    if UISpecialFrames then table.insert(UISpecialFrames, "TempusUpgradePanel") end
     if S and S.Backdrop then S.Backdrop(p, {}) end
     p.title = S.Text(p, 14, S.C.text)
     p.title:SetPoint("TOPLEFT", 12, -10)
@@ -268,8 +279,15 @@ function M:BuildUpgradePanel()
     p.sub = S.Text(p, 11, S.C.muted)
     p.sub:SetPoint("TOPLEFT", p.title, "TOPRIGHT", 10, -2)
     p.sub:SetText("ilvl = item levels above what you wear; stats = what improves")
+    p.close = CreateFrame("Button", nil, p)
+    p.close:SetSize(20, 20)
+    p.close:SetPoint("TOPRIGHT", -6, -6)
+    p.close.x = S.Text(p.close, 14, S.C.muted)
+    p.close.x:SetPoint("CENTER")
+    p.close.x:SetText("x")
+    p.close:SetScript("OnClick", function() p:Hide() end)
     p.status = S.Text(p, 11, S.C.muted)
-    p.status:SetPoint("TOPRIGHT", -12, -12)
+    p.status:SetPoint("TOPRIGHT", p.close, "TOPLEFT", -6, -4)
     p.foot = S.Text(p, 11, S.C.muted)
     p.foot:SetPoint("BOTTOMLEFT", 12, 10)
     local scroll = CreateFrame("ScrollFrame", nil, p)
@@ -406,10 +424,24 @@ function M:HideUpgrades()
     if self.upgradePanel then self.upgradePanel:Hide() end
 end
 
+-- Where the window opens: where you left it, else beside the auction house if it is open, else centred.
+function M:PlaceUpgradePanel(p)
+    p:ClearAllPoints()
+    local pos = T.db.market and T.db.market.upgradePos
+    if type(pos) == "table" and pos[1] then
+        p:SetPoint(pos[1], UIParent, pos[2] or pos[1], pos[3] or 0, pos[4] or 0)
+    elseif AuctionHouseFrame and AuctionHouseFrame.IsShown and AuctionHouseFrame:IsShown() then
+        p:SetPoint("TOPLEFT", AuctionHouseFrame, "TOPRIGHT", 6, 0)
+    else
+        p:SetPoint("CENTER", UIParent, "CENTER", 0, 0)
+    end
+end
+
 function M:ToggleUpgrades()
-    if not AuctionHouseFrame then return end
     local p = self:BuildUpgradePanel()
-    if p:IsShown() then p:Hide() else p:Show() end
+    if p:IsShown() then p:Hide() return end
+    self:PlaceUpgradePanel(p)
+    p:Show()
 end
 
 function M:EnsureUpgradeButton(scanButton)

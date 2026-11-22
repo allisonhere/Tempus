@@ -158,6 +158,8 @@ local function Frame()
     return setmetatable(f, { __index = function() return function() end end })
 end
 CreateFrame = function() return Frame() end
+UIParent = Frame()
+UISpecialFrames = {}
 AuctionHouseFrame = Frame()
 -- Style is captured at load, so reload the module with a stub style
 local S = { C = { text = { 1, 1, 1 }, muted = { .5, .5, .5 } }, Text = function() return Frame() end, Backdrop = function() end }
@@ -187,4 +189,40 @@ Seed({ [4] = 5 * G })
 M:RefreshUpgrades()
 assert(p.scroll:GetVerticalScroll() == 0, 'scroll clamped back when the list is short')
 M:HideUpgrades(); assert(not p:IsShown())
+
+-- works without the auction house: no AH frame, panel is parented to UIParent, closes with Escape
+AuctionHouseFrame = nil
+M.upgradePanel = nil
+Seed({ [4] = 5 * G })
+local points = {}
+local origFrame = Frame
+Frame = function()
+    local f = origFrame()
+    function f:ClearAllPoints() points = {} end
+    function f:SetPoint(...) points[#points + 1] = { ... } end
+    function f:GetPoint() return 'TOPLEFT', UIParent, 'BOTTOMLEFT', 120, 340 end
+    function f:StartMoving() self.moving = true end
+    function f:StopMovingOrSizing() self.moving = false end
+    return f
+end
+M:ToggleUpgrades()
+local q = M.upgradePanel
+assert(q:IsShown() and points[1][1] == 'CENTER', 'opens centred with no auction house and no saved position')
+assert(UISpecialFrames[#UISpecialFrames] == 'TempusUpgradePanel', 'Escape closes it')
+assert(q.rows[2].itemID == 4, 'lists saved prices without the auction house')
+q.OnDragStop(q)
+local saved = T.db.market.upgradePos
+assert(saved and saved[1] == 'TOPLEFT' and saved[3] == 120 and saved[4] == 340, 'dragged position is saved')
+q.close.OnClick(); assert(not q:IsShown(), 'close button hides it')
+M:ToggleUpgrades()
+assert(points[1][1] == 'TOPLEFT' and points[1][4] == 120, 'reopens where it was left')
+-- closing the auction house does not close it
+M:EnsureFrame(); local ah = M.frame
+ah.OnEvent(ah, 'AUCTION_HOUSE_CLOSED')
+assert(q:IsShown(), 'stays open after the auction house closes')
+-- beside the auction house when it is open and nothing was saved
+q:Hide(); T.db.market.upgradePos = false
+AuctionHouseFrame = Frame(); AuctionHouseFrame.shown = true
+M:ToggleUpgrades()
+assert(points[1][1] == 'TOPLEFT' and points[1][2] == AuctionHouseFrame and points[1][3] == 'TOPRIGHT', 'docks beside the AH when open')
 print('ok')

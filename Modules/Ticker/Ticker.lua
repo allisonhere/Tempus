@@ -18,6 +18,7 @@ TK.defaults = {
     affordHeight = 12,
     stripPos = {},              -- where you dragged the strip / the dots (empty = follow the bar)
     dotsPos = {},
+    dotNumbers = true,          -- seconds left inside each timer dot
     dots = true,                -- bleed / buff timers at the right end of the bar
     width = 220, height = 8,
     visibility = "AUTO",        -- AUTO (in combat or not full) | COMBAT | ALWAYS
@@ -453,7 +454,7 @@ function TK:PaintDots(now)
                 d.fill:SetPoint("BOTTOMLEFT", 1, 1)
                 d.fill:SetPoint("BOTTOMRIGHT", -1, 1)
                 d.fill:SetHeight(math.max(1, (h + 2) * frac))
-                d.text:SetFormattedText("%d", math.ceil(left))
+                if self.db.dotNumbers ~= false then d.text:SetFormattedText("%d", math.ceil(left)) else d.text:SetText("") end
             else
                 d.fill:SetVertexColor(0.5, 0.52, 0.58, 0.25)
                 d.fill:ClearAllPoints()

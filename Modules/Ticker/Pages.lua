@@ -38,6 +38,7 @@ T:RegisterPage("combat", { key = "ticker", label = "Resource ticker", order = 6.
     p:Slider(cfg, "affordHeight", "Strip height", 4, 24, 1)
     p:Add(T.UI.W.List("tickspells", "Spell name or ID, e.g. Claw", true), 236, true)
     p:Check(cfg, "dots", "Show timer dots at the right end of the bar (Rake, Rip, Savage Roar; Slice and Dice, Rupture)")
+    p:Check(cfg, "dotNumbers", "Show the seconds counting down inside each timer dot")
     p:Add(T.UI.W.Button("Reset strip and dot positions", function()
         local TK = T.Ticker
         if not TK or not TK.db then return end

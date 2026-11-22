@@ -1,19 +1,32 @@
 ## Tempus UI
 
-Tempus is an interface addon built for **Warcraft Forever**. It brings the parts of your UI together in one consistent look, while letting you turn off anything you don't need.
+Tempus is a full interface addon for **Warcraft Forever**. Unit frames, nameplates, party and raid frames, buffs, action bars, bags, chat, a square minimap and skins for Blizzard's windows all share one look, and every part is a module you can switch off. Use all of it, or keep only what you like.
 
-Here's what's included:
+Forever hides health, auras and range from addons during combat. Tempus is written around that, so your bars, auras and colours keep updating in the middle of a fight.
 
-- **Unit, party, and raid frames** with cast bars, healing cues, dispel highlights, and click casting.
-- **Nameplates** that make threat, interrupts, quest progress, and important auras easier to spot.
-- **Buffs and debuffs** with timers, watch lists, and expiry warnings.
-- **Action bars and Combat Pulse** for your abilities and useful combat cues.
-- **Combined bags** with search, categories, a bank row for your bank tabs (with the ones you can still buy), and a way to check what your other characters are carrying.
-- **Auction house tools**: Tempus scans the auction house itself, adds prices to item tooltips, and lists the cheapest gear upgrades for your class and level, filtered the way the auction house is.
-- **Stat tooltips** that explain what an item's stats do for your character.
-- **Chat improvements** including copyable chat, saved history, whisper alerts, cleaner text, and easier typing. If [SpellPower](https://www.curseforge.com/wow/addons/spellpower) is installed, its spellcheck and grammar options are available from Tempus's Chat settings.
-- **A square minimap and Blizzard window skins** that fit the rest of the UI.
-- **Style Studio** to preview themes, fonts, bars, colours, and icons together.
-- **Movable frames and saved layouts** so you can set things up for the way you play.
+### Fighting
 
-Use Tempus as a complete UI or pick the modules you like. Type `/tempus` to open settings and make it yours.
+- **Unit, party and raid frames.** Cast bars, portraits, healing and absorb cues, dispel tints, range fading and aggro borders. Click casting is built in, with starting bindings for Druid, Priest, Shaman and Paladin. Combo points rise in height and shade from red to green as you build them.
+- **Nameplates** that show threat, interruptible casts (with your own interrupt's cooldown), quest progress, a level and danger strip, and the buffs you can dispel or steal.
+- **Buffs and debuffs** with timers, a watch list for buffs you never want to forget, and expiry warnings.
+- **Combat Pulse**, one compact strip with your DPS, a swing line, and small cues that appear only when they matter: an interruptible cast, a buff to purge, threat trouble, the execute range.
+- **Swing timer, resource ticker, cooldown row and danger alerts** for auto attacks, energy and mana ticks, spells you pick, and elites or crowds you should notice.
+- **Action bars** with fading, hotkeys and range colouring.
+
+### Bags, bank and auction house
+
+- **Combined bags and bank** with instant search, filters for gear, consumables, trades, quests and junk, and custom categories. Item level and upgrade marks show on gear. The bank has its own row of tabs, including the ones you can still buy, with prices in the tooltips. You can also look at what your other characters carry, even offline.
+- **Auction house.** Tempus scans the auction house itself and shows the lowest buyout on item tooltips. A list of the cheapest gear upgrades for your class and level uses that saved scan, so it works anywhere. It follows your auction house filters (category, rarity, level range), has a maximum price, and a detail pane compares the item you wear with the one you would buy, stat by stat.
+- **Stat tooltips** that explain what an item's stats do for your character, such as attack power, crit, health and armor.
+- **Shopping list** for items you are collecting, with what you and your alts already have.
+- **Vendor and quest helpers** that sell grey items, repair, and handle routine quest turn-ins.
+
+### Look and feel
+
+- **Chat** you can select and copy, history that survives a reload, whisper alerts, clickable links and fading tabs. If [SpellPower](https://www.curseforge.com/wow/addons/spellpower) is installed, its spellcheck and grammar options appear in Tempus's Chat settings.
+- **A square minimap**, an info bar, XP and reputation bars, and icons for ore and herb nodes you have gathered.
+- **Skins** for Blizzard windows, tooltips and chat, and for Bagnon and DBM.
+- **Style Studio** to preview themes, fonts, bars, colours and icons together, with the accent colour applied everywhere.
+- **Movable everything**, with saved layouts, automatic layouts for solo, party and raid, and a settings search.
+
+Type `/tempus` to open settings. A first-run setup helps you pick modules, UI scale and a layout.

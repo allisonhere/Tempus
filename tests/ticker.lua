@@ -126,8 +126,8 @@ local r1, g1 = TK.DotColor(1); local r0, g0 = TK.DotColor(0); local rm, gm = TK.
 assert(g1 > r1 and r0 > g0 and rm > 0.9 and gm > 0.7, "green full, red empty, yellow midway")
 C_UnitAuras = nil
 UnitAura = function(unit, i, filter)
-    if unit == "target" and filter == "HARMFUL" and i == 2 then return "Rake", nil, 1, nil, 15, 130, "player" end
-    if unit == "target" and filter == "HARMFUL" and i == 1 then return "Rake", nil, 1, nil, 15, 130, "other" end
+    if unit == "target" and filter == "HARMFUL|PLAYER" and i == 2 then return "Rake", nil, 1, nil, 15, 130, "player" end
+    if unit == "target" and filter == "HARMFUL|PLAYER" and i == 1 then return "Rake", nil, 1, nil, 15, 130, "other" end
 end
 local left, total = TK.AuraLeft("target", "Rake", true, 120)
 assert(left == 10 and total == 15, "only your own debuff counts")

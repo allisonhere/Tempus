@@ -188,6 +188,27 @@ function TK.Debug()
         Add("  %s: spell id %s, known=%s, cost=%s, usable now=%s", tostring(entry), tostring(id), tostring(known), tostring(raw),
             tostring(id and select(1, TK.IsUsable(id))) .. " / only-power-missing " .. tostring(id and select(2, TK.IsUsable(id))))
     end
+    Add("timer dots: setting %s, %d listed, target exists=%s", db and db.dots and "on" or "OFF",
+        TK.dotList and #TK.dotList or 0, tostring(UnitExists and UnitExists("target")))
+    for _, d in ipairs(TK.dotList or {}) do
+        local ok, left, total = pcall(TK.AuraLeft, d.debuff and "target" or "player", d.name, d.debuff, GetTime())
+        Add("  %s (%s): left=%s of %s", d.name, d.debuff and "on target" or "on you", ok and tostring(left) or "error " .. tostring(left), tostring(total))
+    end
+    for _, unit in ipairs({ "player", "target" }) do
+        for i = 1, 40 do
+            local ok, a
+            if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+                ok, a = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, unit == "target" and "HARMFUL" or "HELPFUL")
+                if not ok or type(a) ~= "table" then break end
+                if i <= 12 then
+                    Add("  %s aura %d: name=%s source=%s duration=%s expires=%s", unit, i, tostring(a.name), tostring(a.sourceUnit),
+                        tostring(a.duration), tostring(a.expirationTime))
+                end
+            else
+                break
+            end
+        end
+    end
     return out
 end
 
@@ -336,7 +357,7 @@ end
 -- Seconds left and total duration of your own aura called name on unit, or nil when it is not up
 -- (or the client hides it).
 function TK.AuraLeft(unit, name, harmful, now)
-    local filter = harmful and "HARMFUL" or "HELPFUL"
+    local filter = harmful and "HARMFUL|PLAYER" or "HELPFUL"
     for i = 1, 40 do
         local aname, dur, exp, src
         if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
@@ -350,7 +371,7 @@ function TK.AuraLeft(unit, name, harmful, now)
         else
             return nil
         end
-        if aname == name and (src == "player" or not harmful and src == nil) then
+        if aname == name and (harmful or src == nil or src == "player") then
             if T.Num(exp) and T.Num(dur) and dur > 0 and not (T.issecret and (T.issecret(exp) or T.issecret(dur))) then
                 return math.max(0, exp - now), dur
             end

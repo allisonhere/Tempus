@@ -1,7 +1,7 @@
 -- Tempus scans the auction house itself (C_AuctionHouse.ReplicateItems) and keeps the lowest
 -- buyout per item for each realm, account-wide. No other addon is involved.
 local _, T = ...
-local M = { defaults = { tooltips = true, staleDays = 3, autoScan = false, upgradeMinGain = 1, upgradeAffordable = false, upgradePos = false } }
+local M = { defaults = { tooltips = true, staleDays = 3, autoScan = false, upgradeMinGain = 1, upgradeAffordable = false, upgradeUseAHFilters = true, upgradePos = false } }
 T.Market = M
 
 local SCAN_COOLDOWN = 15 * 60       -- the client only serves a full replicate about every 15 minutes

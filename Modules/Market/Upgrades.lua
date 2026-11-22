@@ -109,6 +109,66 @@ for i, g in ipairs(GROUPS) do GROUP_INDEX[g[1]] = i; GROUP_OF[g[3]] = GROUP_OF[g
 
 function M.GroupKey(loc) return GROUP_OF[loc] end
 
+-- Auction house filters ---------------------------------------------------------------------
+-- The AH search bar keeps its filter state in the global g_auctionHouseFilters (required-level
+-- range plus one flag per rarity). We read it so the list narrows the same way the AH does.
+
+local QUALITY_FILTERS = { [0] = "PoorQuality", "CommonQuality", "UncommonQuality", "RareQuality", "EpicQuality",
+    "LegendaryQuality", "ArtifactQuality" }
+local QUALITY_NAMES = { [0] = "Poor", "Common", "Uncommon", "Rare", "Epic", "Legendary", "Artifact" }
+
+-- nil = nothing is filtered (or the AH has never been opened); otherwise
+-- { minLevel, maxLevel, quality = { [0..6] = false for hidden rarities } }.
+function M.ReadAHFilters(env)
+    env = env or _G
+    local g = rawget(env, "g_auctionHouseFilters")
+    if type(g) ~= "table" then return nil end
+    local out, active = { minLevel = 0, maxLevel = 0, quality = {} }, false
+    local lo, hi = g.minLevel, g.maxLevel
+    if Num(lo) and lo > 0 then out.minLevel, active = lo, true end
+    if Num(hi) and hi > 0 then out.maxLevel, active = hi, true end
+    local flags, enum = g.filters, env.Enum and env.Enum.AuctionHouseFilter
+    if type(flags) == "table" and type(enum) == "table" then
+        for q, name in pairs(QUALITY_FILTERS) do
+            local id = enum[name]
+            if id ~= nil and flags[id] == false then out.quality[q], active = false, true end
+        end
+    end
+    return active and out or nil
+end
+
+-- Does an item of this quality and required level survive the filters? Unknown values pass.
+function M.PassesFilters(filters, quality, requiredLevel)
+    if not filters then return true end
+    if Num(quality) and filters.quality[quality] == false then return false end
+    if Num(requiredLevel) then
+        if filters.minLevel > 0 and requiredLevel < filters.minLevel then return false end
+        if filters.maxLevel > 0 and requiredLevel > filters.maxLevel then return false end
+    end
+    return true
+end
+
+function M.FilterSummary(filters)
+    if not filters then return "" end
+    local parts, shown = {}, {}
+    for q = 0, 6 do if filters.quality[q] ~= false then shown[#shown + 1] = q end end
+    if #shown < 7 and #shown > 0 then
+        local contiguous = shown[#shown] - shown[1] == #shown - 1
+        if contiguous and shown[#shown] >= 4 then
+            parts[#parts + 1] = QUALITY_NAMES[shown[1]] .. "+"
+        else
+            local names = {}
+            for _, q in ipairs(shown) do names[#names + 1] = QUALITY_NAMES[q] end
+            parts[#parts + 1] = table.concat(names, "/")
+        end
+    end
+    local lo, hi = filters.minLevel, filters.maxLevel
+    if lo > 0 and hi > 0 then parts[#parts + 1] = ("level %d-%d"):format(lo, hi)
+    elseif lo > 0 then parts[#parts + 1] = ("level %d+"):format(lo)
+    elseif hi > 0 then parts[#parts + 1] = ("up to level %d"):format(hi) end
+    return table.concat(parts, ", ")
+end
+
 -- Returns a ranked list, the number of items still waiting on item data, and how many were
 -- requested this pass. Entry: { id, price, age, gain, level, worn, loc, score }.
 function M:FindUpgrades()
@@ -124,6 +184,8 @@ function M:FindUpgrades()
     local minGain = Num(db.upgradeMinGain) and db.upgradeMinGain or 1
     local now = time()
     local worn, out, pending, requested = {}, {}, 0, 0
+    local filters = db.upgradeUseAHFilters ~= false and M.ReadAHFilters() or nil
+    local hidden = 0
     if type(instant) ~= "function" or type(getInfo) ~= "function" then return out, 0, 0 end
 
     for id, row in pairs(store.items) do
@@ -133,7 +195,7 @@ function M:FindUpgrades()
             local base = worn[loc]
             if base ~= false and M.CanUse(class, level, row.c, row.s, loc, nil)
                 and not (money and row.p > money) then
-                local _, _, _, ilvl, minLevel = getInfo(id)
+                local _, _, quality, ilvl, minLevel = getInfo(id)
                 local eff = Call(detailed, id)
                 if Num(eff) and eff > 0 then ilvl = eff end
                 if not Num(ilvl) then
@@ -144,9 +206,13 @@ function M:FindUpgrades()
                     end
                 elseif ilvl - base >= minGain and M.CanUse(class, level, row.c, row.s, loc, minLevel) then
                     local gain = ilvl - base
-                    out[#out + 1] = { id = id, price = row.p, gain = gain, level = ilvl, worn = base, loc = loc,
-                        age = Num(row.t) and math.max(0, math.floor((now - row.t) / 86400)) or nil,
-                        score = gain / math.max(row.p / 10000, 0.01) }
+                    if not M.PassesFilters(filters, quality, minLevel) then
+                        hidden = hidden + 1
+                    else
+                        out[#out + 1] = { id = id, price = row.p, gain = gain, level = ilvl, worn = base, loc = loc,
+                            age = Num(row.t) and math.max(0, math.floor((now - row.t) / 86400)) or nil,
+                            score = gain / math.max(row.p / 10000, 0.01), quality = quality }
+                    end
                 end
             end
         end
@@ -163,7 +229,7 @@ function M:FindUpgrades()
         counts[key] = (counts[key] or 0) + 1
         if counts[key] <= PER_GROUP then kept[#kept + 1] = e end
     end
-    return kept, pending, requested
+    return kept, pending, requested, hidden, filters
 end
 
 -- What improves ------------------------------------------------------------------------------
@@ -498,10 +564,10 @@ function M:RefreshUpgrades()
     local p = self.upgradePanel
     if not (p and p:IsShown()) then return end
     local store = self.Store()
-    local list, pending = {}, 0
+    local list, pending, hidden, filters = {}, 0, 0, nil
     if Num(store.scanned) then
-        local ok, l, n = pcall(self.FindUpgrades, self)
-        if ok then list, pending = l, n end
+        local ok, l, n, _, h, f = pcall(self.FindUpgrades, self)
+        if ok then list, pending, hidden, filters = l, n, h or 0, f end
     end
     local layout = M.Layout(list)
     for i, r in ipairs(p.rows) do
@@ -544,14 +610,15 @@ function M:RefreshUpgrades()
     elseif pending > 0 then
         p.status:SetText(("Loading item data (%d)..."):format(pending))
     elseif #list == 0 then
-        p.status:SetText("No upgrades found")
+        p.status:SetText(hidden > 0 and "No upgrades match the AH filters" or "No upgrades found")
     else
         p.status:SetText("")
     end
     local scanned = Num(store.scanned) and (time() - store.scanned) or nil
-    p.foot:SetText(scanned and ("Scanned %s ago. Ranked by item levels gained per gold.")
+    p.foot:SetText(scanned and (("Scanned %s ago. Ranked by item levels gained per gold.")
         :format(scanned >= 86400 and (math.floor(scanned / 86400) .. " d") or scanned >= 3600
-        and (math.floor(scanned / 3600) .. " h") or (math.floor(scanned / 60) .. " min")) or "")
+        and (math.floor(scanned / 3600) .. " h") or (math.floor(scanned / 60) .. " min"))
+        .. (filters and ("  Using AH filters: " .. M.FilterSummary(filters)) or "")) or "")
 end
 
 function M:HideUpgrades()

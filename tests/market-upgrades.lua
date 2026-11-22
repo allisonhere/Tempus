@@ -249,4 +249,49 @@ local before = M.detailEntry
 pr.rows[1].OnEnter(pr.rows[1]); assert(M.detailEntry == before, 'header rows leave the detail alone')
 M:RefreshUpgrades(); assert(M.detailEntry and M.detailEntry.id == 4, 'selection survives a refresh')
 Seed({}); M:RefreshUpgrades(); assert(M.detailEntry == nil, 'cleared when the item leaves the list')
+-- auction house filters: read from g_auctionHouseFilters, applied before the cap
+Enum = Enum or {}
+Enum.AuctionHouseFilter = { PoorQuality = 6, CommonQuality = 7, UncommonQuality = 8, RareQuality = 9, EpicQuality = 10,
+    LegendaryQuality = 11, ArtifactQuality = 12, UsableOnly = 2 }
+local function AHF(min, max, off)
+    local f = { [6] = true, [7] = true, [8] = true, [9] = true, [10] = true, [11] = true, [12] = true, [2] = false }
+    for _, id in ipairs(off or {}) do f[id] = false end
+    return { minLevel = min, maxLevel = max, filters = f }
+end
+g_auctionHouseFilters = nil
+assert(M.ReadAHFilters() == nil, 'AH never opened: no filters')
+g_auctionHouseFilters = AHF(0, 0)
+assert(M.ReadAHFilters() == nil, 'default filters mean nothing is filtered')
+g_auctionHouseFilters = AHF(20, 30, { 6, 7 })
+local rf = M.ReadAHFilters()
+assert(rf.minLevel == 20 and rf.maxLevel == 30 and rf.quality[0] == false and rf.quality[1] == false and rf.quality[2] == nil, 'level range and hidden rarities read')
+g_auctionHouseFilters = { minLevel = 'x', maxLevel = {}, filters = 5 }
+assert(M.ReadAHFilters() == nil, 'garbage is ignored')
+assert(M.PassesFilters(nil, 1, 5), 'no filters passes')
+assert(not M.PassesFilters(rf, 1, 25) and M.PassesFilters(rf, 2, 25), 'hidden rarity drops')
+assert(not M.PassesFilters(rf, 2, 19) and not M.PassesFilters(rf, 2, 31) and M.PassesFilters(rf, 2, 20) and M.PassesFilters(rf, 2, 30), 'level range inclusive')
+assert(M.PassesFilters(rf, nil, nil), 'unknown values pass')
+assert(M.PassesFilters({ minLevel = 0, maxLevel = 0, quality = {} }, 3, 99), '0 means unbounded')
+assert(M.FilterSummary(rf) == 'Uncommon+, level 20-30', M.FilterSummary(rf))
+assert(M.FilterSummary(M.ReadAHFilters and { minLevel = 0, maxLevel = 40, quality = { [0] = false, [1] = false, [2] = false } }) == 'Rare+, up to level 40')
+assert(M.FilterSummary({ minLevel = 0, maxLevel = 0, quality = { [1] = false } }) == 'Poor/Uncommon/Rare/Epic/Legendary/Artifact', 'non-contiguous lists names')
+
+-- all test items are common (quality 1), required level 40 except one at 61
+Seed({ [1] = 10 * G, [4] = 5 * G, [6] = 2 * G })
+T.db.market.upgradeMinGain = 1
+g_auctionHouseFilters = AHF(0, 0, { 7 })
+local fl, _, _, hid = M:FindUpgrades()
+assert(#fl == 0 and hid == 3, 'common hidden: everything filtered, counted')
+T.db.market.upgradeUseAHFilters = false
+assert(#(M:FindUpgrades()) == 3, 'setting off ignores AH filters')
+T.db.market.upgradeUseAHFilters = nil
+g_auctionHouseFilters = AHF(51, 0)
+assert(#(M:FindUpgrades()) == 0, 'level floor above the items')
+g_auctionHouseFilters = AHF(40, 40)
+assert(#(M:FindUpgrades()) == 2, 'level range 40-40 keeps the two level-40 items, drops the level-50 helm')
+-- the panel says why it is empty
+g_auctionHouseFilters = AHF(0, 0, { 7 })
+local pf = M:BuildUpgradePanel(); pf:Show(); M:RefreshUpgrades()
+assert(pf.status.text == 'No upgrades match the AH filters', tostring(pf.status.text))
+g_auctionHouseFilters = nil
 print('ok')

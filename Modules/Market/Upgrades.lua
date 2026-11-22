@@ -203,14 +203,34 @@ function M.StatGains(newLink, oldLink, max)
     return out
 end
 
-local function GainText(gains)
-    local parts = {}
-    for _, g in ipairs(gains) do
-        local amount = g.amount == math.floor(g.amount) and ("%d"):format(g.amount) or ("%.1f"):format(g.amount)
-        parts[#parts + 1] = "+" .. amount .. " " .. g.label
-    end
-    return table.concat(parts, ", ")
+-- One colour per stat so the same stat reads the same down the whole list.
+local BAR_COLORS = { Str = { 0.86, 0.36, 0.30 }, Agi = { 0.36, 0.78, 0.42 }, Sta = { 0.93, 0.60, 0.26 },
+    Int = { 0.38, 0.62, 0.95 }, Spi = { 0.72, 0.62, 0.92 }, AP = { 0.95, 0.78, 0.30 }, DPS = { 0.95, 0.78, 0.30 },
+    Armor = { 0.62, 0.68, 0.74 } }
+local BAR_DEFAULT = { 0.45, 0.78, 0.78 }
+local BAR_SEGS, BAR_W, BAR_H = 3, 80, 14
+
+function M.BarColor(label) return BAR_COLORS[label] or BAR_DEFAULT end
+
+-- Fill width for one stat: its share of the biggest gain of that stat in the list, never a bare
+-- sliver, so small upgrades still show a bar.
+function M.BarWidth(amount, max, width)
+    if not (Num(amount) and Num(max)) or max <= 0 or amount <= 0 then return 0 end
+    return math.max(3, math.floor(width * math.min(1, amount / max) + 0.5))
 end
+
+-- The biggest gain per stat across everything listed.
+function M.GainMaxima(rowsGains)
+    local max = {}
+    for _, gains in ipairs(rowsGains) do
+        for _, g in ipairs(gains) do
+            if g.amount > (max[g.label] or 0) then max[g.label] = g.amount end
+        end
+    end
+    return max
+end
+
+local function AmountText(a) return a == math.floor(a) and ("%d"):format(a) or ("%.1f"):format(a) end
 
 -- The worn item the candidate would replace: the lowest item level among its slots (empty = nil).
 local function WornLink(loc)
@@ -296,7 +316,7 @@ function M:BuildUpgradePanel()
     p.title:SetText("Cheapest upgrades")
     p.sub = S.Text(p, 11, S.C.muted)
     p.sub:SetPoint("TOPLEFT", p.title, "TOPRIGHT", 10, -2)
-    p.sub:SetText("ilvl = item levels above what you wear; stats = what improves")
+    p.sub:SetText("ilvl = item levels above what you wear; bars = what improves")
     p.close = CreateFrame("Button", nil, p)
     p.close:SetSize(20, 20)
     p.close:SetPoint("TOPRIGHT", -6, -6)
@@ -340,11 +360,24 @@ function M:BuildUpgradePanel()
         r.price:SetPoint("RIGHT", -4, 0)
         r.price:SetJustifyH("RIGHT")
         r.price:SetWidth(96)
-        r.stats = S.Text(r, 11, { 0.75, 0.9, 0.75 })
-        r.stats:SetPoint("LEFT", r.gain, "RIGHT", 4, 0)
-        r.stats:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
-        r.stats:SetJustifyH("LEFT")
-        r.stats:SetWordWrap(false)
+        -- Stat bars: a dim track, a coloured fill sized by the gain, and the figure on top.
+        r.segs = {}
+        for k = 1, BAR_SEGS do
+            local seg = {}
+            seg.track = r:CreateTexture(nil, "BACKGROUND")
+            seg.track:SetSize(BAR_W, BAR_H)
+            seg.track:SetPoint("LEFT", r.gain, "RIGHT", 6 + (k - 1) * (BAR_W + 4), 0)
+            seg.track:SetColorTexture(1, 1, 1, 0.06)
+            seg.fill = r:CreateTexture(nil, "ARTWORK")
+            seg.fill:SetHeight(BAR_H)
+            seg.fill:SetPoint("LEFT", seg.track, "LEFT", 0, 0)
+            seg.text = S.Text(r, 10, S.C.text, "OUTLINE")
+            seg.text:SetPoint("LEFT", seg.track, "LEFT", 4, 0)
+            seg.text:SetWidth(BAR_W - 6)
+            seg.text:SetWordWrap(false)
+            seg.track:Hide(); seg.fill:Hide(); seg.text:SetText("")
+            r.segs[k] = seg
+        end
         r:SetScript("OnEnter", function(b)
             if b.header or not b.itemID then return end
             -- Beside the panel, level with the row, so the tooltip never covers the list.
@@ -394,11 +427,21 @@ function M:RefreshUpgrades()
         if ok then list, pending = l, n end
     end
     local layout = M.Layout(list)
+    local gainsOf, all = {}, {}
+    for _, e in ipairs(layout) do
+        if not e.header then
+            local _, full = (C_Item and C_Item.GetItemInfo or GetItemInfo)(e.id)
+            gainsOf[e] = M.StatGains(full or ("item:" .. e.id), WornLink(e.loc), BAR_SEGS)
+            all[#all + 1] = gainsOf[e]
+        end
+    end
+    local maxima = M.GainMaxima(all)
     for i, r in ipairs(p.rows) do
         local e = layout[i]
         if e and e.header then
             r.itemID, r.link = nil, nil
-            r.icon:Hide(); r.gain:SetText(""); r.stats:SetText(""); r.price:SetText("")
+            r.icon:Hide(); r.gain:SetText(""); r.price:SetText("")
+            for _, seg in ipairs(r.segs) do seg.track:Hide(); seg.fill:Hide(); seg.text:SetText("") end
             r.name:SetText(e.header)
             r.name:SetTextColor(T.accent[1], T.accent[2], T.accent[3])
             r.header = true
@@ -413,7 +456,20 @@ function M:RefreshUpgrades()
             r.icon:SetTexture(icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
             r.name:SetText(link or name or ("item:" .. e.id))
             r.gain:SetText("+" .. e.gain .. " ilvl")
-            r.stats:SetText(GainText(M.StatGains(link or ("item:" .. e.id), WornLink(e.loc), 3)))
+            local gains = gainsOf[e] or {}
+            for k, seg in ipairs(r.segs) do
+                local g = gains[k]
+                if g then
+                    local c = M.BarColor(g.label)
+                    seg.track:Show()
+                    seg.fill:SetWidth(M.BarWidth(g.amount, maxima[g.label], BAR_W))
+                    seg.fill:SetColorTexture(c[1], c[2], c[3], 0.75)
+                    seg.fill:Show()
+                    seg.text:SetText("+" .. AmountText(g.amount) .. " " .. g.label)
+                else
+                    seg.track:Hide(); seg.fill:Hide(); seg.text:SetText("")
+                end
+            end
             local stale = e.age and e.age >= (T.db.market.staleDays or 3)
             r.price:SetText(Money(e.price) .. (stale and " (old)" or ""))
             r:Show()

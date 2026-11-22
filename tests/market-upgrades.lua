@@ -103,6 +103,12 @@ assert(#all == 5, 'empty slot: every stat is a gain')
 local down = M.StatGains('old', 'new', 3)
 assert(#down == 1 and down[1].label == 'Sta' and down[1].amount == 5, 'a downgrade in most stats lists only what rises')
 assert(#M.StatGains('missing', 'old') == 0, 'uncached item has no stats yet')
+-- bar sizing and colours
+assert(M.BarWidth(10, 10, 80) == 80 and M.BarWidth(5, 10, 80) == 40 and M.BarWidth(1, 100, 80) == 3, 'bar width scales, never a sliver')
+assert(M.BarWidth(0, 10, 80) == 0 and M.BarWidth(5, 0, 80) == 0 and M.BarWidth(nil, 10, 80) == 0, 'no gain, no bar')
+assert(M.BarColor('Agi') ~= M.BarColor('Sta') and M.BarColor('Whatever')[1], 'known and unknown stats both coloured')
+local mx = M.GainMaxima({ { { label = 'Agi', amount = 4 } }, { { label = 'Agi', amount = 9 }, { label = 'Sta', amount = 2 } } })
+assert(mx.Agi == 9 and mx.Sta == 2, 'maxima per stat')
 assert(all[1].label == 'Armor' and all[2].label == 'Sta' and all[3].label == 'Str' and all[4].label == 'Critical Strike'
     and all[5].label == 'Spi', 'ordered by size; Rating suffix trimmed')
 

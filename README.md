@@ -53,6 +53,10 @@ The accent colour recolours the settings window, move boxes and bags at once (so
 
 Every settings page has a live preview. Unlock the UI to drag any element into place; sample frames fill the boxes so you can arrange group frames while solo.
 
+## Stat tooltips
+
+**Convenience > Stat tooltips** adds lines to item tooltips that explain what the item's stats do for your character: attack power, crit, hit, haste, dodge, parry, block, health, mana, armor and regen. Values come from the game's own conversion functions, so they follow your class, level and talents. Equipped items show what they give you; other gear shows the net change against what it would replace (switch that off on the page). Dodge and regen are per-point averages and are marked with ~.
+
 ## Auction values
 
 With Auctionator enabled, **Convenience > Auction values** adds its last scanned per-item price and data age to item tooltips, plus stack estimates in Tempus bags. At an auctioneer, open the AH and click **Scan bag items** to search your carried item names through Auctionator. Use Auctionator's Full Scan for broader coverage. Unknown prices stay unknown and older prices are marked stale. These are listing estimates, not guaranteed sale prices.

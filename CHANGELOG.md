@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.14.0
+
+### Added
+- **Resource ticker afford strip.** A strip under the tick bar with one segment per spell you press on a tick (Claw and Shred for a cat, Sinister Strike and Backstab for a rogue, or your own list on the Resource ticker page). Green means the game says you can cast it now, the same check your action bar icons use, so it works even though the client hides your energy number. Softer green means you have the energy but something else blocks it (Shred from the front, no target). Amber fades up as the next tick approaches when your energy is readable.
+- **Timer dots** at the right end of the tick bar for your bleeds and buffs (Rake, Rip and Savage Roar for a cat; Slice and Dice and Rupture for a rogue). Each drains and shifts green to yellow to red as time runs out, and dims when it is not up. In combat the game hides auras from addons, so the dots then time themselves from your own casts. Seconds inside the dots can be turned off.
+- **Move the strip and dots.** With the frames unlocked each has its own drag handle; a reset button on the Resource ticker page puts them back.
+- **Positioning panel.** Themed buttons, a Lock frames button, and a Position box that shows the selected frame as `CORNER x y` to copy, or to type a position into and press Enter.
+- `/tempus tickdebug` explains what the strip and dots are doing.
+
+### Fixed
+- The tick bar and strip kept working after shifting bear form then cat form.
+
 ## 2.13.0
 
 ### Added

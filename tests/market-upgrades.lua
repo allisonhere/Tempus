@@ -172,7 +172,9 @@ UIParent = Frame()
 UISpecialFrames = {}
 AuctionHouseFrame = Frame()
 -- Style is captured at load, so reload the module with a stub style
-local S = { C = { text = { 1, 1, 1 }, muted = { .5, .5, .5 } }, Text = function() return Frame() end, Backdrop = function() end }
+local S = { C = { text = { 1, 1, 1 }, muted = { .5, .5, .5 } }, Text = function() return Frame() end, Backdrop = function() end,
+    Tex = function() return Frame() end, Accent = function(o) return o end, SetGradient = function() end,
+    OnAccent = function(fn) fn() end }
 T.Style = S
 assert(loadfile('Modules/Market/Upgrades.lua'))('Tempus', T)
 Seed({ [4] = 5 * G, [9] = 1 * G })

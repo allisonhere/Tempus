@@ -477,6 +477,29 @@ local function Money(copper)
     return ("%ds %dc"):format(math.floor(copper / 100), copper % 100)
 end
 
+-- Coins in their own colours: gold, silver, copper.
+local function MoneyText(copper)
+    copper = math.floor(copper + 0.5)
+    local g, sv, c = math.floor(copper / 10000), math.floor(copper / 100) % 100, copper % 100
+    if g > 0 then return ("%d|cffFFD633g|r %d|cffC9CBD3s|r"):format(g, sv) end
+    return ("%d|cffC9CBD3s|r %d|cffE8A060c|r"):format(sv, c)
+end
+M.MoneyText = MoneyText
+
+-- The item's rarity colour (white if unknown).
+local function QualityColor(q)
+    local c = ITEM_QUALITY_COLORS and Num(q) and ITEM_QUALITY_COLORS[q]
+    if c and Num(c.r) then return c.r, c.g, c.b end
+    return 0.62, 0.64, 0.7
+end
+M.QualityColor = QualityColor
+
+-- Green that deepens with the size of the gain, for the ilvl badge.
+local function GainColor(gain)
+    local t = math.min(1, math.max(0, (Num(gain) and gain or 0) / 30))
+    return 0.25 + 0.07 * t, 0.62 + 0.30 * t, 0.58 - 0.20 * t
+end
+
 local DETAIL_STATS = 7
 local COL_W, BAR_COL = math.floor((DETAIL_W - 20) / DETAIL_STATS), 28
 local TABLE_Y, TABLE_ROW, TABLE_ROWS = 118, 16, 8      -- current / buy comparison table
@@ -503,6 +526,11 @@ function M.BuildDetail(p, scroll)
     d.icon = d:CreateTexture(nil, "ARTWORK")
     d.icon:SetSize(36, 36)
     d.icon:SetPoint("TOPLEFT", 0, 0)
+    d.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    d.glow = d:CreateTexture(nil, "BORDER")
+    d.glow:SetColorTexture(1, 1, 1, 1)
+    d.glow:SetPoint("TOPLEFT", d.icon, -2, 2)
+    d.glow:SetPoint("BOTTOMRIGHT", d.icon, 2, -2)
     d.name = S.Text(d, 13, S.C.text)
     d.name:SetPoint("TOPLEFT", d.icon, "TOPRIGHT", 8, -2)
     d.name:SetWidth(DETAIL_W - 70)
@@ -578,7 +606,7 @@ function M:ShowDetail(e)
     if not d then return end
     self.detailEntry = e
     if not e then
-        d.hint:Show(); d.icon:Hide(); d.name:SetText(""); d.slot:SetText(""); d.head:SetText("")
+        d.hint:Show(); d.icon:Hide(); d.glow:Hide(); d.name:SetText(""); d.slot:SetText(""); d.head:SetText("")
         for _, l in ipairs(d.line) do l:SetText("") end
         for _, s in ipairs(d.stats) do s.label:SetText(""); s.val:SetText(""); s.back:Hide(); s.bar:Hide() end
         d.axis:Hide()
@@ -589,14 +617,17 @@ function M:ShowDetail(e)
     local i = M.DetailInfo(e)
     d.hint:Hide()
     d.icon:Show()
+    d.glow:SetVertexColor(QualityColor(e.quality))
+    d.glow:Show()
     d.icon:SetTexture(i.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
     d.name:SetText(i.link or i.name or ("item:" .. e.id))
     d.slot:SetText(i.slot)
     d.line[1]:SetText(("Item level |cffffffff%d|r  |cff66F27F+%d|r  (you wear %s)"):format(i.level or 0, i.gain or 0,
         i.worn and i.worn > 0 and tostring(i.worn) or "nothing"))
     d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot"))
-    d.line[3]:SetText("Price: |cffFFD140" .. Money(i.price) .. "|r  (" .. AgeText(i.age) .. ")")
-    d.line[4]:SetText(i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or "")
+    d.line[3]:SetText("Price: " .. MoneyText(i.price) .. "  |cff8A93A0(" .. AgeText(i.age) .. ")|r")
+    d.line[4]:SetText(e.useful and ("Worth: |cff7CFF8A+%.1f|r for your class  |cff8A93A0(%.1f item levels per gold)|r"):format(e.useful, i.perGold or 0)
+        or i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or "")
     for k, h in ipairs(d.tableHead) do h:SetText(({ "Stat", "Current", "Buy", "Change" })[k]) end
     for r, row in ipairs(d.table) do
         local g = i.all[r]
@@ -626,7 +657,14 @@ function M:ShowDetail(e)
             s.bar:ClearAllPoints()
             s.bar:SetPoint(unpack(lost and s.down or s.up))
             s.bar:SetHeight(h)
-            s.bar:SetColorTexture(c[1], c[2], c[3], 0.95)
+            s.bar:SetColorTexture(1, 1, 1, 1)
+            -- Brighter at the tip, deeper at the centre line.
+            local lo, hi = 0.55, 1
+            if lost then
+                S.SetGradient(s.bar, "VERTICAL", c[1] * hi, c[2] * hi, c[3] * hi, 0.95, c[1] * lo, c[2] * lo, c[3] * lo, 0.95)
+            else
+                S.SetGradient(s.bar, "VERTICAL", c[1] * lo, c[2] * lo, c[3] * lo, 0.95, c[1] * hi, c[2] * hi, c[3] * hi, 0.95)
+            end
             s.bar:Show()
             s.val:ClearAllPoints()
             s.val:SetPoint(lost and "TOP" or "BOTTOM", s.bar, lost and "BOTTOM" or "TOP", 0, lost and -2 or 2)
@@ -656,8 +694,16 @@ function M:BuildUpgradePanel()
     end)
     if UISpecialFrames then table.insert(UISpecialFrames, "TempusUpgradePanel") end
     if S and S.Backdrop then S.Backdrop(p, {}) end
-    p.title = S.Text(p, 14, S.C.text)
-    p.title:SetPoint("TOPLEFT", 12, -10)
+    p.band = S.Tex(p, "BACKGROUND", nil, 3)
+    p.band:SetPoint("TOPLEFT", 1, -1)
+    p.band:SetPoint("TOPRIGHT", -1, -1)
+    p.band:SetHeight(32)
+    p.rule = S.Accent(S.Tex(p, "ARTWORK"), 0.85)
+    p.rule:SetPoint("TOPLEFT", p.band, "BOTTOMLEFT", 0, 0)
+    p.rule:SetPoint("TOPRIGHT", p.band, "BOTTOMRIGHT", 0, 0)
+    p.rule:SetHeight(1)
+    p.title = S.Text(p, 15, S.C.text, "OUTLINE")
+    p.title:SetPoint("TOPLEFT", 12, -9)
     p.title:SetText("Cheapest upgrades")
     p.priceLabel = S.Text(p, 11, S.C.muted)
     p.priceLabel:SetPoint("LEFT", p.title, "RIGHT", 18, 0)
@@ -707,25 +753,59 @@ function M:BuildUpgradePanel()
         local r = CreateFrame("Button", nil, content)
         r:SetSize(WIDTH - 20, ROW_H)
         r:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
+        r.stripe = S.Tex(r, "BACKGROUND", { 1, 1, 1, 0.03 })
+        r.stripe:SetAllPoints()
+        r.stripe:SetShown(i % 2 == 0)
+        r.hl = S.Tex(r, "BACKGROUND", nil, 1)
+        r.hl:SetAllPoints()
+        r.hl:Hide()
+        r.hbg = S.Tex(r, "BACKGROUND", nil, 1)
+        r.hbg:SetAllPoints()
+        r.hbg:Hide()
+        r.hline = S.Accent(S.Tex(r, "ARTWORK"), 0.55)
+        r.hline:SetPoint("BOTTOMLEFT", 0, 0)
+        r.hline:SetPoint("BOTTOMRIGHT", 0, 0)
+        r.hline:SetHeight(1)
+        r.hline:Hide()
+        r.sel = S.Accent(S.Tex(r, "ARTWORK"), 1)
+        r.sel:SetPoint("TOPLEFT", 0, 0)
+        r.sel:SetPoint("BOTTOMLEFT", 0, 0)
+        r.sel:SetWidth(2)
+        r.sel:Hide()
+        r.glow = r:CreateTexture(nil, "BORDER")
+        r.glow:SetColorTexture(1, 1, 1, 1)
+        r.glow:SetSize(22, 22)
+        r.glow:SetPoint("LEFT", 2, 0)
         r.icon = r:CreateTexture(nil, "ARTWORK")
         r.icon:SetSize(18, 18)
-        r.icon:SetPoint("LEFT", 2, 0)
+        r.icon:SetPoint("LEFT", 4, 0)
+        r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
         r.name = S.Text(r, 12, S.C.text)
         r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
         r.name:SetWidth(230)
         r.name:SetJustifyH("LEFT")
-        r.gain = S.Text(r, 12, { 0.4, 0.95, 0.5 })
+        r.pill = S.Tex(r, "BACKGROUND", nil, 2)
+        r.pill:SetSize(58, 16)
+        r.gain = S.Text(r, 11, { 0.4, 0.95, 0.5 }, "OUTLINE")
         r.gain:SetPoint("LEFT", r.name, "RIGHT", 6, 0)
         r.gain:SetWidth(56)
-        r.gain:SetJustifyH("LEFT")
+        r.gain:SetJustifyH("CENTER")
+        r.pill:SetPoint("CENTER", r.gain, "CENTER", 0, 0)
+        r.meter = S.Accent(S.Tex(r, "ARTWORK"), 0.8)
+        r.meter:SetPoint("BOTTOMLEFT", 30, 1)
+        r.meter:SetHeight(2)
+        r.meter:Hide()
         r.price = S.Text(r, 12, { 1, 0.82, 0.25 })
         r.price:SetPoint("RIGHT", -4, 0)
         r.price:SetJustifyH("RIGHT")
         r.price:SetWidth(96)
         r:SetScript("OnEnter", function(b)
             if b.header or not b.entry then return end
+            b.hl:Show()
             M:ShowDetail(b.entry)
+            for _, other in ipairs(p.rows) do other.sel:SetShown(other == b) end
         end)
+        r:SetScript("OnLeave", function(b) b.hl:Hide() end)
         r:SetScript("OnClick", function(b)
             if b.link and IsModifiedClick and IsModifiedClick("CHATLINK") and ChatEdit_InsertLink then
                 ChatEdit_InsertLink(b.link)
@@ -734,10 +814,21 @@ function M:BuildUpgradePanel()
         r:Hide()
         p.rows[i] = r
     end
+    -- Gradients that follow the accent colour: title band, row hover, slot header bands.
+    S.OnAccent(function()
+        local a = T.accent
+        S.SetGradient(p.band, "VERTICAL", a[1], a[2], a[3], 0, a[1], a[2], a[3], 0.30)
+        for _, r in ipairs(p.rows) do
+            S.SetGradient(r.hl, "HORIZONTAL", a[1], a[2], a[3], 0.30, a[1], a[2], a[3], 0)
+            S.SetGradient(r.hbg, "HORIZONTAL", a[1], a[2], a[3], 0.26, a[1], a[2], a[3], 0.02)
+        end
+    end)
     -- Item data arrives asynchronously; refresh the open panel as it lands.
     p:SetScript("OnShow", function(f)
         f:RegisterEvent("ITEM_DATA_LOAD_RESULT")
         f.filterSig = M.FilterSignature()
+        f.fade = 0
+        f:SetAlpha(0)
         f.scroll:SetVerticalScroll(0)
         M:RefreshUpgrades()
     end)
@@ -746,6 +837,11 @@ function M:BuildUpgradePanel()
     -- stored when you press Search), so while the list is open, look for a change twice a second.
     local waited = 0
     p:SetScript("OnUpdate", function(f, elapsed)
+        if f.fade then            -- a short fade-in when the window opens
+            f.fade = math.min(1, f.fade + (elapsed or 0) / 0.18)
+            f:SetAlpha(f.fade)
+            if f.fade >= 1 then f.fade = nil end
+        end
         waited = waited + (elapsed or 0)
         if waited < 0.5 then return end
         waited = 0
@@ -785,18 +881,46 @@ function M:RefreshUpgrades()
         if ok then list, pending, hidden, filters = l, n, h or 0, f end
     end
     local layout = M.Layout(list)
+    local maxRank = {}
+    for _, e in ipairs(layout) do
+        if not e.header and Num(e.rank) then
+            local g = GROUP_OF[e.loc]
+            maxRank[g] = math.max(maxRank[g] or 0, e.rank)
+        end
+    end
     for i, r in ipairs(p.rows) do
         local e = layout[i]
         if e and e.header then
             r.itemID, r.link, r.entry = nil, nil, nil
             r.icon:Hide(); r.gain:SetText(""); r.price:SetText("")
+            r.glow:Hide(); r.pill:Hide(); r.meter:Hide(); r.sel:Hide(); r.hl:Hide(); r.stripe:Hide()
+            r.hbg:Show(); r.hline:Show()
             r.name:SetText(e.header)
             r.name:SetTextColor(T.accent[1], T.accent[2], T.accent[3])
             r.header = true
             r:Show()
         elseif e then
             r.header = nil
+            r.hbg:Hide(); r.hline:Hide()
+            r.stripe:SetShown(i % 2 == 0)
             r.icon:Show()
+            r.glow:SetVertexColor(QualityColor(e.quality))
+            r.glow:Show()
+            r.pill:Show()
+            r.pill:SetColorTexture(1, 1, 1, 1)
+            do
+                local gr, gg, gb = GainColor(e.gain)
+                r.pill:SetVertexColor(gr, gg, gb, 0.32)
+                r.gain:SetTextColor(math.min(1, gr + 0.25), math.min(1, gg + 0.1), math.min(1, gb + 0.25))
+            end
+            local top = maxRank[GROUP_OF[e.loc]]
+            if top and top > 0 and Num(e.rank) then
+                r.meter:SetWidth(math.max(2, (WIDTH - 20 - 36) * (e.rank / top)))
+                r.meter:Show()
+            else
+                r.meter:Hide()
+            end
+            r.sel:SetShown(M.detailEntry ~= nil and M.detailEntry.id == e.id)
             r.name:SetTextColor(S.C.text[1], S.C.text[2], S.C.text[3])
             r.itemID, r.entry = e.id, e
             local name, link, _, _, _, _, _, _, _, icon = (C_Item and C_Item.GetItemInfo or GetItemInfo)(e.id)
@@ -805,7 +929,7 @@ function M:RefreshUpgrades()
             r.name:SetText(link or name or ("item:" .. e.id))
             r.gain:SetText("+" .. e.gain .. " ilvl")
             local stale = e.age and e.age >= (T.db.market.staleDays or 3)
-            r.price:SetText(Money(e.price) .. (stale and " (old)" or ""))
+            r.price:SetText(MoneyText(e.price) .. (stale and " |cff8A93A0(old)|r" or ""))
             r:Show()
         else
             r.itemID, r.link, r.header, r.entry = nil, nil, nil, nil

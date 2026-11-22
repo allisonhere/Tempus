@@ -500,6 +500,10 @@ local function GainColor(gain)
     return 0.25 + 0.07 * t, 0.62 + 0.30 * t, 0.58 - 0.20 * t
 end
 
+-- The window has its own palette (auction-house gold), independent of the Tempus accent colour.
+local GOLD = { 1, 0.80, 0.32 }
+local function Paint(tex, c, a) tex:SetVertexColor(c[1], c[2], c[3], a or 1) return tex end
+
 local DETAIL_STATS = 7
 local COL_W, BAR_COL = math.floor((DETAIL_W - 20) / DETAIL_STATS), 28
 local TABLE_Y, TABLE_ROW, TABLE_ROWS = 118, 16, 8      -- current / buy comparison table
@@ -544,7 +548,7 @@ function M.BuildDetail(p, scroll)
         d.line[i]:SetWidth(DETAIL_W - 20)
         d.line[i]:SetWordWrap(false)
     end
-    d.head = S.Text(d, 11, T.accent)
+    d.head = S.Text(d, 11, GOLD)
     d.head:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(CHART_TOP - 16))
     -- Side-by-side table: what you wear now against what you would buy.
     local cols = { { 0, 130, "LEFT" }, { 132, 60, "RIGHT" }, { 196, 60, "RIGHT" }, { 260, DETAIL_W - 20 - 260, "RIGHT" } }
@@ -558,7 +562,7 @@ function M.BuildDetail(p, scroll)
         return fs
     end
     d.tableHead = {}
-    for k, c in ipairs(cols) do d.tableHead[k] = Cell(c, TABLE_Y, ({ "Stat", "Current", "Buy", "Change" })[k], T.accent) end
+    for k, c in ipairs(cols) do d.tableHead[k] = Cell(c, TABLE_Y, ({ "Stat", "Current", "Buy", "Change" })[k], GOLD) end
     d.table = {}
     for r = 1, TABLE_ROWS do
         local row = {}
@@ -698,7 +702,7 @@ function M:BuildUpgradePanel()
     p.band:SetPoint("TOPLEFT", 1, -1)
     p.band:SetPoint("TOPRIGHT", -1, -1)
     p.band:SetHeight(32)
-    p.rule = S.Accent(S.Tex(p, "ARTWORK"), 0.85)
+    p.rule = Paint(S.Tex(p, "ARTWORK"), GOLD, 0.85)
     p.rule:SetPoint("TOPLEFT", p.band, "BOTTOMLEFT", 0, 0)
     p.rule:SetPoint("TOPRIGHT", p.band, "BOTTOMRIGHT", 0, 0)
     p.rule:SetHeight(1)
@@ -764,12 +768,12 @@ function M:BuildUpgradePanel()
         r.hbg = S.Tex(r, "BACKGROUND", nil, 1)
         r.hbg:SetAllPoints()
         r.hbg:Hide()
-        r.hline = S.Accent(S.Tex(r, "ARTWORK"), 0.55)
+        r.hline = Paint(S.Tex(r, "ARTWORK"), GOLD, 0.5)
         r.hline:SetPoint("BOTTOMLEFT", 0, 0)
         r.hline:SetPoint("BOTTOMRIGHT", 0, 0)
         r.hline:SetHeight(1)
         r.hline:Hide()
-        r.sel = S.Accent(S.Tex(r, "ARTWORK"), 1)
+        r.sel = Paint(S.Tex(r, "ARTWORK"), GOLD, 1)
         r.sel:SetPoint("TOPLEFT", 0, 0)
         r.sel:SetPoint("BOTTOMLEFT", 0, 0)
         r.sel:SetWidth(2)
@@ -793,7 +797,7 @@ function M:BuildUpgradePanel()
         r.gain:SetWidth(56)
         r.gain:SetJustifyH("CENTER")
         r.pill:SetPoint("CENTER", r.gain, "CENTER", 0, 0)
-        r.meter = S.Accent(S.Tex(r, "ARTWORK"), 0.8)
+        r.meter = Paint(S.Tex(r, "ARTWORK"), GOLD, 0.8)
         r.meter:SetPoint("BOTTOMLEFT", 30, 1)
         r.meter:SetHeight(2)
         r.meter:Hide()
@@ -816,15 +820,18 @@ function M:BuildUpgradePanel()
         r:Hide()
         p.rows[i] = r
     end
-    -- Gradients that follow the accent colour: title band, row hover, slot header bands.
-    S.OnAccent(function()
-        local a = T.accent
-        S.SetGradient(p.band, "VERTICAL", a[1], a[2], a[3], 0, a[1], a[2], a[3], 0.30)
+    -- Gradients: a warm gold band, gold hover sweep, deep slot-header bands.
+    do
+        local a = GOLD
+        S.SetGradient(p.band, "VERTICAL", a[1], a[2], a[3], 0, a[1], a[2], a[3], 0.26)
         for _, r in ipairs(p.rows) do
-            S.SetGradient(r.hl, "HORIZONTAL", a[1], a[2], a[3], 0.30, a[1], a[2], a[3], 0)
-            S.SetGradient(r.hbg, "HORIZONTAL", a[1], a[2], a[3], 0.26, a[1], a[2], a[3], 0.02)
+            S.SetGradient(r.hl, "HORIZONTAL", a[1], a[2], a[3], 0.26, a[1], a[2], a[3], 0)
+            S.SetGradient(r.hbg, "HORIZONTAL", 0.30, 0.34, 0.62, 0.55, 0.12, 0.14, 0.26, 0.05)
+            -- Meter: green where the deal is good, shading to gold at the end.
+            r.meter:SetColorTexture(1, 1, 1, 1)
+            S.SetGradient(r.meter, "HORIZONTAL", 0.30, 0.85, 0.50, 0.9, a[1], a[2], a[3], 0.9)
         end
-    end)
+    end
     -- Item data arrives asynchronously; refresh the open panel as it lands.
     p:SetScript("OnShow", function(f)
         f:RegisterEvent("ITEM_DATA_LOAD_RESULT")
@@ -898,7 +905,7 @@ function M:RefreshUpgrades()
             r.glow:Hide(); r.pill:Hide(); r.meter:Hide(); r.sel:Hide(); r.hl:Hide(); r.stripe:Hide()
             r.hbg:Show(); r.hline:Show()
             r.name:SetText(e.header)
-            r.name:SetTextColor(T.accent[1], T.accent[2], T.accent[3])
+            r.name:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
             r.header = true
             r:Show()
         elseif e then

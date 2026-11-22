@@ -307,6 +307,14 @@ local function UpdateIndicators(f)
     end
 end
 
+-- Each combo pip is a little taller and a step further along the heat map, so the count reads at
+-- a glance: red (1) through orange and yellow to green (5). Fixed per pip, so nothing secret is compared.
+local PIP_COLORS = { { 0.90, 0.22, 0.20 }, { 0.96, 0.52, 0.18 }, { 0.98, 0.82, 0.22 },
+    { 0.62, 0.84, 0.28 }, { 0.22, 0.80, 0.34 } }
+local PIP_BASE, PIP_STEP = 6, 1.5
+function UF.PipColor(i) return PIP_COLORS[i] or PIP_COLORS[#PIP_COLORS] end
+function UF.PipHeight(i) return PIP_BASE + (i - 1) * PIP_STEP end
+
 -- Combo points as five bars, each filled when points >= i: the secret count goes straight
 -- into SetValue, so no comparison happens in Lua.
 local function UpdateClassPower(f)
@@ -622,7 +630,8 @@ local function CreateUnitFrame(unit, demoParent)
         for i = 1, 5 do
             local pip = S.StatusBar(cp)
             pip:SetMinMaxValues(i - 1, i)
-            pip:SetStatusBarColor(1, 0.8, 0.2)
+            local c = UF.PipColor(i)
+            pip:SetStatusBarColor(c[1], c[2], c[3])
             S.Backdrop(pip, { shadow = false, inner = false })
             cp.pips[i] = pip
         end
@@ -713,12 +722,12 @@ function UF:Layout(f)
         cp:ClearAllPoints()
         cp:SetPoint("BOTTOMLEFT", f, "TOPLEFT", left, 4)
         cp:SetPoint("BOTTOMRIGHT", f, "TOPRIGHT", 0, 4)
-        cp:SetHeight(6)
+        cp:SetHeight(UF.PipHeight(5))
         local w = (cfg.width - left - 4 * 3) / 5
         for i, pip in ipairs(cp.pips) do
             pip:ClearAllPoints()
-            pip:SetSize(w, 6)
-            pip:SetPoint("LEFT", cp, "LEFT", (i - 1) * (w + 3), 0)
+            pip:SetSize(w, UF.PipHeight(i))
+            pip:SetPoint("BOTTOMLEFT", cp, "BOTTOMLEFT", (i - 1) * (w + 3), 0)
             pip:SetStatusBarTexture(tex)
             pip.bg:SetTexture(tex)
         end

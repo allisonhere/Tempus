@@ -88,6 +88,24 @@ assert(not M.CanUse('ROGUE', 60, 4, 6, 'INVTYPE_SHIELD') and M.CanUse('SHAMAN', 
 assert(M.CanUse('UNKNOWN', 60, 4, 4, 'INVTYPE_HEAD') and M.CanUse('UNKNOWN', 60, 2, 7, 'INVTYPE_WEAPON'), 'unknown classes are not filtered')
 assert(not M.CanUse('WARRIOR', 10, 4, 4, 'INVTYPE_HEAD', 20), 'level requirement')
 
+-- stats that improve: only gains, biggest first, capped, empty slot = everything
+local stats = {
+    new = { ITEM_MOD_STRENGTH_SHORT = 20, ITEM_MOD_STAMINA_SHORT = 30, ITEM_MOD_CRIT_RATING_SHORT = 8, RESISTANCE0_NAME = 500, ITEM_MOD_SPIRIT_SHORT = 4 },
+    old = { ITEM_MOD_STRENGTH_SHORT = 12, ITEM_MOD_STAMINA_SHORT = 35, ITEM_MOD_CRIT_RATING_SHORT = 8, RESISTANCE0_NAME = 300 },
+}
+C_Item.GetItemStats = function(link) return stats[link] end
+ITEM_MOD_CRIT_RATING_SHORT = 'Critical Strike Rating'
+local gains = M.StatGains('new', 'old', 3)
+assert(#gains == 3 and gains[1].label == 'Armor' and gains[1].amount == 200 and gains[2].label == 'Str' and gains[2].amount == 8
+    and gains[3].label == 'Spi' and gains[3].amount == 4, 'gains only, biggest first')
+local all = M.StatGains('new', nil, 8)
+assert(#all == 5, 'empty slot: every stat is a gain')
+local down = M.StatGains('old', 'new', 3)
+assert(#down == 1 and down[1].label == 'Sta' and down[1].amount == 5, 'a downgrade in most stats lists only what rises')
+assert(#M.StatGains('missing', 'old') == 0, 'uncached item has no stats yet')
+assert(all[1].label == 'Armor' and all[2].label == 'Sta' and all[3].label == 'Str' and all[4].label == 'Critical Strike'
+    and all[5].label == 'Spi', 'ordered by size; Rating suffix trimmed')
+
 -- list is capped
 local many = {}
 for i = 100, 160 do info[i] = { 4, 4, 'INVTYPE_HEAD', 70, 40 }; many[i] = i * 100 end

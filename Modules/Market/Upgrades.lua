@@ -139,9 +139,69 @@ function M:FindUpgrades()
     return out, pending, requested
 end
 
+-- What improves ------------------------------------------------------------------------------
+
+local SHORT = { ITEM_MOD_STRENGTH_SHORT = "Str", ITEM_MOD_AGILITY_SHORT = "Agi", ITEM_MOD_STAMINA_SHORT = "Sta",
+    ITEM_MOD_INTELLECT_SHORT = "Int", ITEM_MOD_SPIRIT_SHORT = "Spi", ITEM_MOD_ATTACK_POWER_SHORT = "AP",
+    ITEM_MOD_DAMAGE_PER_SECOND_SHORT = "DPS", RESISTANCE0_NAME = "Armor" }
+
+local function StatLabel(key)
+    if SHORT[key] then return SHORT[key] end
+    local text = _G[key]
+    if type(text) ~= "string" then return nil end
+    return (text:gsub(" Rating$", ""))
+end
+
+local function StatsOf(link)
+    local fn = (C_Item and C_Item.GetItemStats) or GetItemStats
+    if not link then return {} end
+    local ok, t = pcall(fn, link)
+    return ok and type(t) == "table" and t or {}
+end
+
+-- The stats that go up when `newLink` replaces `oldLink` (nil = empty slot): up to `max` entries,
+-- largest gain first, as { label, amount }.
+function M.StatGains(newLink, oldLink, max)
+    local new, old, out = StatsOf(newLink), StatsOf(oldLink), {}
+    for key, value in pairs(new) do
+        local delta = (Num(value) and value or 0) - (Num(old[key]) and old[key] or 0)
+        local label = delta > 0 and StatLabel(key)
+        if label then out[#out + 1] = { label = label, amount = delta, key = key } end
+    end
+    table.sort(out, function(a, b)
+        if a.amount ~= b.amount then return a.amount > b.amount end
+        return a.key < b.key
+    end)
+    while #out > (max or 3) do out[#out] = nil end
+    return out
+end
+
+local function GainText(gains)
+    local parts = {}
+    for _, g in ipairs(gains) do
+        local amount = g.amount == math.floor(g.amount) and ("%d"):format(g.amount) or ("%.1f"):format(g.amount)
+        parts[#parts + 1] = "+" .. amount .. " " .. g.label
+    end
+    return table.concat(parts, ", ")
+end
+
+-- The worn item the candidate would replace: the lowest item level among its slots (empty = nil).
+local function WornLink(loc)
+    local slots = RANGED[loc] and { RANGED_SLOT } or T.Bags.Client.EQUIP_SLOTS[loc]
+    local detailed = C_Item and C_Item.GetDetailedItemLevelInfo
+    local best, bestLevel
+    for _, slot in ipairs(slots or {}) do
+        local link = Call(GetInventoryItemLink, "player", slot)
+        local lvl = link and Call(detailed, link) or 0
+        if not Num(lvl) then lvl = 0 end
+        if bestLevel == nil or lvl < bestLevel then best, bestLevel = link, lvl end
+    end
+    return best
+end
+
 -- Panel -----------------------------------------------------------------------------------------
 
-local ROW_H, WIDTH = 22, 470
+local ROW_H, WIDTH = 22, 660
 
 local function Money(copper)
     copper = math.floor(copper + 0.5)
@@ -159,6 +219,9 @@ function M:BuildUpgradePanel()
     p.title = S.Text(p, 14, S.C.text)
     p.title:SetPoint("TOPLEFT", 12, -10)
     p.title:SetText("Cheapest upgrades")
+    p.sub = S.Text(p, 11, S.C.muted)
+    p.sub:SetPoint("TOPLEFT", p.title, "TOPRIGHT", 10, -2)
+    p.sub:SetText("ilvl = item levels above what you wear; stats = what improves")
     p.status = S.Text(p, 11, S.C.muted)
     p.status:SetPoint("TOPRIGHT", -12, -12)
     p.foot = S.Text(p, 11, S.C.muted)
@@ -173,19 +236,25 @@ function M:BuildUpgradePanel()
         r.icon:SetPoint("LEFT", 2, 0)
         r.name = S.Text(r, 12, S.C.text)
         r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
-        r.name:SetWidth(190)
+        r.name:SetWidth(180)
         r.name:SetJustifyH("LEFT")
         r.slot = S.Text(r, 11, S.C.muted)
         r.slot:SetPoint("LEFT", r.name, "RIGHT", 4, 0)
-        r.slot:SetWidth(64)
+        r.slot:SetWidth(60)
         r.slot:SetJustifyH("LEFT")
         r.gain = S.Text(r, 12, { 0.4, 0.95, 0.5 })
         r.gain:SetPoint("LEFT", r.slot, "RIGHT", 2, 0)
-        r.gain:SetWidth(38)
+        r.gain:SetWidth(56)
         r.gain:SetJustifyH("LEFT")
         r.price = S.Text(r, 12, { 1, 0.82, 0.25 })
         r.price:SetPoint("RIGHT", -4, 0)
         r.price:SetJustifyH("RIGHT")
+        r.price:SetWidth(96)
+        r.stats = S.Text(r, 11, { 0.75, 0.9, 0.75 })
+        r.stats:SetPoint("LEFT", r.gain, "RIGHT", 4, 0)
+        r.stats:SetPoint("RIGHT", r.price, "LEFT", -6, 0)
+        r.stats:SetJustifyH("LEFT")
+        r.stats:SetWordWrap(false)
         r:SetScript("OnEnter", function(b)
             if not b.itemID then return end
             GameTooltip:SetOwner(b, "ANCHOR_LEFT")
@@ -237,7 +306,8 @@ function M:RefreshUpgrades()
             r.icon:SetTexture(icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
             r.name:SetText(link or name or ("item:" .. e.id))
             r.slot:SetText(_G[e.loc] or "")
-            r.gain:SetText("+" .. e.gain)
+            r.gain:SetText("+" .. e.gain .. " ilvl")
+            r.stats:SetText(GainText(M.StatGains(link or ("item:" .. e.id), WornLink(e.loc), 3)))
             local stale = e.age and e.age >= (T.db.market.staleDays or 3)
             r.price:SetText(Money(e.price) .. (stale and " (old)" or ""))
             r:Show()

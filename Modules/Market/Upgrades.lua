@@ -7,7 +7,7 @@ local S = T.Style
 
 local PER_GROUP = 8               -- best deals kept per slot group
 local LIMIT = 250                 -- display rows: items plus group headers
-local VISIBLE = 14                -- rows visible at once; the rest scroll
+local VISIBLE = 21                -- rows visible at once; the rest scroll
 local REQUESTS_PER_PASS = 150     -- uncached items asked for per refresh, so the client is not flooded
 local SKIP_LOCS = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
 local RANGED = { INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_THROWN = true }
@@ -310,18 +310,18 @@ end
 
 -- The stats that go up when `newLink` replaces `oldLink` (nil = empty slot): up to `max` entries,
 -- largest gain first, as { label, amount }.
-function M.StatGains(newLink, oldLink, max, withLosses)
+function M.StatGains(newLink, oldLink, max, withLosses, withUnchanged)
     local new, old, out, seen = StatsOf(newLink), StatsOf(oldLink), {}, {}
     local function add(key)
         if seen[key] then return end
         seen[key] = true
         local n, o = Num(new[key]) and new[key] or 0, Num(old[key]) and old[key] or 0
         local delta = n - o
-        local label = (delta > 0 or (withLosses and delta < 0)) and StatLabel(key)
+        local label = (delta > 0 or (withLosses and delta < 0) or (withUnchanged and delta == 0)) and StatLabel(key)
         if label then out[#out + 1] = { label = label, amount = delta, key = key, old = o, new = n } end
     end
     for key in pairs(new) do add(key) end
-    if withLosses then for key in pairs(old) do add(key) end end
+    if withLosses or withUnchanged then for key in pairs(old) do add(key) end end
     table.sort(out, function(a, b)
         local x, y = math.abs(a.amount), math.abs(b.amount)
         if x ~= y then return x > y end
@@ -394,7 +394,8 @@ end
 
 local DETAIL_STATS = 7
 local COL_W, BAR_COL = math.floor((DETAIL_W - 20) / DETAIL_STATS), 28
-local CHART_TOP, CHART_H = 136, 150
+local TABLE_Y, TABLE_ROW, TABLE_ROWS = 118, 16, 8      -- current / buy comparison table
+local CHART_TOP, CHART_H = 292, 150
 local CHART_MID, HALF = CHART_TOP + CHART_H / 2, 58     -- centre line; tallest bar either way
 local GROUP_LABEL = {}
 for _, g in ipairs(GROUPS) do GROUP_LABEL[g[1]] = g[2] end
@@ -406,7 +407,8 @@ function M.DetailInfo(e)
     local worn = WornLink(e.loc)
     return { name = name, link = link, icon = icon, slot = GROUP_LABEL[GROUP_OF[e.loc]] or "", level = e.level,
         worn = e.worn, wornLink = worn, gain = e.gain, price = e.price, age = e.age,
-        perGold = e.score, stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true) }
+        perGold = e.score, stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
+        all = M.StatGains(link or ("item:" .. e.id), worn, TABLE_ROWS, true, true) }
 end
 
 function M.BuildDetail(p, scroll)
@@ -431,6 +433,25 @@ function M.BuildDetail(p, scroll)
     end
     d.head = S.Text(d, 11, T.accent)
     d.head:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(CHART_TOP - 16))
+    -- Side-by-side table: what you wear now against what you would buy.
+    local cols = { { 0, 70, "LEFT" }, { 74, 70, "RIGHT" }, { 150, 70, "RIGHT" }, { 226, DETAIL_W - 20 - 226, "RIGHT" } }
+    local function Cell(c, y, text, color)
+        local fs = S.Text(d, 11, color or S.C.text)
+        fs:SetPoint("TOPLEFT", d, "TOPLEFT", c[1], -y)
+        fs:SetWidth(c[2])
+        fs:SetJustifyH(c[3])
+        fs:SetWordWrap(false)
+        fs:SetText(text or "")
+        return fs
+    end
+    d.tableHead = {}
+    for k, c in ipairs(cols) do d.tableHead[k] = Cell(c, TABLE_Y, ({ "Stat", "Current", "Buy", "Change" })[k], T.accent) end
+    d.table = {}
+    for r = 1, TABLE_ROWS do
+        local row = {}
+        for k, c in ipairs(cols) do row[k] = Cell(c, TABLE_Y + 6 + r * TABLE_ROW) end
+        d.table[r] = row
+    end
     -- Vertical chart: gains rise above a centre line, losses hang below it, one column per stat.
     d.axis = d:CreateTexture(nil, "ARTWORK")
     d.axis:SetSize(DETAIL_W - 20, 1)
@@ -475,6 +496,8 @@ function M:ShowDetail(e)
         for _, l in ipairs(d.line) do l:SetText("") end
         for _, s in ipairs(d.stats) do s.label:SetText(""); s.val:SetText(""); s.back:Hide(); s.bar:Hide() end
         d.axis:Hide()
+        for _, h in ipairs(d.tableHead) do h:SetText("") end
+        for _, row in ipairs(d.table) do for _, c in ipairs(row) do c:SetText("") end end
         return
     end
     local i = M.DetailInfo(e)
@@ -488,6 +511,21 @@ function M:ShowDetail(e)
     d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot"))
     d.line[3]:SetText("Price: |cffFFD140" .. Money(i.price) .. "|r  (" .. AgeText(i.age) .. ")")
     d.line[4]:SetText(i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or "")
+    for k, h in ipairs(d.tableHead) do h:SetText(({ "Stat", "Current", "Buy", "Change" })[k]) end
+    for r, row in ipairs(d.table) do
+        local g = i.all[r]
+        if g then
+            local c = M.BarColor(g.label)
+            row[1]:SetText(g.label); row[1]:SetTextColor(c[1], c[2], c[3])
+            row[2]:SetText(AmountText(g.old))
+            row[3]:SetText(AmountText(g.new))
+            row[3]:SetTextColor(g.amount > 0 and 0.48 or g.amount < 0 and 1 or S.C.text[1], g.amount > 0 and 1 or g.amount < 0 and 0.42 or S.C.text[2], g.amount > 0 and 0.54 or g.amount < 0 and 0.42 or S.C.text[3])
+            row[4]:SetText(g.amount > 0 and ("|cff7CFF8A+" .. AmountText(g.amount) .. "|r")
+                or g.amount < 0 and ("|cffFF6B6B-" .. AmountText(-g.amount) .. "|r") or "|cff888888=|r")
+        else
+            for _, cell in ipairs(row) do cell:SetText("") end
+        end
+    end
     d.head:SetText(#i.stats > 0 and "Stat changes: up = gain, down = loss" or "No stat changes known yet")
     d.axis:Show()
     for k, s in ipairs(d.stats) do

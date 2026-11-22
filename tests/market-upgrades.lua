@@ -329,4 +329,16 @@ AuctionHouseFrame = Cat({ { classID = 2, subClassID = 8 } }, 'Two-Handed Swords'
 Same(Ids((M:FindUpgrades())), { 6 })
 T.db.market.upgradeUseAHFilters = false; assert(#(M:FindUpgrades()) == 3); T.db.market.upgradeUseAHFilters = nil
 AuctionHouseFrame = nil; g_auctionHouseFilters = nil
+-- side-by-side table lists unchanged stats too, with both values
+local cmp = M.StatGains('new', 'old', 8, true, true)
+local anyEqual, anyBoth
+for _, g in ipairs(cmp) do
+    if g.amount == 0 then anyEqual = true end
+    if g.old and g.new then anyBoth = true end
+end
+assert(anyBoth, 'every row carries current and new values')
+assert(#cmp >= #M.StatGains('new', 'old', 8, true), 'unchanged stats are added, never removed')
+Seed({ [4] = 5 * G }); AuctionHouseFrame = nil; g_auctionHouseFilters = nil
+local info2 = M.DetailInfo((M:FindUpgrades())[1])
+assert(type(info2.all) == 'table' and #info2.all >= #info2.stats, 'detail info has the comparison table rows')
 print('ok')

@@ -4,7 +4,9 @@
 
 A complete World of Warcraft interface in one clean look: buff timers, unit frames, nameplates, party and raid frames, action bars, searchable combined bags, a square minimap, an info bar, a combat strip (Combat Pulse), and skins for Blizzard's windows. Every part is a module you can turn off.
 
-Built for the new Classic client (interface 16001), where the game hides health, auras and range from addons in combat. Tempus is written around that: hidden values go straight from the game into bars, text and colours, and auras are drawn by the game's own aura containers, so everything keeps updating mid-fight.
+The CurseForge project description lives in [`DESCRIPTION.MD`](DESCRIPTION.MD). Update it alongside player-facing feature, compatibility, setup, or optional integration changes so its claims stay current.
+
+Built for Warcraft Forever (interface 16001), where the game hides health, auras and range from addons in combat. Tempus is written around that: hidden values go straight from the game into bars, text and colours, and auras are drawn by the game's own aura containers, so everything keeps updating mid-fight.
 
 ![Tempus settings](screenshots/mainscreen.png)
 

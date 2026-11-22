@@ -823,7 +823,7 @@ function M:BuildUpgradePanel()
     -- Gradients: a warm gold band, gold hover sweep, deep slot-header bands.
     do
         local a = GOLD
-        S.SetGradient(p.band, "VERTICAL", a[1], a[2], a[3], 0, a[1], a[2], a[3], 0.26)
+        p.band:Hide()      -- no tint behind the title
         for _, r in ipairs(p.rows) do
             S.SetGradient(r.hl, "HORIZONTAL", a[1], a[2], a[3], 0.26, a[1], a[2], a[3], 0)
             r.hbg:SetColorTexture(0.18, 0.2, 0.4, 0.45)

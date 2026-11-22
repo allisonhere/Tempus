@@ -12,6 +12,7 @@ local T = { accent = { 0.2, 0.7, 1 }, db = { market = { staleDays = 3, upgradeMi
     Num = function(v) return type(v) == 'number' end, issecret = function() return false end,
     ModuleEnabled = function() return true end, Print = function() end,
     NewModule = function(_, _, def) module = def end }
+T.UI = { StyledEditBox = function(parent) return CreateFrame('EditBox', nil, parent) end }
 assert(loadfile('Modules/Bags/Client.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Market.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Upgrades.lua'))('Tempus', T)
@@ -341,4 +342,20 @@ assert(#cmp >= #M.StatGains('new', 'old', 8, true), 'unchanged stats are added, 
 Seed({ [4] = 5 * G }); AuctionHouseFrame = nil; g_auctionHouseFilters = nil
 local info2 = M.DetailInfo((M:FindUpgrades())[1])
 assert(type(info2.all) == 'table' and #info2.all >= #info2.stats, 'detail info has the comparison table rows')
+-- max price: setting and the box in the window
+Seed({ [1] = 10 * G, [2] = 1 * G, [4] = 5 * G, [6] = 2 * G })
+T.db.market.upgradeMaxGold = 3
+local cheap = M:FindUpgrades()
+for _, e in ipairs(cheap) do assert(e.price <= 3 * G, 'nothing above the cap') end
+assert(#cheap > 0 and #cheap < #(function() T.db.market.upgradeMaxGold = 0 return (M:FindUpgrades()) end)(), 'the cap hides the dearer items, 0 = no limit')
+local pp = M.upgradePanel; pp:Show()
+pp.price.GetText = function() return '1,0' end
+pp.price.OnTextChanged(pp.price, true)
+assert(T.db.market.upgradeMaxGold == 10, 'typing a price saves it (commas ignored)')
+pp.price.GetText = function() return 'abc' end
+pp.price.OnTextChanged(pp.price, true)
+assert(T.db.market.upgradeMaxGold == 0, 'junk means no limit')
+T.db.market.upgradeMaxGold = 0.5; M:RefreshUpgrades()
+assert(pp.status.text == 'No upgrades under 0.5 gold', tostring(pp.status.text))
+T.db.market.upgradeMaxGold = 0
 print('ok')

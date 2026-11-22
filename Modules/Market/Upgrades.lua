@@ -237,6 +237,7 @@ function M:FindUpgrades()
     local _, class = UnitClass("player")
     local level = UnitLevel("player")
     local money = db.upgradeAffordable and Call(GetMoney) or nil
+    local cap = Num(db.upgradeMaxGold) and db.upgradeMaxGold > 0 and db.upgradeMaxGold * 10000 or nil
     local minGain = Num(db.upgradeMinGain) and db.upgradeMinGain or 1
     local now = time()
     local worn, out, pending, requested = {}, {}, 0, 0
@@ -250,7 +251,7 @@ function M:FindUpgrades()
             if worn[loc] == nil then worn[loc] = WornLevel(loc) or false end
             local base = worn[loc]
             if base ~= false and M.CanUse(class, level, row.c, row.s, loc, nil)
-                and not (money and row.p > money) then
+                and not (money and row.p > money) and not (cap and row.p > cap) then
                 local _, _, quality, ilvl, minLevel = getInfo(id)
                 local eff = Call(detailed, id)
                 if Num(eff) and eff > 0 then ilvl = eff end
@@ -579,9 +580,25 @@ function M:BuildUpgradePanel()
     p.title = S.Text(p, 14, S.C.text)
     p.title:SetPoint("TOPLEFT", 12, -10)
     p.title:SetText("Cheapest upgrades")
-    p.sub = S.Text(p, 11, S.C.muted)
-    p.sub:SetPoint("TOPLEFT", p.title, "TOPRIGHT", 10, -2)
-    p.sub:SetText("ilvl = item levels above what you wear; hover a row for the details")
+    p.priceLabel = S.Text(p, 11, S.C.muted)
+    p.priceLabel:SetPoint("LEFT", p.title, "RIGHT", 18, 0)
+    p.priceLabel:SetText("Max price (gold)")
+    p.price = T.UI.StyledEditBox(p, 70, 20)
+    p.price:SetPoint("LEFT", p.priceLabel, "RIGHT", 8, 0)
+    p.price:SetFont(S.FONT, 11, "")
+    p.price:SetJustifyH("RIGHT")
+    p.price:SetMaxLetters(7)
+    p.price:SetScript("OnTextChanged", function(box, user)
+        if not user then return end
+        local v = tonumber((box:GetText():gsub("[,%s]", ""))) or 0
+        if v < 0 or v ~= v then v = 0 end
+        T.db.market.upgradeMaxGold = v
+        M:ScheduleUpgradeRefresh()
+    end)
+    p.price:SetScript("OnEnterPressed", function(box) box:ClearFocus() end)
+    p.priceHint = S.Text(p.price, 10, S.C.muted)
+    p.priceHint:SetPoint("RIGHT", -6, 0)
+    p.priceHint:SetText("no limit")
     p.close = CreateFrame("Button", nil, p)
     p.close:SetSize(20, 20)
     p.close:SetPoint("TOPRIGHT", -6, -6)
@@ -678,6 +695,11 @@ function M:RefreshUpgrades()
     local p = self.upgradePanel
     if not (p and p:IsShown()) then return end
     local store = self.Store()
+    local maxGold = Num(T.db.market.upgradeMaxGold) and T.db.market.upgradeMaxGold or 0
+    if p.price and not (p.price.HasFocus and p.price:HasFocus()) then
+        p.price:SetText(maxGold > 0 and (maxGold == math.floor(maxGold) and ("%d"):format(maxGold) or tostring(maxGold)) or "")
+    end
+    if p.priceHint then p.priceHint:SetShown(maxGold <= 0) end
     local list, pending, hidden, filters = {}, 0, 0, nil
     if Num(store.scanned) then
         local ok, l, n, _, h, f = pcall(self.FindUpgrades, self)
@@ -724,7 +746,9 @@ function M:RefreshUpgrades()
     elseif pending > 0 then
         p.status:SetText(("Loading item data (%d)..."):format(pending))
     elseif #list == 0 then
-        p.status:SetText(hidden > 0 and "No upgrades match the AH filters" or "No upgrades found")
+        p.status:SetText(hidden > 0 and "No upgrades match the AH filters"
+            or maxGold > 0 and ("No upgrades under %s gold"):format(maxGold == math.floor(maxGold) and ("%d"):format(maxGold) or tostring(maxGold))
+            or "No upgrades found")
     else
         p.status:SetText("")
     end

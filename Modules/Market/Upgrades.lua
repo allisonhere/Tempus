@@ -248,11 +248,29 @@ end
 -- Panel -----------------------------------------------------------------------------------------
 
 local ROW_H, WIDTH = 22, 700
+local TIP_GAP = 14      -- clears the row's right edge, which sits inside the panel border
 
 local function Money(copper)
     copper = math.floor(copper + 0.5)
     if copper >= 10000 then return ("%dg %ds"):format(math.floor(copper / 10000), math.floor(copper / 100) % 100) end
     return ("%ds %dc"):format(math.floor(copper / 100), copper % 100)
+end
+
+-- Which side of the panel has room for a tooltip of this width.
+function M.TooltipSide(panelRight, tipWidth, screenWidth)
+    if not (Num(panelRight) and Num(screenWidth)) then return "right" end
+    return panelRight + TIP_GAP + (Num(tipWidth) and tipWidth or 320) <= screenWidth and "right" or "left"
+end
+
+function M.PlaceTooltip(tip, row)
+    local panel = M.upgradePanel
+    local side = M.TooltipSide(panel and panel:GetRight(), tip:GetWidth(), UIParent:GetWidth())
+    tip:ClearAllPoints()
+    if side == "right" then
+        tip:SetPoint("TOPLEFT", row, "TOPRIGHT", TIP_GAP, 0)
+    else
+        tip:SetPoint("TOPRIGHT", row, "TOPLEFT", -TIP_GAP, 0)
+    end
 end
 
 function M:BuildUpgradePanel()
@@ -329,9 +347,11 @@ function M:BuildUpgradePanel()
         r.stats:SetWordWrap(false)
         r:SetScript("OnEnter", function(b)
             if b.header or not b.itemID then return end
-            GameTooltip:SetOwner(b, "ANCHOR_LEFT")
+            -- Beside the panel, level with the row, so the tooltip never covers the list.
+            GameTooltip:SetOwner(p, "ANCHOR_NONE")
             GameTooltip:SetHyperlink("item:" .. b.itemID)
             GameTooltip:Show()
+            M.PlaceTooltip(GameTooltip, b)
         end)
         r:SetScript("OnLeave", function() GameTooltip:Hide() end)
         r:SetScript("OnClick", function(b)

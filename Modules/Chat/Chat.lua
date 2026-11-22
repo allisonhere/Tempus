@@ -629,9 +629,15 @@ local function Store()
     return TempusDB.chatHistory[key]
 end
 
+-- Tempus's own "loaded" line is printed at every login; saving it would replay last session's copy
+-- next to the new one.
+function Chat.IsStartupLine(text)
+    return type(text) == "string" and text:find("^|c%x%x%x%x%x%x%x%xTempus|r: loaded%.") ~= nil
+end
+
 local function Record(cf, text, r, g, b)
     if Chat.replaying or not (Chat.db and Chat.db.history) then return end
-    if not Plain(text) then return end
+    if not Plain(text) or Chat.IsStartupLine(text) then return end
     local name = cf:GetName()
     if not name or name == SKIP_FRAME then return end
     local list = Store()
@@ -670,7 +676,7 @@ function Chat:Replay()
         if lines and #lines > 0 then
             local shown = 0
             for _, line in ipairs(lines) do
-                if line.at >= cutoff and Plain(line.t) then
+                if line.at >= cutoff and Plain(line.t) and not Chat.IsStartupLine(line.t) then
                     pcall(cf.AddMessage, cf, line.t, line.r, line.g, line.b)
                     shown = shown + 1
                 end

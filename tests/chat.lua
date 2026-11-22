@@ -6,6 +6,9 @@ issecretvalue = function(v) return v == "SECRET" end
 assert(loadfile("Modules/Chat/Chat.lua"))("Tempus", T)
 local Chat = T.Chat
 
+assert(Chat.IsStartupLine("|cff4fc3f7Tempus|r: loaded. Type |cff4fc3f7/tempus|r to configure."), "startup line is not saved")
+assert(not Chat.IsStartupLine("|cff4fc3f7Tempus|r: Auction scan finished: 5 items") and not Chat.IsStartupLine("loaded. Type") and not Chat.IsStartupLine(nil))
+
 local L = Chat.Linkify
 assert(L("hello world") == "hello world", "no address, no change")
 assert(L("see https://example.com/a?b=1 now"):find("|Hurl:https://example.com/a?b=1|h", 1, true), "https linked")

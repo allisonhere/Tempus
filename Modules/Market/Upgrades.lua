@@ -5,7 +5,8 @@ local _, T = ...
 local M = T.Market
 local S = T.Style
 
-local LIMIT = 100                 -- results kept
+local PER_GROUP = 8               -- best deals kept per slot group
+local LIMIT = 250                 -- display rows: items plus group headers
 local VISIBLE = 14                -- rows visible at once; the rest scroll
 local REQUESTS_PER_PASS = 150     -- uncached items asked for per refresh, so the client is not flooded
 local SKIP_LOCS = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
@@ -89,6 +90,25 @@ local function GearInfo(id, row, instant)
     return nil
 end
 
+-- Slot groups, in the order the panel lists them. Variants of one slot share a group.
+local GROUPS = {
+    { "head", "Head", "INVTYPE_HEAD" }, { "neck", "Neck", "INVTYPE_NECK" },
+    { "shoulder", "Shoulders", "INVTYPE_SHOULDER" }, { "back", "Back", "INVTYPE_CLOAK" },
+    { "chest", "Chest", "INVTYPE_CHEST" }, { "wrist", "Wrists", "INVTYPE_WRIST" },
+    { "hands", "Hands", "INVTYPE_HAND" }, { "waist", "Waist", "INVTYPE_WAIST" },
+    { "legs", "Legs", "INVTYPE_LEGS" }, { "feet", "Feet", "INVTYPE_FEET" },
+    { "finger", "Rings", "INVTYPE_FINGER" }, { "trinket", "Trinkets", "INVTYPE_TRINKET" },
+    { "weapon", "One-hand weapons", "INVTYPE_WEAPON" }, { "mainhand", "Main hand", "INVTYPE_WEAPONMAINHAND" },
+    { "twohand", "Two-hand weapons", "INVTYPE_2HWEAPON" }, { "offhand", "Off hand", "INVTYPE_WEAPONOFFHAND" },
+    { "shield", "Shields", "INVTYPE_SHIELD" }, { "held", "Held in off hand", "INVTYPE_HOLDABLE" },
+    { "ranged", "Ranged", "INVTYPE_RANGED" },
+}
+local GROUP_OF = { INVTYPE_ROBE = "chest", INVTYPE_RANGEDRIGHT = "ranged", INVTYPE_THROWN = "ranged" }
+local GROUP_INDEX = {}
+for i, g in ipairs(GROUPS) do GROUP_INDEX[g[1]] = i; GROUP_OF[g[3]] = GROUP_OF[g[3]] or g[1] end
+
+function M.GroupKey(loc) return GROUP_OF[loc] end
+
 -- Returns a ranked list, the number of items still waiting on item data, and how many were
 -- requested this pass. Entry: { id, price, age, gain, level, worn, loc, score }.
 function M:FindUpgrades()
@@ -136,8 +156,14 @@ function M:FindUpgrades()
         if a.price ~= b.price then return a.price < b.price end
         return a.id < b.id
     end)
-    while #out > LIMIT do out[#out] = nil end
-    return out, pending, requested
+    -- Keep the best few per slot group so every slot is covered, not just the best-value one.
+    local kept, counts = {}, {}
+    for _, e in ipairs(out) do
+        local key = GROUP_OF[e.loc]
+        counts[key] = (counts[key] or 0) + 1
+        if counts[key] <= PER_GROUP then kept[#kept + 1] = e end
+    end
+    return kept, pending, requested
 end
 
 -- What improves ------------------------------------------------------------------------------
@@ -200,9 +226,28 @@ local function WornLink(loc)
     return best
 end
 
+-- The list as the panel shows it: a header row per slot group (in GROUPS order) followed by that
+-- group's items, best deal first.
+function M.Layout(list)
+    local by, out = {}, {}
+    for _, e in ipairs(list) do
+        local key = GROUP_OF[e.loc]
+        by[key] = by[key] or {}
+        by[key][#by[key] + 1] = e
+    end
+    for _, g in ipairs(GROUPS) do
+        local items = by[g[1]]
+        if items then
+            out[#out + 1] = { header = g[2], count = #items }
+            for _, e in ipairs(items) do out[#out + 1] = e end
+        end
+    end
+    return out
+end
+
 -- Panel -----------------------------------------------------------------------------------------
 
-local ROW_H, WIDTH = 22, 660
+local ROW_H, WIDTH = 22, 700
 
 local function Money(copper)
     copper = math.floor(copper + 0.5)
@@ -249,14 +294,10 @@ function M:BuildUpgradePanel()
         r.icon:SetPoint("LEFT", 2, 0)
         r.name = S.Text(r, 12, S.C.text)
         r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
-        r.name:SetWidth(180)
+        r.name:SetWidth(230)
         r.name:SetJustifyH("LEFT")
-        r.slot = S.Text(r, 11, S.C.muted)
-        r.slot:SetPoint("LEFT", r.name, "RIGHT", 4, 0)
-        r.slot:SetWidth(60)
-        r.slot:SetJustifyH("LEFT")
         r.gain = S.Text(r, 12, { 0.4, 0.95, 0.5 })
-        r.gain:SetPoint("LEFT", r.slot, "RIGHT", 2, 0)
+        r.gain:SetPoint("LEFT", r.name, "RIGHT", 6, 0)
         r.gain:SetWidth(56)
         r.gain:SetJustifyH("LEFT")
         r.price = S.Text(r, 12, { 1, 0.82, 0.25 })
@@ -269,7 +310,7 @@ function M:BuildUpgradePanel()
         r.stats:SetJustifyH("LEFT")
         r.stats:SetWordWrap(false)
         r:SetScript("OnEnter", function(b)
-            if not b.itemID then return end
+            if b.header or not b.itemID then return end
             GameTooltip:SetOwner(b, "ANCHOR_LEFT")
             GameTooltip:SetHyperlink("item:" .. b.itemID)
             GameTooltip:Show()
@@ -314,27 +355,37 @@ function M:RefreshUpgrades()
         local ok, l, n = pcall(self.FindUpgrades, self)
         if ok then list, pending = l, n end
     end
+    local layout = M.Layout(list)
     for i, r in ipairs(p.rows) do
-        local e = list[i]
-        if e then
+        local e = layout[i]
+        if e and e.header then
+            r.itemID, r.link = nil, nil
+            r.icon:Hide(); r.gain:SetText(""); r.stats:SetText(""); r.price:SetText("")
+            r.name:SetText(e.header)
+            r.name:SetTextColor(T.accent[1], T.accent[2], T.accent[3])
+            r.header = true
+            r:Show()
+        elseif e then
+            r.header = nil
+            r.icon:Show()
+            r.name:SetTextColor(S.C.text[1], S.C.text[2], S.C.text[3])
             r.itemID = e.id
             local name, link, _, _, _, _, _, _, _, icon = (C_Item and C_Item.GetItemInfo or GetItemInfo)(e.id)
             r.link = link
             r.icon:SetTexture(icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
             r.name:SetText(link or name or ("item:" .. e.id))
-            r.slot:SetText(_G[e.loc] or "")
             r.gain:SetText("+" .. e.gain .. " ilvl")
             r.stats:SetText(GainText(M.StatGains(link or ("item:" .. e.id), WornLink(e.loc), 3)))
             local stale = e.age and e.age >= (T.db.market.staleDays or 3)
             r.price:SetText(Money(e.price) .. (stale and " (old)" or ""))
             r:Show()
         else
-            r.itemID, r.link = nil, nil
+            r.itemID, r.link, r.header = nil, nil, nil
             r:Hide()
         end
     end
-    p.content:SetHeight(math.max(1, #list * ROW_H))
-    local max = math.max(0, #list * ROW_H - VISIBLE * ROW_H)
+    p.content:SetHeight(math.max(1, #layout * ROW_H))
+    local max = math.max(0, #layout * ROW_H - VISIBLE * ROW_H)
     if p.scroll:GetVerticalScroll() > max then p.scroll:SetVerticalScroll(max) end
     if not Num(store.scanned) then
         p.status:SetText("Scan the auction house first")

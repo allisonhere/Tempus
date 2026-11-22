@@ -8,7 +8,7 @@ UnitLevel = function() return level end
 GetMoney = function() return money end
 TempusDB = {}
 C_Timer = { After = function(_, fn) fn() end }
-local T = { db = { market = { staleDays = 3, upgradeMinGain = 1, upgradeAffordable = false } },
+local T = { accent = { 0.2, 0.7, 1 }, db = { market = { staleDays = 3, upgradeMinGain = 1, upgradeAffordable = false } },
     Num = function(v) return type(v) == 'number' end, issecret = function() return false end,
     ModuleEnabled = function() return true end, Print = function() end,
     NewModule = function(_, _, def) module = def end }
@@ -106,11 +106,35 @@ assert(#M.StatGains('missing', 'old') == 0, 'uncached item has no stats yet')
 assert(all[1].label == 'Armor' and all[2].label == 'Sta' and all[3].label == 'Str' and all[4].label == 'Critical Strike'
     and all[5].label == 'Spi', 'ordered by size; Rating suffix trimmed')
 
+-- grouping: headers in slot order, items best-first inside each group, robes join chest, ranged variants join
+local layout = M.Layout({
+    { id = 1, loc = 'INVTYPE_LEGS', score = 9 }, { id = 2, loc = 'INVTYPE_HEAD', score = 8 },
+    { id = 3, loc = 'INVTYPE_ROBE', score = 7 }, { id = 4, loc = 'INVTYPE_HEAD', score = 5 },
+    { id = 5, loc = 'INVTYPE_CLOAK', score = 4 }, { id = 6, loc = 'INVTYPE_CHEST', score = 3 },
+    { id = 7, loc = 'INVTYPE_RANGEDRIGHT', score = 2 }, { id = 8, loc = 'INVTYPE_THROWN', score = 1 },
+})
+local seq = {}
+for _, row in ipairs(layout) do seq[#seq + 1] = row.header and ('#' .. row.header) or row.id end
+assert(table.concat(seq, ','):gsub('#', '') == 'Head,2,4,Back,5,Chest,3,6,Legs,1,Ranged,7,8', table.concat(seq, ','))
+assert(layout[1].count == 2 and M.GroupKey('INVTYPE_ROBE') == 'chest' and M.GroupKey('INVTYPE_THROWN') == 'ranged')
+assert(#M.Layout({}) == 0)
+
+-- per-group cap keeps every slot represented
+local mixed, price = {}, 100
+for i = 400, 420 do info[i] = { 4, 4, 'INVTYPE_HEAD', 70, 40 }; mixed[i] = price + i end
+info[430] = { 4, 4, 'INVTYPE_WAIST', 70, 40 }; mixed[430] = 9999999
+info[431] = { 4, 4, 'INVTYPE_CLOAK', 70, 40 }; mixed[431] = 9999999
+Seed(mixed)
+local capped = M:FindUpgrades()
+local perGroup = {}
+for _, e in ipairs(capped) do perGroup[M.GroupKey(e.loc)] = (perGroup[M.GroupKey(e.loc)] or 0) + 1 end
+assert(perGroup.head == 8 and perGroup.waist == 1 and perGroup.back == 1, 'pricey slots still appear next to a crowded one')
+
 -- list is capped
 local many = {}
-for i = 100, 260 do info[i] = { 4, 4, 'INVTYPE_HEAD', 70, 40 }; many[i] = i * 100 end
+for i = 100, 160 do info[i] = { 4, 4, 'INVTYPE_HEAD', 70, 40 }; many[i] = i * 100 end
 Seed(many)
-assert(#M:FindUpgrades() == 100, 'results are capped at 100')
+assert(#M:FindUpgrades() == 8, 'only the best 8 per slot group are kept')
 
 -- never scanned: nothing, no errors
 TempusDB.auctions = {}
@@ -143,16 +167,21 @@ Seed({ [4] = 5 * G, [9] = 1 * G })
 M:ToggleUpgrades()
 local p = M.upgradePanel
 assert(p and p:IsShown(), 'panel opens')
-assert(p.rows[1].shown and p.rows[1].itemID == 4 and not p.rows[2].shown)
+assert(p.rows[1].shown and p.rows[1].header and p.rows[1].name.text == 'Chest', 'group header row')
+assert(p.rows[2].shown and p.rows[2].itemID == 4 and not p.rows[3].shown)
 assert(p.status.text:find('Loading item data %(1%)'), p.status.text)
-assert(p.content.height == 22, 'scroll content sized to the results')
+assert(p.content.height == 2 * 22, 'scroll content counts header rows')
 p:Hide()
--- many results: content grows past the viewport, scroll position is clamped when the list shrinks
-local big = {}
-for i = 300, 340 do info[i] = { 4, 4, 'INVTYPE_HEAD', 70, 40 }; big[i] = i * 100 end
+-- many results across slots: content grows past the viewport, scroll position clamped when the list shrinks
+local big, slotsList = {}, { 'INVTYPE_HEAD', 'INVTYPE_NECK', 'INVTYPE_SHOULDER', 'INVTYPE_CLOAK' }
+local n = 300
+for _, loc in ipairs(slotsList) do
+    for k = 1, 8 do n = n + 1; info[n] = { 4, 4, loc, 70, 40 }; big[n] = n * 100 end
+end
+worn = {}
 Seed(big)
 p:Show()
-assert(p.content.height == 41 * 22 and p.rows[41].shown and not p.rows[42].shown)
+assert(p.content.height == 36 * 22 and p.rows[36].shown and not p.rows[37].shown, p.content.height)
 p.scroll:SetVerticalScroll(500)
 Seed({ [4] = 5 * G })
 M:RefreshUpgrades()

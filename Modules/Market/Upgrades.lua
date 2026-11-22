@@ -1,0 +1,285 @@
+-- Cheapest gear upgrades from the Tempus auction scan. An upgrade is an item level above what you
+-- wear in that slot (the same rule as the Bags arrow); results are ranked by item levels gained
+-- per gold so a cheap +10 beats an expensive +12.
+local _, T = ...
+local M = T.Market
+local S = T.Style
+
+local LIMIT = 20                  -- rows in the panel
+local REQUESTS_PER_PASS = 150     -- uncached items asked for per refresh, so the client is not flooded
+local SKIP_LOCS = { INVTYPE_BODY = true, INVTYPE_TABARD = true }
+local RANGED = { INVTYPE_RANGED = true, INVTYPE_RANGEDRIGHT = true, INVTYPE_THROWN = true }
+local RANGED_SLOT = 18
+
+-- Highest armor subclass each class wears (1 cloth, 2 leather, 3 mail, 4 plate), and the level at
+-- which the heavier type unlocks for classes that start one type lower.
+local ARMOR_TOP = { WARRIOR = 4, PALADIN = 4, DEATHKNIGHT = 4, HUNTER = 3, SHAMAN = 3, ROGUE = 2, DRUID = 2,
+    PRIEST = 1, MAGE = 1, WARLOCK = 1 }
+local ARMOR_UNLOCK = { WARRIOR = 40, PALADIN = 40, HUNTER = 40, SHAMAN = 40 }
+local SHIELDS = { WARRIOR = true, PALADIN = true, SHAMAN = true }
+
+local function Set(...) local t = {} for _, v in ipairs({ ... }) do t[v] = true end return t end
+-- Weapon subclasses by class: 0/1 axe, 2 bow, 3 gun, 4/5 mace, 6 polearm, 7/8 sword, 10 staff,
+-- 13 fist, 15 dagger, 16 thrown, 18 crossbow, 19 wand.
+local WEAPONS = {
+    WARRIOR = Set(0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 13, 15, 16, 18),
+    PALADIN = Set(0, 1, 4, 5, 6, 7, 8),
+    DEATHKNIGHT = Set(0, 1, 4, 5, 6, 7, 8),
+    HUNTER = Set(0, 1, 2, 3, 6, 7, 8, 10, 13, 15, 18),
+    ROGUE = Set(0, 2, 3, 4, 7, 13, 15, 16, 18),
+    PRIEST = Set(4, 10, 15, 19),
+    SHAMAN = Set(0, 1, 4, 5, 10, 13, 15),
+    MAGE = Set(7, 10, 15, 19),
+    WARLOCK = Set(7, 10, 15, 19),
+    DRUID = Set(4, 5, 6, 10, 13, 15),
+}
+
+local function Num(v) return T.Num(v) and v == v and not (T.issecret and T.issecret(v)) end
+local function Call(fn, ...)
+    if type(fn) ~= "function" then return nil end
+    local ok, a, b, c, d, e = pcall(fn, ...)
+    if ok then return a, b, c, d, e end
+end
+
+-- Can this class use the item? Unknown classes are not filtered. Rings, necks, trinkets, cloaks and
+-- held-in-off-hand items are usable by everyone.
+function M.CanUse(class, level, classID, subClassID, equipLoc, minLevel)
+    if Num(minLevel) and Num(level) and minLevel > level then return false end
+    if classID == 4 then
+        if subClassID == 0 or equipLoc == "INVTYPE_CLOAK" then return true end
+        if subClassID == 6 then return SHIELDS[class] == true end
+        if subClassID >= 1 and subClassID <= 4 then
+            local top = ARMOR_TOP[class]
+            if not top then return true end
+            if ARMOR_UNLOCK[class] and Num(level) and level < ARMOR_UNLOCK[class] then top = top - 1 end
+            return subClassID == top
+        end
+        return false
+    end
+    if classID == 2 then
+        local allowed = WEAPONS[class]
+        return allowed == nil or allowed[subClassID] == true
+    end
+    return false
+end
+
+local function WornLevel(loc)
+    if RANGED[loc] then
+        local link = Call(GetInventoryItemLink, "player", RANGED_SLOT)
+        if not link then return 0 end
+        local lvl = Call(C_Item and C_Item.GetDetailedItemLevelInfo, link)
+        return Num(lvl) and lvl or nil
+    end
+    return T.Bags.Client.WornLevel(_G, loc)
+end
+
+-- Gear metadata is read once per item and remembered on its price row (c = class, l = slot, s = subclass).
+local function GearInfo(id, row, instant)
+    if row.c == nil then
+        local ok, _, _, _, loc, _, classID, subClassID = pcall(instant, id)
+        if ok and Num(classID) then
+            row.c, row.l, row.s = classID, type(loc) == "string" and loc or "", subClassID or 0
+        else
+            return nil
+        end
+    end
+    local slots = T.Bags.Client.EQUIP_SLOTS
+    if (row.c == 2 or row.c == 4) and slots[row.l] and not SKIP_LOCS[row.l] then return row end
+    return nil
+end
+
+-- Returns a ranked list, the number of items still waiting on item data, and how many were
+-- requested this pass. Entry: { id, price, age, gain, level, worn, loc, score }.
+function M:FindUpgrades()
+    local store = self.Store()
+    local db = T.db.market or {}
+    local C = C_Item
+    local instant = (C and C.GetItemInfoInstant) or GetItemInfoInstant
+    local getInfo = (C and C.GetItemInfo) or GetItemInfo
+    local detailed = C and C.GetDetailedItemLevelInfo
+    local _, class = UnitClass("player")
+    local level = UnitLevel("player")
+    local money = db.upgradeAffordable and Call(GetMoney) or nil
+    local minGain = Num(db.upgradeMinGain) and db.upgradeMinGain or 1
+    local now = time()
+    local worn, out, pending, requested = {}, {}, 0, 0
+    if type(instant) ~= "function" or type(getInfo) ~= "function" then return out, 0, 0 end
+
+    for id, row in pairs(store.items) do
+        if GearInfo(id, row, instant) then
+            local loc = row.l
+            if worn[loc] == nil then worn[loc] = WornLevel(loc) or false end
+            local base = worn[loc]
+            if base ~= false and M.CanUse(class, level, row.c, row.s, loc, nil)
+                and not (money and row.p > money) then
+                local _, _, _, ilvl, minLevel = getInfo(id)
+                local eff = Call(detailed, id)
+                if Num(eff) and eff > 0 then ilvl = eff end
+                if not Num(ilvl) then
+                    pending = pending + 1
+                    if requested < REQUESTS_PER_PASS and C and C.RequestLoadItemDataByID then
+                        requested = requested + 1
+                        Call(C.RequestLoadItemDataByID, id)
+                    end
+                elseif ilvl - base >= minGain and M.CanUse(class, level, row.c, row.s, loc, minLevel) then
+                    local gain = ilvl - base
+                    out[#out + 1] = { id = id, price = row.p, gain = gain, level = ilvl, worn = base, loc = loc,
+                        age = Num(row.t) and math.max(0, math.floor((now - row.t) / 86400)) or nil,
+                        score = gain / math.max(row.p / 10000, 0.01) }
+                end
+            end
+        end
+    end
+    table.sort(out, function(a, b)
+        if a.score ~= b.score then return a.score > b.score end
+        if a.price ~= b.price then return a.price < b.price end
+        return a.id < b.id
+    end)
+    while #out > LIMIT do out[#out] = nil end
+    return out, pending, requested
+end
+
+-- Panel -----------------------------------------------------------------------------------------
+
+local ROW_H, WIDTH = 22, 470
+
+local function Money(copper)
+    copper = math.floor(copper + 0.5)
+    if copper >= 10000 then return ("%dg %ds"):format(math.floor(copper / 10000), math.floor(copper / 100) % 100) end
+    return ("%ds %dc"):format(math.floor(copper / 100), copper % 100)
+end
+
+function M:BuildUpgradePanel()
+    if self.upgradePanel then return self.upgradePanel end
+    local p = CreateFrame("Frame", "TempusUpgradePanel", AuctionHouseFrame)
+    p:SetSize(WIDTH, 60 + LIMIT * ROW_H)
+    p:SetPoint("TOPLEFT", AuctionHouseFrame, "TOPRIGHT", 6, 0)
+    p:SetFrameStrata("HIGH")
+    if S and S.Backdrop then S.Backdrop(p, {}) end
+    p.title = S.Text(p, 14, S.C.text)
+    p.title:SetPoint("TOPLEFT", 12, -10)
+    p.title:SetText("Cheapest upgrades")
+    p.status = S.Text(p, 11, S.C.muted)
+    p.status:SetPoint("TOPRIGHT", -12, -12)
+    p.foot = S.Text(p, 11, S.C.muted)
+    p.foot:SetPoint("BOTTOMLEFT", 12, 10)
+    p.rows = {}
+    for i = 1, LIMIT do
+        local r = CreateFrame("Button", nil, p)
+        r:SetSize(WIDTH - 20, ROW_H)
+        r:SetPoint("TOPLEFT", 10, -34 - (i - 1) * ROW_H)
+        r.icon = r:CreateTexture(nil, "ARTWORK")
+        r.icon:SetSize(18, 18)
+        r.icon:SetPoint("LEFT", 2, 0)
+        r.name = S.Text(r, 12, S.C.text)
+        r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
+        r.name:SetWidth(190)
+        r.name:SetJustifyH("LEFT")
+        r.slot = S.Text(r, 11, S.C.muted)
+        r.slot:SetPoint("LEFT", r.name, "RIGHT", 4, 0)
+        r.slot:SetWidth(64)
+        r.slot:SetJustifyH("LEFT")
+        r.gain = S.Text(r, 12, { 0.4, 0.95, 0.5 })
+        r.gain:SetPoint("LEFT", r.slot, "RIGHT", 2, 0)
+        r.gain:SetWidth(38)
+        r.gain:SetJustifyH("LEFT")
+        r.price = S.Text(r, 12, { 1, 0.82, 0.25 })
+        r.price:SetPoint("RIGHT", -4, 0)
+        r.price:SetJustifyH("RIGHT")
+        r:SetScript("OnEnter", function(b)
+            if not b.itemID then return end
+            GameTooltip:SetOwner(b, "ANCHOR_LEFT")
+            GameTooltip:SetHyperlink("item:" .. b.itemID)
+            GameTooltip:Show()
+        end)
+        r:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        r:SetScript("OnClick", function(b)
+            if b.link and IsModifiedClick and IsModifiedClick("CHATLINK") and ChatEdit_InsertLink then
+                ChatEdit_InsertLink(b.link)
+            end
+        end)
+        r:Hide()
+        p.rows[i] = r
+    end
+    -- Item data arrives asynchronously; refresh the open panel as it lands.
+    p:SetScript("OnShow", function(f) f:RegisterEvent("ITEM_DATA_LOAD_RESULT"); M:RefreshUpgrades() end)
+    p:SetScript("OnHide", function(f) f:UnregisterEvent("ITEM_DATA_LOAD_RESULT") end)
+    p:SetScript("OnEvent", function() M:ScheduleUpgradeRefresh() end)
+    p:Hide()
+    self.upgradePanel = p
+    return p
+end
+
+function M:ScheduleUpgradeRefresh()
+    if self.upgradeTimer then return end
+    self.upgradeTimer = true
+    C_Timer.After(0.4, function()
+        M.upgradeTimer = nil
+        if M.upgradePanel and M.upgradePanel:IsShown() then M:RefreshUpgrades() end
+    end)
+end
+
+function M:RefreshUpgrades()
+    local p = self.upgradePanel
+    if not (p and p:IsShown()) then return end
+    local store = self.Store()
+    local list, pending = {}, 0
+    if Num(store.scanned) then
+        local ok, l, n = pcall(self.FindUpgrades, self)
+        if ok then list, pending = l, n end
+    end
+    for i, r in ipairs(p.rows) do
+        local e = list[i]
+        if e then
+            r.itemID = e.id
+            local name, link, _, _, _, _, _, _, _, icon = (C_Item and C_Item.GetItemInfo or GetItemInfo)(e.id)
+            r.link = link
+            r.icon:SetTexture(icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
+            r.name:SetText(link or name or ("item:" .. e.id))
+            r.slot:SetText(_G[e.loc] or "")
+            r.gain:SetText("+" .. e.gain)
+            local stale = e.age and e.age >= (T.db.market.staleDays or 3)
+            r.price:SetText(Money(e.price) .. (stale and " (old)" or ""))
+            r:Show()
+        else
+            r.itemID, r.link = nil, nil
+            r:Hide()
+        end
+    end
+    if not Num(store.scanned) then
+        p.status:SetText("Scan the auction house first")
+    elseif pending > 0 then
+        p.status:SetText(("Loading item data (%d)..."):format(pending))
+    elseif #list == 0 then
+        p.status:SetText("No upgrades found")
+    else
+        p.status:SetText("")
+    end
+    local scanned = Num(store.scanned) and (time() - store.scanned) or nil
+    p.foot:SetText(scanned and ("Scanned %s ago. Ranked by item levels gained per gold.")
+        :format(scanned >= 86400 and (math.floor(scanned / 86400) .. " d") or scanned >= 3600
+        and (math.floor(scanned / 3600) .. " h") or (math.floor(scanned / 60) .. " min")) or "")
+end
+
+function M:HideUpgrades()
+    if self.upgradePanel then self.upgradePanel:Hide() end
+end
+
+function M:ToggleUpgrades()
+    if not AuctionHouseFrame then return end
+    local p = self:BuildUpgradePanel()
+    if p:IsShown() then p:Hide() else p:Show() end
+end
+
+function M:EnsureUpgradeButton(scanButton)
+    if self.upgradeButton or not scanButton then return end
+    local ok, b = pcall(CreateFrame, "Button", "TempusUpgradesButton", AuctionHouseFrame, "UIPanelButtonTemplate")
+    if not (ok and b) then return end
+    b:SetSize(90, 22)
+    b:SetPoint("RIGHT", scanButton, "LEFT", -4, 0)
+    b:SetText("Upgrades")
+    b:SetScript("OnClick", function() M:ToggleUpgrades() end)
+    local SK = T.Skins
+    if SK and SK.On and SK.Button and SK:On("windows") then pcall(SK.Button, SK, b) end
+    self.upgradeButton = b
+end

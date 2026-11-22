@@ -1,7 +1,7 @@
 -- Tempus scans the auction house itself (C_AuctionHouse.ReplicateItems) and keeps the lowest
 -- buyout per item for each realm, account-wide. No other addon is involved.
 local _, T = ...
-local M = { defaults = { tooltips = true, staleDays = 3, autoScan = false } }
+local M = { defaults = { tooltips = true, staleDays = 3, autoScan = false, upgradeMinGain = 1, upgradeAffordable = false } }
 T.Market = M
 
 local SCAN_COOLDOWN = 15 * 60       -- the client only serves a full replicate about every 15 minutes
@@ -40,6 +40,8 @@ local function ItemID(link, id)
     end
     if Number(id) and id > 0 then return id end
 end
+
+M.Store = Store
 
 function M:Quote(link, id)
     id = ItemID(link, id)
@@ -212,6 +214,7 @@ function M:Commit(best, auctions)
     for id, price in pairs(best) do kept[id] = { p = price, t = now }; count = count + 1 end
     store.items, store.scanned = kept, now
     self:Reset()
+    if self.RefreshUpgrades then self:RefreshUpgrades() end
     Say("Auction scan finished: %d items priced from %d auctions.", count, auctions)
 end
 
@@ -227,6 +230,7 @@ function M:EnsureButton()
     local SK = T.Skins
     if SK and SK.On and SK.Button and SK:On("windows") then pcall(SK.Button, SK, b) end
     self.button = b
+    if self.EnsureUpgradeButton then self:EnsureUpgradeButton(b) end
 end
 
 function M:EnsureFrame()
@@ -243,6 +247,7 @@ function M:EnsureFrame()
             end
         elseif event == "AUCTION_HOUSE_CLOSED" then
             M.ahOpen = false
+            if M.HideUpgrades then M:HideUpgrades() end
             if M.scanning then M:Fail("the auction house was closed.") end
         elseif event == "REPLICATE_ITEM_LIST_UPDATE" and M.scanning and not M.processing then
             M.processing = true

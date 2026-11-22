@@ -7,5 +7,8 @@ T:RegisterPage("convenience", {key = "market", label = "Auction values", order =
     p:Section("Scanning", "Open the auction house and click Tempus scan under its window, or the button below. A scan reads every listing in one request and keeps the lowest buyout per item. The game allows one full scan about every 15 minutes.")
     p:Check(cfg, "autoScan", "Scan automatically when I open the auction house")
     p:Add(T.UI.W.Button("Scan auction house", function() T.Market:StartScan() end, "Reads the whole auction house once. Does not buy, sell or post anything.", 200))
+    p:Section("Gear upgrades", "The Upgrades button under the auction house window lists the best gear deals from your last scan: items above what you wear in that slot, that you can equip, ranked by item levels gained per gold.")
+    p:Slider(cfg, "upgradeMinGain", "Minimum item level gain", 1, 30, 1, function(v) return "+" .. v end)
+    p:Check(cfg, "upgradeAffordable", "Only show upgrades I can afford")
     p:Paragraph("Items with no scan data show 'No scanned price'; older prices are marked stale. Re-hover an item after a scan to see its updated estimate.")
 end})

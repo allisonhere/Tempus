@@ -57,6 +57,8 @@ Every settings page has a live preview. Unlock the UI to drag any element into p
 
 **Convenience > Auction values** adds the lowest scanned buyout per item to item tooltips, plus stack estimates in Tempus bags. Tempus scans the auction house itself and needs no other addon: open the auction house and click **Tempus scan** under its window (or **Scan auction house** on the settings page, or turn on the automatic scan). One scan reads every listing in a single request, so the game's limit of about one full scan every 15 minutes applies. Prices are kept per realm, shared by all your characters, and dropped after 30 days. Unknown prices stay unknown and older prices are marked stale. These are listing estimates, not guaranteed sale prices.
 
+The **Upgrades** button next to Tempus scan opens a panel with the best gear deals from your last scan: items above what you wear in that slot (the same item-level rule as the bag upgrade arrow) that your class and level can equip, ranked by item levels gained per gold. Hover a row for the item tooltip. You can set a minimum gain and limit it to what you can afford on the settings page.
+
 ## Install
 
 Copy the `Tempus` folder into `World of Warcraft/_classic_/Interface/AddOns/` (or the folder for your client), then log in. The first-run setup picks modules, UI scale and a layout preset.

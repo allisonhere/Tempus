@@ -16,6 +16,7 @@ TK.defaults = {
     showText = true,            -- current power on the bar
     afford = true,              -- the strip under the bar: can you afford your spells now / at the next tick
     affordHeight = 12,
+    dots = true,                -- bleed / buff timers at the right end of the bar
     width = 220, height = 8,
     visibility = "AUTO",        -- AUTO (in combat or not full) | COMBAT | ALWAYS
     point = { "CENTER", "UIParent", "CENTER", 0, -238 },
@@ -190,6 +191,12 @@ end
 
 function TK:RebuildSpells()
     local class = UnitClass and select(2, UnitClass("player"))
+    local dl = {}
+    for _, d in ipairs(TK.DEFAULT_DOTS[class] or {}) do
+        local id = SpellID(d.name)
+        if (not id or SpellKnown(id)) and #dl < TK.MAX_DOTS then dl[#dl + 1] = d end
+    end
+    self.dotList = dl
     self.spells = self.ptype and TK.TrackedSpells(self.ptype, T.db.lists and T.db.lists.tickspells, class) or {}
 end
 
@@ -304,6 +311,113 @@ local function BuildStrip(f)
     return strip
 end
 
+-- Timer dots -------------------------------------------------------------------------------
+-- A small square at the right end of the bar for each of your bleeds and buffs. It drains as the
+-- time runs out and goes green -> yellow -> red; dim when it is not up.
+TK.DEFAULT_DOTS = {
+    DRUID = { { name = "Rake", debuff = true }, { name = "Rip", debuff = true }, { name = "Savage Roar" } },
+    ROGUE = { { name = "Slice and Dice" }, { name = "Rupture", debuff = true } },
+}
+TK.MAX_DOTS = 4
+
+-- Colour for the fraction of time left (1 = full).
+function TK.DotColor(frac)
+    frac = math.max(0, math.min(1, T.Num(frac) and frac or 0))
+    if frac >= 0.5 then
+        local t = (frac - 0.5) / 0.5            -- yellow -> green
+        return 1 - 0.65 * t, 0.8 + 0.1 * t, 0.3 + 0.15 * t
+    end
+    local t = frac / 0.5                        -- red -> yellow
+    return 0.95 + 0.05 * t, 0.25 + 0.55 * t, 0.25 + 0.05 * t
+end
+
+-- Seconds left and total duration of your own aura called name on unit, or nil when it is not up
+-- (or the client hides it).
+function TK.AuraLeft(unit, name, harmful, now)
+    local filter = harmful and "HARMFUL" or "HELPFUL"
+    for i = 1, 40 do
+        local aname, dur, exp, src
+        if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+            local ok, a = pcall(C_UnitAuras.GetAuraDataByIndex, unit, i, filter)
+            if not ok or type(a) ~= "table" then return nil end
+            aname, dur, exp, src = a.name, a.duration, a.expirationTime, a.sourceUnit
+        elseif UnitAura then
+            local ok, n, _, _, _, d, e, s = pcall(UnitAura, unit, i, filter)
+            if not ok or not n then return nil end
+            aname, dur, exp, src = n, d, e, s
+        else
+            return nil
+        end
+        if aname == name and (src == "player" or not harmful and src == nil) then
+            if T.Num(exp) and T.Num(dur) and dur > 0 and not (T.issecret and (T.issecret(exp) or T.issecret(dur))) then
+                return math.max(0, exp - now), dur
+            end
+            return nil
+        end
+    end
+end
+
+function TK:PaintDots(now)
+    local dots = self.dots
+    if not dots then return end
+    local list = self.dotList
+    if not (self.db.dots and list and #list > 0 and self.kind) then dots:Hide() return end
+    local h = self.db.height
+    dots:Show()
+    local prev
+    for i, d in ipairs(dots.items) do
+        local sp = list[i]
+        if not sp then
+            d:Hide()
+        else
+            local left, total = TK.AuraLeft(sp.debuff and "target" or "player", sp.name, sp.debuff, now)
+            d:SetSize(h + 4, h + 4)
+            d:ClearAllPoints()
+            d:SetPoint("LEFT", prev or self.frame, prev and "RIGHT" or "RIGHT", 3, 0)
+            prev = d
+            if left then
+                local frac = left / total
+                local r, g, b = TK.DotColor(frac)
+                d.fill:SetVertexColor(r, g, b, 1)
+                d.fill:ClearAllPoints()
+                d.fill:SetPoint("BOTTOMLEFT", 1, 1)
+                d.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+                d.fill:SetHeight(math.max(1, (h + 2) * frac))
+                d.text:SetFormattedText("%d", math.ceil(left))
+            else
+                d.fill:SetVertexColor(0.5, 0.52, 0.58, 0.25)
+                d.fill:ClearAllPoints()
+                d.fill:SetPoint("TOPLEFT", 1, -1)
+                d.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+                d.text:SetText("")
+            end
+            d.label:SetText(sp.name:sub(1, 1))
+            d.label:SetShown(not left)
+            d:Show()
+        end
+    end
+end
+
+local function BuildDots(f)
+    local dots = CreateFrame("Frame", nil, f)
+    dots.items = {}
+    for i = 1, TK.MAX_DOTS do
+        local d = CreateFrame("Frame", nil, dots)
+        S.Backdrop(d)
+        d.fill = d:CreateTexture(nil, "ARTWORK")
+        d.fill:SetColorTexture(1, 1, 1, 1)
+        d.text = d:CreateFontString(nil, "OVERLAY")
+        d.text:SetPoint("CENTER")
+        S.ApplyFont(d.text, 9, nil, "OUTLINE")
+        d.label = d:CreateFontString(nil, "OVERLAY")
+        d.label:SetPoint("CENTER")
+        S.ApplyFont(d.label, 9, nil, "OUTLINE")
+        d:Hide()
+        dots.items[i] = d
+    end
+    return dots
+end
+
 -- Lay the strip under the bar and paint it: one equal segment per spell.
 function TK:PaintStrip(now)
     local strip, db = self.strip, self.db
@@ -399,6 +513,10 @@ local function OnUpdate()
     end
     Paint(self, self.db, now)
     self:PaintStrip(now)
+    if not self.dotAt or now - self.dotAt >= 0.1 then
+        self.dotAt = now
+        self:PaintDots(now)
+    end
 end
 
 function TK:SetPreview(on)
@@ -516,6 +634,7 @@ T:NewModule("ticker", {
         TK.frame = f
         BuildView(TK, f)
         TK.strip = BuildStrip(f)
+        TK.dots = BuildDots(f)
         f:SetScript("OnUpdate", T:Wrap("ticker.update", OnUpdate))
         T.Movers.ApplyPoint(f, TK.db)
         T.Movers:Register(f, {

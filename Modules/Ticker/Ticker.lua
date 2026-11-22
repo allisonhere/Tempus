@@ -113,12 +113,14 @@ end
 -- action bar icons use, so it works even when the client hides your energy number. nil when the
 -- client will not say.
 function TK.IsUsable(id)
-    local ok, usable
-    if C_Spell and C_Spell.IsSpellUsable then ok, usable = pcall(C_Spell.IsSpellUsable, id)
-    elseif IsUsableSpell then ok, usable = pcall(IsUsableSpell, id) end
+    local ok, usable, noPower
+    if C_Spell and C_Spell.IsSpellUsable then ok, usable, noPower = pcall(C_Spell.IsSpellUsable, id)
+    elseif IsUsableSpell then ok, usable, noPower = pcall(IsUsableSpell, id) end
     if not ok or usable == nil then return nil end
-    if T.issecret and T.issecret(usable) then return nil end
-    return usable == true
+    if T.issecret and (T.issecret(usable) or T.issecret(noPower)) then return nil end
+    -- Second answer: true when the only thing missing is power (so false = you have the energy
+    -- but something else blocks it, such as Shred needing you behind the target).
+    return usable == true, noPower == true
 end
 
 -- The spells to watch: your own list if you made one, else the class defaults. Each is
@@ -184,7 +186,7 @@ function TK.Debug()
             raw = ok and (#parts > 0 and table.concat(parts, "; ") or "no cost entries") or "call failed"
         end
         Add("  %s: spell id %s, known=%s, cost=%s, usable now=%s", tostring(entry), tostring(id), tostring(known), tostring(raw),
-            tostring(id and TK.IsUsable(id)))
+            tostring(id and select(1, TK.IsUsable(id))) .. " / only-power-missing " .. tostring(id and select(2, TK.IsUsable(id))))
     end
     return out
 end
@@ -442,10 +444,15 @@ function TK:PaintStrip(now)
         if sp then
             -- The game's own "can I cast it" decides NOW; your energy number (when readable) adds
             -- the "next tick gets you there" step. Without a readable number it is lit or dim.
-            local usable = sp.id and TK.IsUsable(sp.id)
+            local usable, noPower
+            if sp.id then usable, noPower = TK.IsUsable(sp.id) end
             local state, alpha
             if usable == true then
                 state, alpha = "NOW", 1
+            elseif usable == false and noPower == false then
+                -- Enough energy, but blocked by something else (position, target, form): light it
+                -- softer so you still see the energy is there.
+                state, alpha = "NOW", 0.55
             else
                 state, alpha = TK.AffordState(self.last, sp.cost, expected, done)
                 if usable == false and state == "NOW" then state, alpha = "LATER", 0.35 end

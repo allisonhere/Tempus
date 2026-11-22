@@ -85,10 +85,40 @@ function M:RefreshSelection()
     if not self.selected[selected] then selected = members[1] end
     if panel then
         panel.name:SetText(#members > 1 and (#members .. " frames selected") or (selected and selected.opts.label or "No frames selected"))
-        panel.hint:SetText(InCombatLockdown() and "Leave combat to move frames" or "Shift-click: add/remove frames\nArrows: 1 unit  |  Shift: 10  |  Alt: no snap")
+        panel.hint:SetText(InCombatLockdown() and "Leave combat to move frames" or "Shift-click: add/remove frames  |  type a position and press Enter\nArrows: 1 unit  |  Shift: 10  |  Alt: no snap")
     end
     for _, item in ipairs(self.list) do item.selection:SetShown(self.selected[item] and item:IsShown() or false) end
+    self:RefreshPosition()
     self:RefreshHistory()
+end
+-- The copyable "CORNER x y" of the single selected frame.
+function M:RefreshPosition()
+    if not (panel and panel.pos) then return end
+    if panel.pos:HasFocus() then return end
+    local members = self:Selection()
+    local text = ""
+    if #members == 1 then
+        local m = members[1]
+        local cfg = m.opts.cfg and m.opts.cfg()
+        local corner = (m.opts.corner and m.opts.corner()) or (cfg and cfg.point and cfg.point[1]) or "CENTER"
+        local x, y = M.Coords(m.target, corner)
+        if x then text = ("%s %d %d"):format(corner, math.floor(x + 0.5), math.floor(y + 0.5)) end
+    end
+    panel.pos:SetText(text)
+end
+-- Move the single selected frame to the typed "x y" (a leading corner name is ignored).
+function M:ApplyTypedPosition(text)
+    local members = self:Selection()
+    if #members ~= 1 then return nil, "Select one frame to type a position." end
+    local nx, ny = tostring(text or ""):match("(%-?%d+%.?%d*)[%s,]+(%-?%d+%.?%d*)%s*$")
+    nx, ny = tonumber(nx), tonumber(ny)
+    if not (nx and ny) then return nil, "Type two numbers, such as: CENTER -300 -114" end
+    local m = members[1]
+    local cfg = m.opts.cfg and m.opts.cfg()
+    local corner = (m.opts.corner and m.opts.corner()) or (cfg and cfg.point and cfg.point[1]) or "CENTER"
+    local x, y, scale = M.Coords(m.target, corner)
+    if not x then return nil, "That frame is not ready to move." end
+    return self:GroupAction("move", (nx - x) * scale, (ny - y) * scale)
 end
 function M:Select(m, toggle)
     if self.activeDrag then return end
@@ -102,10 +132,29 @@ function M:ClearSelection()
     self.selected, selected = {}, nil
     self:RefreshSelection()
 end
+-- Flat, themed buttons (the settings window's look); plain Blizzard ones if the UI kit is absent.
+local function Button(parent, label, w, h, onClick)
+    local b
+    if T.UI and T.UI.FlatButton then
+        b = T.UI.FlatButton(parent, label, w, h, onClick)
+        local original = b.SetEnabled
+        b.SetEnabled = function(self, on)
+            original(self, on)
+            self:SetAlpha(on and 1 or 0.4)
+        end
+    else
+        b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+        b:SetSize(w, h)
+        b:SetText(label)
+        b:SetScript("OnClick", function(self, ...) if onClick then onClick(self, ...) end end)
+    end
+    return b
+end
+
 local function Panel()
     if panel then return panel end
     panel = CreateFrame("Frame", nil, UIParent)
-    panel:SetSize(360, 366)
+    panel:SetSize(360, 414)
     panel:SetPoint("TOP", UIParent, "TOP", 0, -80)
     panel:SetFrameStrata("FULLSCREEN_DIALOG")
     panel:EnableMouse(true)
@@ -143,30 +192,24 @@ local function Panel()
     local directions = {{"^", 0, 1, 0, -72}, {"<", -1, 0, -62, -106}, {"v", 0, -1, 0, -106}, {">", 1, 0, 62, -106}}
     for _, d in ipairs(directions) do
         local dx, dy = d[2], d[3]
-        local b = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-        b:SetSize(58, 30)
-        b:SetPoint("TOP", d[4], d[5])
-        b:SetText(d[1])
-        b:SetScript("OnClick", function()
+        local b = Button(panel, d[1], 58, 30, function()
             local step = IsShiftKeyDown() and 10 or 1
             local ok, err = M:GroupAction("move", dx * step, dy * step)
             if not ok then T:Print(err) end
         end)
+        b:SetPoint("TOP", d[4], d[5])
         panel.arrows[#panel.arrows + 1] = b
     end
     for _, definition in ipairs({{"undo", "Undo", -48}, {"redo", "Redo", 48}}) do
         local action = definition[1]
-        local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-        button:SetSize(88, 26)
-        button:SetPoint("TOP", definition[3], -151)
-        button:SetText(definition[2])
-        button:SetScript("OnClick", function()
+        local button = Button(panel, definition[2], 88, 26, function()
             if not T.Layouts then return end
             local ok, err
             if action == "undo" then ok, err = T.Layouts:Undo() else ok, err = T.Layouts:Redo() end
             if not ok then T:Print(err) end
             M:RefreshHistory()
         end)
+        button:SetPoint("TOP", definition[3], -151)
         panel[action] = button
     end
     local alignment = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -180,19 +223,43 @@ local function Panel()
     }
     for i, definition in ipairs(actions) do
         local action = definition[2]
-        local button = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-        button:SetSize(108, 26)
-        button:SetPoint("TOP", ((i - 1) % 3 - 1) * 116, -205 - math.floor((i - 1) / 3) * 30)
-        button:SetText(definition[1]); button.required = definition[3]
-        button:SetScript("OnClick", function()
+        local button = Button(panel, definition[1], 108, 26, function()
             local ok, err = M:GroupAction(action)
             if not ok then T:Print(err) end
         end)
+        button:SetPoint("TOP", ((i - 1) % 3 - 1) * 116, -205 - math.floor((i - 1) / 3) * 30)
+        button.required = definition[3]
         panel.groupButtons[#panel.groupButtons + 1] = button
     end
-    local clear = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-    clear:SetSize(140, 26); clear:SetPoint("TOP", 0, -300); clear:SetText("Clear selection")
-    clear:SetScript("OnClick", function() M:ClearSelection() end)
+    local clear = Button(panel, "Clear selection", 140, 26, function() M:ClearSelection() end)
+    clear:SetPoint("TOP", -74, -300)
+    local lock = Button(panel, "Lock frames", 140, 26, function()
+        if T.db then
+            T.db.locked = true
+            T:ApplySettings()
+            T:Print("frames locked.")
+        end
+    end)
+    lock:SetPoint("TOP", 74, -300)
+    if T.UI and T.UI.StyledEditBox then
+        local label = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        label:SetPoint("TOPLEFT", 16, -340)
+        label:SetText("Position")
+        local pos = T.UI.StyledEditBox(panel, 196, 26)
+        pos:SetPoint("TOPLEFT", 70, -334)
+        pos:SetMaxLetters(40)
+        pos:HookScript("OnEditFocusGained", function(box) box:HighlightText() end)
+        pos:SetScript("OnEnterPressed", function(box)
+            local ok, err = M:ApplyTypedPosition(box:GetText())
+            if not ok then T:Print(err) end
+            box:ClearFocus()
+            M:RefreshPosition()
+        end)
+        pos:HookScript("OnEditFocusLost", function() M:RefreshPosition() end)
+        panel.pos = pos
+        local copy = Button(panel, "Select", 70, 26, function() pos:SetFocus(); pos:HighlightText() end)
+        copy:SetPoint("TOPLEFT", 274, -334)
+    end
     M:RefreshHistory()
     panel:RegisterEvent("PLAYER_REGEN_DISABLED")
     panel:RegisterEvent("PLAYER_REGEN_ENABLED")
@@ -200,8 +267,8 @@ local function Panel()
     return panel
 end
 
--- Save frame's current position into cfg.point, anchored at `corner`.
-function M.SavePoint(frame, cfg, corner, precise)
+-- Where frame sits as offsets from `corner` of the screen, in the frame's own units.
+function M.Coords(frame, corner)
     local left, right, top, bottom = frame:GetLeft(), frame:GetRight(), frame:GetTop(), frame:GetBottom()
     if not (left and right and top and bottom) then return end
     local s = frame:GetEffectiveScale() / UIParent:GetEffectiveScale()
@@ -214,6 +281,14 @@ function M.SavePoint(frame, cfg, corner, precise)
         x = corner:find("LEFT") and left or (corner:find("RIGHT") and (right - W)) or ((left + right) / 2 - W / 2)
         y = corner:find("TOP") and (top - H) or (corner:find("BOTTOM") and bottom) or ((top + bottom) / 2 - H / 2)
     end
+    return x, y, s
+end
+
+-- Save frame's current position into cfg.point, anchored at `corner`.
+function M.SavePoint(frame, cfg, corner, precise)
+    corner = corner or "CENTER"
+    local x, y = M.Coords(frame, corner)
+    if not x then return end
     cfg.point = { corner, "UIParent", corner, precise and x or math.floor(x + 0.5), precise and y or math.floor(y + 0.5) }
     frame:ClearAllPoints()
     frame:SetPoint(corner, UIParent, corner, cfg.point[4], cfg.point[5])

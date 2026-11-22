@@ -16,6 +16,8 @@ TK.defaults = {
     showText = true,            -- current power on the bar
     afford = true,              -- the strip under the bar: can you afford your spells now / at the next tick
     affordHeight = 12,
+    stripPos = {},              -- where you dragged the strip / the dots (empty = follow the bar)
+    dotsPos = {},
     dots = true,                -- bleed / buff timers at the right end of the bar
     width = 220, height = 8,
     visibility = "AUTO",        -- AUTO (in combat or not full) | COMBAT | ALWAYS
@@ -419,10 +421,14 @@ function TK:PaintDots(now)
     local dots = self.dots
     if not dots then return end
     local list = self.dotList
-    if not (self.db.dots and list and #list > 0 and self.kind) then dots:Hide() return end
+    if T.db and not T.db.locked and not (list and #list > 0) then
+        list = { { name = "Rake", debuff = true }, { name = "Rip", debuff = true }, { name = "Savage Roar" } }
+    end
+    if not (self.db.dots and list and #list > 0 and (self.kind or (T.db and not T.db.locked))) then dots:Hide() return end
     local h = self.db.height
+    local n = math.min(#list, TK.MAX_DOTS)
+    dots:SetSize(n * (h + 4) + (n - 1) * 3, h + 4)
     dots:Show()
-    local prev
     for i, d in ipairs(dots.items) do
         local sp = list[i]
         if not sp then
@@ -438,8 +444,7 @@ function TK:PaintDots(now)
             end
             d:SetSize(h + 4, h + 4)
             d:ClearAllPoints()
-            d:SetPoint("LEFT", prev or self.frame, prev and "RIGHT" or "RIGHT", 3, 0)
-            prev = d
+            d:SetPoint("TOPLEFT", dots, "TOPLEFT", (i - 1) * (h + 7), 0)
             if left then
                 local frac = left / total
                 local r, g, b = TK.DotColor(frac)
@@ -484,11 +489,25 @@ local function BuildDots(f)
 end
 
 -- Lay the strip under the bar and paint it: one equal segment per spell.
+-- Put the strip and the dots where the player dragged them, else beside the bar.
+function TK:PlaceExtras()
+    local db, frame = self.db, self.frame
+    if not (db and frame) then return end
+    local function Place(f, cfg, point, rel, relPoint, x, y)
+        if not f then return end
+        f:ClearAllPoints()
+        if cfg and cfg.point then T.Movers.ApplyPoint(f, cfg) else f:SetPoint(point, rel, relPoint, x, y) end
+    end
+    Place(self.strip, db.stripPos, "TOPLEFT", frame, "BOTTOMLEFT", 0, -2)
+    Place(self.dots, db.dotsPos, "LEFT", frame, "RIGHT", 3, 0)
+end
+
 function TK:PaintStrip(now)
     local strip, db = self.strip, self.db
     if not strip then return end
-    local spells = self.preview and { { name = "Claw", cost = 45 }, { name = "Shred", cost = 60 } } or self.spells
-    if not (db.afford and spells and #spells > 0 and self.kind) then
+    local unlocked = T.db and not T.db.locked
+    local spells = (self.preview or unlocked) and { { name = "Claw", cost = 45 }, { name = "Shred", cost = 60 } } or self.spells
+    if not (db.afford and spells and #spells > 0 and (self.kind or unlocked)) then
         strip:Hide()
         return
     end
@@ -499,8 +518,6 @@ function TK:PaintStrip(now)
     local _, done = TK.Phase(self.lastTick, now)
     local expected = ExpectedTick(self.kind, self.fsrEnd and now < self.fsrEnd)
     strip:SetSize(width, h)
-    strip:ClearAllPoints()
-    strip:SetPoint("TOPLEFT", self.frame, "BOTTOMLEFT", 0, -2)
     strip:Show()
     for i, seg in ipairs(strip.segs) do
         local sp = spells[i]
@@ -634,6 +651,7 @@ function TK:Refresh()
         if self.ptype then self.last, self.max = Power(self.ptype) end
     end
     self:RebuildSpells()
+    self:PlaceExtras()
     self:UpdateShown()
 end
 
@@ -705,6 +723,17 @@ T:NewModule("ticker", {
         BuildView(TK, f)
         TK.strip = BuildStrip(f)
         TK.dots = BuildDots(f)
+        local function Extra(frame, label, key)
+            T.Movers:Register(frame, {
+                label = label, page = "ticker",
+                cfg = function() return TK.db[key] end,
+                corner = function() return "TOPLEFT" end,
+                enabled = function() return TK.db.enabled and TK.db[key == "stripPos" and "afford" or "dots"] end,
+                onMoved = function() TK:PlaceExtras() end,
+            })
+        end
+        Extra(TK.strip, "Afford strip", "stripPos")
+        Extra(TK.dots, "Timer dots", "dotsPos")
         f:SetScript("OnUpdate", T:Wrap("ticker.update", OnUpdate))
         T.Movers.ApplyPoint(f, TK.db)
         T.Movers:Register(f, {

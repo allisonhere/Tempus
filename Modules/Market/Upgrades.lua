@@ -188,16 +188,21 @@ end
 
 -- The stats that go up when `newLink` replaces `oldLink` (nil = empty slot): up to `max` entries,
 -- largest gain first, as { label, amount }.
-function M.StatGains(newLink, oldLink, max)
-    local new, old, out = StatsOf(newLink), StatsOf(oldLink), {}
-    for key, value in pairs(new) do
-        local delta = (Num(value) and value or 0) - (Num(old[key]) and old[key] or 0)
-        local label = delta > 0 and StatLabel(key)
-        if label then out[#out + 1] = { label = label, amount = delta, key = key,
-            old = Num(old[key]) and old[key] or 0, new = value } end
+function M.StatGains(newLink, oldLink, max, withLosses)
+    local new, old, out, seen = StatsOf(newLink), StatsOf(oldLink), {}, {}
+    local function add(key)
+        if seen[key] then return end
+        seen[key] = true
+        local n, o = Num(new[key]) and new[key] or 0, Num(old[key]) and old[key] or 0
+        local delta = n - o
+        local label = (delta > 0 or (withLosses and delta < 0)) and StatLabel(key)
+        if label then out[#out + 1] = { label = label, amount = delta, key = key, old = o, new = n } end
     end
+    for key in pairs(new) do add(key) end
+    if withLosses then for key in pairs(old) do add(key) end end
     table.sort(out, function(a, b)
-        if a.amount ~= b.amount then return a.amount > b.amount end
+        local x, y = math.abs(a.amount), math.abs(b.amount)
+        if x ~= y then return x > y end
         return a.key < b.key
     end)
     while #out > (max or 3) do out[#out] = nil end
@@ -225,7 +230,7 @@ function M.GainMaxima(rowsGains)
     local max = {}
     for _, gains in ipairs(rowsGains) do
         for _, g in ipairs(gains) do
-            local top = g.new or g.amount
+            local top = math.max(g.new or g.amount, g.old or 0)
             if top > (max[g.label] or 0) then max[g.label] = top end
         end
     end
@@ -318,7 +323,7 @@ function M:BuildUpgradePanel()
     p.title:SetText("Cheapest upgrades")
     p.sub = S.Text(p, 11, S.C.muted)
     p.sub:SetPoint("TOPLEFT", p.title, "TOPRIGHT", 10, -2)
-    p.sub:SetText("ilvl = item levels above what you wear; bars: dim = worn now, bright = gain")
+    p.sub:SetText("ilvl = item levels above what you wear; bars: dim = worn now, bright = gain, red = loss")
     p.close = CreateFrame("Button", nil, p)
     p.close:SetSize(20, 20)
     p.close:SetPoint("TOPRIGHT", -6, -6)
@@ -436,7 +441,7 @@ function M:RefreshUpgrades()
     for _, e in ipairs(layout) do
         if not e.header then
             local _, full = (C_Item and C_Item.GetItemInfo or GetItemInfo)(e.id)
-            gainsOf[e] = M.StatGains(full or ("item:" .. e.id), WornLink(e.loc), BAR_SEGS)
+            gainsOf[e] = M.StatGains(full or ("item:" .. e.id), WornLink(e.loc), BAR_SEGS, true)
             all[#all + 1] = gainsOf[e]
         end
     end
@@ -467,15 +472,20 @@ function M:RefreshUpgrades()
                 if g then
                     local c = M.BarColor(g.label)
                     seg.track:Show()
-                    -- What you wear now (dim), then the gain on top of it (bright).
-                    local baseW = M.BarWidth(g.old, maxima[g.label], BAR_W)
+                    -- Gain: worn value (dim) then the extra on top (bright). Loss: what you keep
+                    -- (dim) then the part you give up in red.
+                    local lost = g.amount < 0
+                    local keep = lost and g.new or g.old
+                    local baseW = M.BarWidth(keep, maxima[g.label], BAR_W)
                     seg.base:SetWidth(math.max(1, baseW))
                     seg.base:SetColorTexture(c[1], c[2], c[3], 0.35)
                     seg.base:SetShown(baseW > 0)
-                    seg.fill:SetWidth(M.BarWidth(g.amount, maxima[g.label], BAR_W))
-                    seg.fill:SetColorTexture(c[1], c[2], c[3], 0.95)
+                    seg.fill:SetWidth(M.BarWidth(math.abs(g.amount), maxima[g.label], BAR_W))
+                    if lost then seg.fill:SetColorTexture(0.9, 0.28, 0.28, 0.9)
+                    else seg.fill:SetColorTexture(c[1], c[2], c[3], 0.95) end
                     seg.fill:Show()
-                    seg.text:SetText(g.label .. " " .. AmountText(g.old) .. " |cff7CFF8A+" .. AmountText(g.amount) .. "|r")
+                    seg.text:SetText(g.label .. " " .. AmountText(g.old) .. (lost
+                        and (" |cffFF6B6B-" .. AmountText(-g.amount)) or (" |cff7CFF8A+" .. AmountText(g.amount))) .. "|r")
                 else
                     seg.track:Hide(); seg.base:Hide(); seg.fill:Hide(); seg.text:SetText("")
                 end

@@ -103,6 +103,10 @@ assert(#all == 5, 'empty slot: every stat is a gain')
 local down = M.StatGains('old', 'new', 3)
 assert(#down == 1 and down[1].label == 'Sta' and down[1].amount == 5, 'a downgrade in most stats lists only what rises')
 assert(#M.StatGains('missing', 'old') == 0, 'uncached item has no stats yet')
+local both = M.StatGains('old', 'new', 5, true)
+local sawLoss
+for _, g in ipairs(both) do if g.amount < 0 then sawLoss = true end end
+assert(sawLoss, 'withLosses lists stats that drop, including ones the new item lacks')
 -- bar sizing and colours
 assert(M.BarWidth(10, 10, 80) == 80 and M.BarWidth(5, 10, 80) == 40 and M.BarWidth(1, 100, 80) == 3, 'bar width scales, never a sliver')
 assert(M.BarWidth(0, 10, 80) == 0 and M.BarWidth(5, 0, 80) == 0 and M.BarWidth(nil, 10, 80) == 0, 'no gain, no bar')

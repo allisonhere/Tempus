@@ -714,6 +714,8 @@ function M:BuildUpgradePanel()
     p.price:SetJustifyH("RIGHT")
     p.price:SetMaxLetters(7)
     p.price:SetScript("OnTextChanged", function(box, user)
+        -- The "no limit" hint shows only while the box is empty.
+        if p.priceHint then p.priceHint:SetShown((box:GetText() or "") == "") end
         if not user then return end
         local v = tonumber((box:GetText():gsub("[,%s]", ""))) or 0
         if v < 0 or v ~= v then v = 0 end
@@ -874,7 +876,7 @@ function M:RefreshUpgrades()
     if p.price and not (p.price.HasFocus and p.price:HasFocus()) then
         p.price:SetText(maxGold > 0 and (maxGold == math.floor(maxGold) and ("%d"):format(maxGold) or tostring(maxGold)) or "")
     end
-    if p.priceHint then p.priceHint:SetShown(maxGold <= 0) end
+    if p.priceHint and p.price then p.priceHint:SetShown((p.price:GetText() or "") == "") end
     local list, pending, hidden, filters = {}, 0, 0, nil
     if Num(store.scanned) then
         local ok, l, n, _, h, f = pcall(self.FindUpgrades, self)

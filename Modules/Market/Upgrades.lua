@@ -193,7 +193,8 @@ function M.StatGains(newLink, oldLink, max)
     for key, value in pairs(new) do
         local delta = (Num(value) and value or 0) - (Num(old[key]) and old[key] or 0)
         local label = delta > 0 and StatLabel(key)
-        if label then out[#out + 1] = { label = label, amount = delta, key = key } end
+        if label then out[#out + 1] = { label = label, amount = delta, key = key,
+            old = Num(old[key]) and old[key] or 0, new = value } end
     end
     table.sort(out, function(a, b)
         if a.amount ~= b.amount then return a.amount > b.amount end
@@ -208,7 +209,7 @@ local BAR_COLORS = { Str = { 0.86, 0.36, 0.30 }, Agi = { 0.36, 0.78, 0.42 }, Sta
     Int = { 0.38, 0.62, 0.95 }, Spi = { 0.72, 0.62, 0.92 }, AP = { 0.95, 0.78, 0.30 }, DPS = { 0.95, 0.78, 0.30 },
     Armor = { 0.62, 0.68, 0.74 } }
 local BAR_DEFAULT = { 0.45, 0.78, 0.78 }
-local BAR_SEGS, BAR_W, BAR_H = 3, 80, 14
+local BAR_SEGS, BAR_W, BAR_H = 3, 92, 14
 
 function M.BarColor(label) return BAR_COLORS[label] or BAR_DEFAULT end
 
@@ -224,7 +225,8 @@ function M.GainMaxima(rowsGains)
     local max = {}
     for _, gains in ipairs(rowsGains) do
         for _, g in ipairs(gains) do
-            if g.amount > (max[g.label] or 0) then max[g.label] = g.amount end
+            local top = g.new or g.amount
+            if top > (max[g.label] or 0) then max[g.label] = top end
         end
     end
     return max
@@ -316,7 +318,7 @@ function M:BuildUpgradePanel()
     p.title:SetText("Cheapest upgrades")
     p.sub = S.Text(p, 11, S.C.muted)
     p.sub:SetPoint("TOPLEFT", p.title, "TOPRIGHT", 10, -2)
-    p.sub:SetText("ilvl = item levels above what you wear; bars = what improves")
+    p.sub:SetText("ilvl = item levels above what you wear; bars: dim = worn now, bright = gain")
     p.close = CreateFrame("Button", nil, p)
     p.close:SetSize(20, 20)
     p.close:SetPoint("TOPRIGHT", -6, -6)
@@ -350,7 +352,7 @@ function M:BuildUpgradePanel()
         r.icon:SetPoint("LEFT", 2, 0)
         r.name = S.Text(r, 12, S.C.text)
         r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
-        r.name:SetWidth(230)
+        r.name:SetWidth(200)
         r.name:SetJustifyH("LEFT")
         r.gain = S.Text(r, 12, { 0.4, 0.95, 0.5 })
         r.gain:SetPoint("LEFT", r.name, "RIGHT", 6, 0)
@@ -368,14 +370,17 @@ function M:BuildUpgradePanel()
             seg.track:SetSize(BAR_W, BAR_H)
             seg.track:SetPoint("LEFT", r.gain, "RIGHT", 6 + (k - 1) * (BAR_W + 4), 0)
             seg.track:SetColorTexture(1, 1, 1, 0.06)
-            seg.fill = r:CreateTexture(nil, "ARTWORK")
+            seg.base = r:CreateTexture(nil, "ARTWORK")
+            seg.base:SetHeight(BAR_H)
+            seg.base:SetPoint("LEFT", seg.track, "LEFT", 0, 0)
+            seg.fill = r:CreateTexture(nil, "ARTWORK", nil, 1)
             seg.fill:SetHeight(BAR_H)
-            seg.fill:SetPoint("LEFT", seg.track, "LEFT", 0, 0)
+            seg.fill:SetPoint("LEFT", seg.base, "RIGHT", 0, 0)
             seg.text = S.Text(r, 10, S.C.text, "OUTLINE")
             seg.text:SetPoint("LEFT", seg.track, "LEFT", 4, 0)
             seg.text:SetWidth(BAR_W - 6)
             seg.text:SetWordWrap(false)
-            seg.track:Hide(); seg.fill:Hide(); seg.text:SetText("")
+            seg.track:Hide(); seg.base:Hide(); seg.fill:Hide(); seg.text:SetText("")
             r.segs[k] = seg
         end
         r:SetScript("OnEnter", function(b)
@@ -441,7 +446,7 @@ function M:RefreshUpgrades()
         if e and e.header then
             r.itemID, r.link = nil, nil
             r.icon:Hide(); r.gain:SetText(""); r.price:SetText("")
-            for _, seg in ipairs(r.segs) do seg.track:Hide(); seg.fill:Hide(); seg.text:SetText("") end
+            for _, seg in ipairs(r.segs) do seg.track:Hide(); seg.base:Hide(); seg.fill:Hide(); seg.text:SetText("") end
             r.name:SetText(e.header)
             r.name:SetTextColor(T.accent[1], T.accent[2], T.accent[3])
             r.header = true
@@ -462,12 +467,17 @@ function M:RefreshUpgrades()
                 if g then
                     local c = M.BarColor(g.label)
                     seg.track:Show()
+                    -- What you wear now (dim), then the gain on top of it (bright).
+                    local baseW = M.BarWidth(g.old, maxima[g.label], BAR_W)
+                    seg.base:SetWidth(math.max(1, baseW))
+                    seg.base:SetColorTexture(c[1], c[2], c[3], 0.35)
+                    seg.base:SetShown(baseW > 0)
                     seg.fill:SetWidth(M.BarWidth(g.amount, maxima[g.label], BAR_W))
-                    seg.fill:SetColorTexture(c[1], c[2], c[3], 0.75)
+                    seg.fill:SetColorTexture(c[1], c[2], c[3], 0.95)
                     seg.fill:Show()
-                    seg.text:SetText("+" .. AmountText(g.amount) .. " " .. g.label)
+                    seg.text:SetText(g.label .. " " .. AmountText(g.old) .. " |cff7CFF8A+" .. AmountText(g.amount) .. "|r")
                 else
-                    seg.track:Hide(); seg.fill:Hide(); seg.text:SetText("")
+                    seg.track:Hide(); seg.base:Hide(); seg.fill:Hide(); seg.text:SetText("")
                 end
             end
             local stale = e.age and e.age >= (T.db.market.staleDays or 3)

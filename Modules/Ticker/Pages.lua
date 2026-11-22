@@ -33,7 +33,7 @@ T:RegisterPage("combat", { key = "ticker", label = "Resource ticker", order = 6.
     p:Check(cfg, "showFsr", "Five-second rule countdown after spending mana")
     p:Check(cfg, "showText", "Show current power (or seconds left of the five-second rule)")
     p:Dropdown(cfg, "visibility", "Show", { { "AUTO", "In combat or not full" }, { "COMBAT", "In combat" }, { "ALWAYS", "Always" } })
-    p:Section("Afford strip", "A strip under the bar with one segment per spell you press on a tick, such as Claw and Shred for a cat or Sinister Strike for a rogue. Green means you can afford it now. Amber fades up as the next tick approaches when that tick will get you there. Grey means even the next tick is not enough. The list below overrides the class defaults; spells you do not know are skipped.")
+    p:Section("Afford strip", "A strip under the bar with one segment per spell you press on a tick, such as Claw and Shred for a cat or Sinister Strike for a rogue. Green means the game says you can cast it right now (the same check your action bar icons use), so you can watch the ticks without looking down. When your energy number is readable, amber also fades up as the next tick approaches if that tick will get you there. Grey means not yet. The list below overrides the class defaults; spells you do not know are skipped.")
     p:Check(cfg, "afford", "Show the afford strip")
     p:Slider(cfg, "affordHeight", "Strip height", 4, 24, 1)
     p:Add(T.UI.W.List("tickspells", "Spell name or ID, e.g. Claw", true), 236, true)

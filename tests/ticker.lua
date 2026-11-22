@@ -106,4 +106,19 @@ assert(#TK.TrackedSpells(3, {}, "DRUID") == 1, "spells you do not know are skipp
 local many = TK.TrackedSpells(3, { a = "Claw", b = "Shred", c = "Rake", d = 1082, e = 5221 }, "DRUID")
 assert(#many <= TK.MAX_SEGMENTS, "capped")
 
+-- Usability comes from the game, so the strip works without a readable energy number.
+local usableNow = { [1082] = true, [5221] = false }
+C_Spell.IsSpellUsable = function(id) return usableNow[id], false end
+assert(TK.IsUsable(1082) == true and TK.IsUsable(5221) == false, "game says usable or not")
+local secretOne = {}
+T.issecret = function(v) return v == secretOne end
+C_Spell.IsSpellUsable = function() return secretOne end
+assert(TK.IsUsable(1082) == nil, "a hidden answer is treated as unknown")
+T.issecret = function() return false end
+C_Spell.IsSpellUsable = nil; IsUsableSpell = function() return true end
+assert(TK.IsUsable(1082) == true, "falls back to the old call")
+IsUsableSpell = nil
+assert(TK.IsUsable(1082) == nil, "no API, unknown")
+assert(TK.TrackedSpells(3, {}, "DRUID")[1].id == 1082, "tracked spells carry their id")
+
 print("ticker ok")

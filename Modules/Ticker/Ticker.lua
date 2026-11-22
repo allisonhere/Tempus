@@ -108,6 +108,18 @@ function TK.SpellCost(id, ptype)
     end
 end
 
+-- Can you cast it right now (enough energy, right form, not on cooldown)? The same answer the
+-- action bar icons use, so it works even when the client hides your energy number. nil when the
+-- client will not say.
+function TK.IsUsable(id)
+    local ok, usable
+    if C_Spell and C_Spell.IsSpellUsable then ok, usable = pcall(C_Spell.IsSpellUsable, id)
+    elseif IsUsableSpell then ok, usable = pcall(IsUsableSpell, id) end
+    if not ok or usable == nil then return nil end
+    if T.issecret and T.issecret(usable) then return nil end
+    return usable == true
+end
+
 -- The spells to watch: your own list if you made one, else the class defaults. Each is
 -- { name, cost } for spells you know that cost the current power; at most MAX_SEGMENTS.
 function TK.TrackedSpells(ptype, listed, class)
@@ -123,7 +135,7 @@ function TK.TrackedSpells(ptype, listed, class)
             if cost then
                 local name = tonumber(entry) and ((C_Spell and C_Spell.GetSpellInfo and (C_Spell.GetSpellInfo(id) or {}).name)
                     or (GetSpellInfo and GetSpellInfo(id))) or entry
-                out[#out + 1] = { name = tostring(name), cost = cost }
+                out[#out + 1] = { name = tostring(name), cost = cost, id = id }
                 if #out >= TK.MAX_SEGMENTS then break end
             end
         end
@@ -170,7 +182,8 @@ function TK.Debug()
             end
             raw = ok and (#parts > 0 and table.concat(parts, "; ") or "no cost entries") or "call failed"
         end
-        Add("  %s: spell id %s, known=%s, cost=%s", tostring(entry), tostring(id), tostring(known), tostring(raw))
+        Add("  %s: spell id %s, known=%s, cost=%s, usable now=%s", tostring(entry), tostring(id), tostring(known), tostring(raw),
+            tostring(id and TK.IsUsable(id)))
     end
     return out
 end
@@ -296,7 +309,7 @@ function TK:PaintStrip(now)
     local strip, db = self.strip, self.db
     if not strip then return end
     local spells = self.preview and { { name = "Claw", cost = 45 }, { name = "Shred", cost = 60 } } or self.spells
-    if not (db.afford and spells and #spells > 0 and self.last and self.kind) then
+    if not (db.afford and spells and #spells > 0 and self.kind) then
         strip:Hide()
         return
     end
@@ -313,7 +326,16 @@ function TK:PaintStrip(now)
     for i, seg in ipairs(strip.segs) do
         local sp = spells[i]
         if sp then
-            local state, alpha = TK.AffordState(self.last, sp.cost, expected, done)
+            -- The game's own "can I cast it" decides NOW; your energy number (when readable) adds
+            -- the "next tick gets you there" step. Without a readable number it is lit or dim.
+            local usable = sp.id and TK.IsUsable(sp.id)
+            local state, alpha
+            if usable == true then
+                state, alpha = "NOW", 1
+            else
+                state, alpha = TK.AffordState(self.last, sp.cost, expected, done)
+                if usable == false and state == "NOW" then state, alpha = "LATER", 0.35 end
+            end
             seg:SetSize(w, h)
             seg:ClearAllPoints()
             seg:SetPoint("TOPLEFT", strip, "TOPLEFT", (i - 1) * (w + gap), 0)

@@ -129,6 +129,24 @@ bank.bagBar.buttons[2].scripts.OnClick(bank.bagBar.buttons[2], "LeftButton")
 assert(calls.SetBagFilter[1] == 7 and calls.SetBagFilter[2] == "BANK", "bank click filters the bank, storage passed")
 bank.bagBar.buttons[2].scripts.OnEnter(bank.bagBar.buttons[2])
 assert(calls.SetHoverBag[1] == 7 and calls.SetHoverBag[2] == "BANK", "bank hover dims the other bank bags")
+-- tab mode: every tab drawn, bought ones plain, the next one buyable, summary line under the row
+client.BankTabs = function()
+    return { total = 3, bought = 1, free = 20, canBuy = true, nextCost = 150000, canAfford = true, tabs = {
+        { container = 6, slots = 48, free = 20, bought = true, name = "Main" },
+        { container = 7, slots = 0, free = 0, bought = false, name = "Bank tab 2" },
+        { container = 8, slots = 0, free = 0, bought = false, name = "Bank tab 3" } } }
+end
+local bought
+client.BuyBankTab = function() bought = true end
+bank.bagBar:Refresh()
+local tb = bank.bagBar.buttons
+assert(tb[1].tab.bought and not tb[1].buyable and tb[2].buyable and not tb[3].buyable, "only the next unbought tab is buyable")
+assert(bank.bagBar.summary.text:find("1 of 3 tabs") and bank.bagBar.summary.text:find("20 free") and bank.bagBar.summary.text:find("2 to buy"), bank.bagBar.summary.text)
+tb[3].scripts.OnClick(tb[3], "LeftButton"); assert(not bought, "locked tab cannot be bought")
+tb[2].scripts.OnClick(tb[2], "LeftButton"); assert(bought, "next tab buys through the client")
+tb[1].scripts.OnClick(tb[1], "LeftButton"); assert(calls.SetBagFilter[1] == 6, "bought tab filters")
+tb[2].scripts.OnEnter(tb[2])
+client.BankTabs = nil
 client.ContainerIDs, client.FreeSlots = realIDs, nil
 client.SlotCount = realCount or function() return 0 end
 client.IsBagSlot = function() return false end

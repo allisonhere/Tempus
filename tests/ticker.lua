@@ -133,4 +133,17 @@ local left, total = TK.AuraLeft("target", "Rake", true, 120)
 assert(left == 10 and total == 15, "only your own debuff counts")
 assert(TK.AuraLeft("target", "Rip", true, 120) == nil, "not up")
 
+-- Cast timers cover combat, when the client hides auras.
+TK.dotList = { { name = "Rip", debuff = true }, { name = "Savage Roar" } }
+GetTime = function() return 100 end
+UnitGUID = function() return "Creature-1" end
+TK:OnCast("Rip"); TK:OnCast("Savage Roar"); TK:OnCast("Claw")
+local tl, tt = TK.TimerLeft("Rip", true, 104)
+assert(tl == 8 and tt == 12, "Rip timer from the cast")
+assert(TK.TimerLeft("Rip", true, 113) == nil, "expired")
+UnitGUID = function() return "Creature-2" end
+assert(TK.TimerLeft("Rip", true, 104) == nil, "another target does not show it")
+assert(TK.TimerLeft("Savage Roar", false, 104) == 14, "buffs follow you")
+assert(TK.TimerLeft("Claw", false, 104) == nil, "untracked spell has no timer")
+
 print("ticker ok")

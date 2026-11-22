@@ -342,6 +342,41 @@ TK.DEFAULT_DOTS = {
     ROGUE = { { name = "Slice and Dice" }, { name = "Rupture", debuff = true } },
 }
 TK.MAX_DOTS = 4
+-- In combat the client hides auras from addons (yours and your target's), so the dots also time
+-- themselves from your own casts. Used when the real aura cannot be read; durations are the
+-- usual ones, replaced by what the client reported the last time it let us read the aura.
+TK.DOT_DURATION = { ["Rake"] = 9, ["Rip"] = 12, ["Savage Roar"] = 18, ["Slice and Dice"] = 21, ["Rupture"] = 16 }
+TK.dotTimers = {}
+TK.learned = {}
+
+local function TargetGUID()
+    if not UnitGUID then return nil end
+    local ok, g = pcall(UnitGUID, "target")
+    if ok and type(g) == "string" and not (T.issecret and T.issecret(g)) then return g end
+end
+
+-- Your cast of a tracked spell succeeded: start its timer (on the target, for a debuff).
+function TK:OnCast(name)
+    for _, d in ipairs(self.dotList or {}) do
+        if d.name == name then
+            local dur = TK.learned[name] or TK.DOT_DURATION[name]
+            if dur then
+                self.dotTimers[name] = { exp = GetTime() + dur, dur = dur, guid = d.debuff and TargetGUID() or nil }
+            end
+        end
+    end
+end
+
+-- Seconds left from the cast timer, if it still applies to the current target.
+function TK.TimerLeft(name, harmful, now)
+    local t = TK.dotTimers[name]
+    if not t or t.exp <= now then return nil end
+    if harmful and t.guid then
+        local g = TargetGUID()
+        if g and g ~= t.guid then return nil end
+    end
+    return t.exp - now, t.dur
+end
 
 -- Colour for the fraction of time left (1 = full).
 function TK.DotColor(frac)
@@ -394,6 +429,13 @@ function TK:PaintDots(now)
             d:Hide()
         else
             local left, total = TK.AuraLeft(sp.debuff and "target" or "player", sp.name, sp.debuff, now)
+            if left then
+                -- A readable aura is the truth: keep the cast timer and learned length in step.
+                TK.learned[sp.name] = total
+                TK.dotTimers[sp.name] = { exp = now + left, dur = total, guid = sp.debuff and TargetGUID() or nil }
+            else
+                left, total = TK.TimerLeft(sp.name, sp.debuff, now)
+            end
             d:SetSize(h + 4, h + 4)
             d:ClearAllPoints()
             d:SetPoint("LEFT", prev or self.frame, prev and "RIGHT" or "RIGHT", 3, 0)
@@ -679,8 +721,19 @@ T:NewModule("ticker", {
         for _, event in ipairs({ "UNIT_POWER_FREQUENT", "UNIT_MAXPOWER", "UNIT_DISPLAYPOWER" }) do
             pcall(ev.RegisterUnitEvent, ev, event, "player")
         end
-        ev:SetScript("OnEvent", T:Wrap("ticker.events", function(_, event)
-            if event == "PLAYER_REGEN_DISABLED" then
+        pcall(ev.RegisterUnitEvent, ev, "UNIT_SPELLCAST_SUCCEEDED", "player")
+        ev:SetScript("OnEvent", T:Wrap("ticker.events", function(_, event, _, _, spellID)
+            if event == "UNIT_SPELLCAST_SUCCEEDED" then
+                local name
+                if C_Spell and C_Spell.GetSpellName then
+                    local ok, n = pcall(C_Spell.GetSpellName, spellID)
+                    if ok then name = n end
+                elseif GetSpellInfo then
+                    local ok, n = pcall(GetSpellInfo, spellID)
+                    if ok then name = n end
+                end
+                if type(name) == "string" and not (T.issecret and T.issecret(name)) then TK:OnCast(name) end
+            elseif event == "PLAYER_REGEN_DISABLED" then
                 if TK.preview then TK:SetPreview(false) end
                 TK:UpdateShown()
             elseif event == "PLAYER_REGEN_ENABLED" then

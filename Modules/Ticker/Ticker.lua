@@ -140,6 +140,16 @@ function TK.Debug()
     Add("ticker: module %s, bar %s, kind=%s, power type=%s, power=%s/%s, tick seen=%s",
         db and "on" or "OFF", TK.frame and TK.frame:IsShown() and "shown" or "hidden", tostring(TK.kind), tostring(TK.ptype),
         tostring(TK.last), tostring(TK.max), TK.lastTick and "yes" or "NO (wait for one energy tick)")
+    do
+        local okP, cur = pcall(UnitPower, "player", TK.ptype or 3)
+        local okM, max = pcall(UnitPowerMax, "player", TK.ptype or 3)
+        local function Desc(ok, v)
+            if not ok then return "error: " .. tostring(v) end
+            return ("%s%s"):format(type(v), T.issecret and T.issecret(v) and " SECRET" or "")
+        end
+        Add("raw power read: UnitPower -> %s, UnitPowerMax -> %s, in combat=%s", Desc(okP, cur), Desc(okM, max),
+            tostring(UnitAffectingCombat and UnitAffectingCombat("player")))
+    end
     Add("afford strip: setting %s, class %s, segments %d, API: C_Spell.GetSpellPowerCost=%s GetSpellPowerCost=%s IsPlayerSpell=%s",
         db and db.afford and "on" or "OFF", tostring(class), TK.spells and #TK.spells or 0,
         tostring(C_Spell and type(C_Spell.GetSpellPowerCost)), tostring(type(GetSpellPowerCost)), tostring(type(IsPlayerSpell)))

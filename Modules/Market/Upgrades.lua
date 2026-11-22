@@ -275,7 +275,7 @@ end
 -- Panel -----------------------------------------------------------------------------------------
 
 local ROW_H, WIDTH = 22, 700
-local TIP_GAP = 14      -- clears the row's right edge, which sits inside the panel border
+local DETAIL_W = 280    -- the detail pane to the right of the list
 
 local function Money(copper)
     copper = math.floor(copper + 0.5)
@@ -283,20 +283,116 @@ local function Money(copper)
     return ("%ds %dc"):format(math.floor(copper / 100), copper % 100)
 end
 
--- Which side of the panel has room for a tooltip of this width.
-function M.TooltipSide(panelRight, tipWidth, screenWidth)
-    if not (Num(panelRight) and Num(screenWidth)) then return "right" end
-    return panelRight + TIP_GAP + (Num(tipWidth) and tipWidth or 320) <= screenWidth and "right" or "left"
+local DETAIL_STATS = 7
+local GROUP_LABEL = {}
+for _, g in ipairs(GROUPS) do GROUP_LABEL[g[1]] = g[2] end
+
+-- Everything the detail pane shows for one listed item.
+function M.DetailInfo(e)
+    local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+    local name, link, _, _, _, _, _, _, _, icon = getInfo(e.id)
+    local worn = WornLink(e.loc)
+    return { name = name, link = link, icon = icon, slot = GROUP_LABEL[GROUP_OF[e.loc]] or "", level = e.level,
+        worn = e.worn, wornLink = worn, gain = e.gain, price = e.price, age = e.age,
+        perGold = e.score, stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true) }
 end
 
-function M.PlaceTooltip(tip, row)
-    local panel = M.upgradePanel
-    local side = M.TooltipSide(panel and panel:GetRight(), tip:GetWidth(), UIParent:GetWidth())
-    tip:ClearAllPoints()
-    if side == "right" then
-        tip:SetPoint("TOPLEFT", row, "TOPRIGHT", TIP_GAP, 0)
-    else
-        tip:SetPoint("TOPRIGHT", row, "TOPLEFT", -TIP_GAP, 0)
+function M.BuildDetail(p, scroll)
+    local d = CreateFrame("Frame", nil, p)
+    d:SetPoint("TOPLEFT", scroll, "TOPRIGHT", 8, 0)
+    d:SetSize(DETAIL_W - 18, VISIBLE * ROW_H)
+    d.icon = d:CreateTexture(nil, "ARTWORK")
+    d.icon:SetSize(36, 36)
+    d.icon:SetPoint("TOPLEFT", 0, 0)
+    d.name = S.Text(d, 13, S.C.text)
+    d.name:SetPoint("TOPLEFT", d.icon, "TOPRIGHT", 8, -2)
+    d.name:SetWidth(DETAIL_W - 70)
+    d.name:SetWordWrap(false)
+    d.slot = S.Text(d, 11, S.C.muted)
+    d.slot:SetPoint("TOPLEFT", d.name, "BOTTOMLEFT", 0, -3)
+    d.line = {}
+    for i = 1, 4 do
+        d.line[i] = S.Text(d, 11, S.C.text)
+        d.line[i]:SetPoint("TOPLEFT", d.icon, "BOTTOMLEFT", 0, -10 - (i - 1) * 16)
+        d.line[i]:SetWidth(DETAIL_W - 20)
+        d.line[i]:SetWordWrap(false)
+    end
+    d.head = S.Text(d, 11, T.accent)
+    d.head:SetPoint("TOPLEFT", d.icon, "BOTTOMLEFT", 0, -82)
+    d.stats = {}
+    for i = 1, DETAIL_STATS do
+        local s = {}
+        s.label = S.Text(d, 11, S.C.text)
+        s.label:SetPoint("TOPLEFT", d.head, "BOTTOMLEFT", 0, -8 - (i - 1) * 24)
+        s.label:SetWidth(DETAIL_W - 20)
+        s.label:SetWordWrap(false)
+        s.track = d:CreateTexture(nil, "BACKGROUND")
+        s.track:SetSize(DETAIL_W - 20, 6)
+        s.track:SetPoint("TOPLEFT", s.label, "BOTTOMLEFT", 0, -2)
+        s.track:SetColorTexture(1, 1, 1, 0.06)
+        s.base = d:CreateTexture(nil, "ARTWORK")
+        s.base:SetHeight(6)
+        s.base:SetPoint("LEFT", s.track, "LEFT", 0, 0)
+        s.fill = d:CreateTexture(nil, "ARTWORK", nil, 1)
+        s.fill:SetHeight(6)
+        s.fill:SetPoint("LEFT", s.base, "RIGHT", 0, 0)
+        d.stats[i] = s
+    end
+    d.hint = S.Text(d, 11, S.C.muted)
+    d.hint:SetPoint("TOPLEFT", 0, 0)
+    d.hint:SetWidth(DETAIL_W - 24)
+    d.hint:SetText("Hover an item to see exactly what changes.")
+    return d
+end
+
+local function AgeText(age)
+    if not age or age <= 0 then return "seen today" end
+    return age == 1 and "seen 1 day ago" or ("seen %d days ago"):format(age)
+end
+
+function M:ShowDetail(e)
+    local p, d = self.upgradePanel, self.upgradePanel and self.upgradePanel.detail
+    if not d then return end
+    self.detailEntry = e
+    if not e then
+        d.hint:Show(); d.icon:Hide(); d.name:SetText(""); d.slot:SetText(""); d.head:SetText("")
+        for _, l in ipairs(d.line) do l:SetText("") end
+        for _, s in ipairs(d.stats) do s.label:SetText(""); s.track:Hide(); s.base:Hide(); s.fill:Hide() end
+        return
+    end
+    local i = M.DetailInfo(e)
+    d.hint:Hide()
+    d.icon:Show()
+    d.icon:SetTexture(i.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
+    d.name:SetText(i.link or i.name or ("item:" .. e.id))
+    d.slot:SetText(i.slot)
+    d.line[1]:SetText(("Item level |cffffffff%d|r  |cff66F27F+%d|r  (you wear %s)"):format(i.level or 0, i.gain or 0,
+        i.worn and i.worn > 0 and tostring(i.worn) or "nothing"))
+    d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot"))
+    d.line[3]:SetText("Price: |cffFFD140" .. Money(i.price) .. "|r  (" .. AgeText(i.age) .. ")")
+    d.line[4]:SetText(i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or "")
+    d.head:SetText(#i.stats > 0 and "Stat changes (worn  >  new)" or "No stat changes known yet")
+    local maxima = M.GainMaxima({ i.stats })
+    for k, s in ipairs(d.stats) do
+        local g = i.stats[k]
+        if g then
+            local c = M.BarColor(g.label)
+            local lost = g.amount < 0
+            local top = math.max(g.old, g.new)
+            local w = DETAIL_W - 20
+            s.label:SetText(("%s   %s  >  %s   %s"):format(g.label, AmountText(g.old), AmountText(g.new),
+                lost and ("|cffFF6B6B-" .. AmountText(-g.amount) .. "|r") or ("|cff7CFF8A+" .. AmountText(g.amount) .. "|r")))
+            s.track:Show()
+            local keep = M.BarWidth(lost and g.new or g.old, top, w)
+            s.base:SetWidth(math.max(1, keep))
+            s.base:SetColorTexture(c[1], c[2], c[3], 0.35)
+            s.base:SetShown(keep > 0)
+            s.fill:SetWidth(M.BarWidth(math.abs(g.amount), top, w))
+            if lost then s.fill:SetColorTexture(0.9, 0.28, 0.28, 0.9) else s.fill:SetColorTexture(c[1], c[2], c[3], 0.95) end
+            s.fill:Show()
+        else
+            s.label:SetText(""); s.track:Hide(); s.base:Hide(); s.fill:Hide()
+        end
     end
 end
 
@@ -304,7 +400,7 @@ function M:BuildUpgradePanel()
     if self.upgradePanel then return self.upgradePanel end
     -- A free-standing window (not a child of the auction house) so it works anywhere: prices are saved.
     local p = CreateFrame("Frame", "TempusUpgradePanel", UIParent)
-    p:SetSize(WIDTH, 60 + VISIBLE * ROW_H)
+    p:SetSize(WIDTH + DETAIL_W, 60 + VISIBLE * ROW_H)
     p:SetFrameStrata("HIGH")
     p:SetClampedToScreen(true)
     p:SetMovable(true)
@@ -347,6 +443,7 @@ function M:BuildUpgradePanel()
         sf:SetVerticalScroll(math.max(0, math.min(max, sf:GetVerticalScroll() - delta * ROW_H * 3)))
     end)
     p.scroll, p.content = scroll, content
+    p.detail = M.BuildDetail(p, scroll)
     p.rows = {}
     for i = 1, LIMIT do
         local r = CreateFrame("Button", nil, content)
@@ -389,14 +486,9 @@ function M:BuildUpgradePanel()
             r.segs[k] = seg
         end
         r:SetScript("OnEnter", function(b)
-            if b.header or not b.itemID then return end
-            -- Beside the panel, level with the row, so the tooltip never covers the list.
-            GameTooltip:SetOwner(p, "ANCHOR_NONE")
-            GameTooltip:SetHyperlink("item:" .. b.itemID)
-            GameTooltip:Show()
-            M.PlaceTooltip(GameTooltip, b)
+            if b.header or not b.entry then return end
+            M:ShowDetail(b.entry)
         end)
-        r:SetScript("OnLeave", function() GameTooltip:Hide() end)
         r:SetScript("OnClick", function(b)
             if b.link and IsModifiedClick and IsModifiedClick("CHATLINK") and ChatEdit_InsertLink then
                 ChatEdit_InsertLink(b.link)
@@ -449,7 +541,7 @@ function M:RefreshUpgrades()
     for i, r in ipairs(p.rows) do
         local e = layout[i]
         if e and e.header then
-            r.itemID, r.link = nil, nil
+            r.itemID, r.link, r.entry = nil, nil, nil
             r.icon:Hide(); r.gain:SetText(""); r.price:SetText("")
             for _, seg in ipairs(r.segs) do seg.track:Hide(); seg.base:Hide(); seg.fill:Hide(); seg.text:SetText("") end
             r.name:SetText(e.header)
@@ -460,7 +552,7 @@ function M:RefreshUpgrades()
             r.header = nil
             r.icon:Show()
             r.name:SetTextColor(S.C.text[1], S.C.text[2], S.C.text[3])
-            r.itemID = e.id
+            r.itemID, r.entry = e.id, e
             local name, link, _, _, _, _, _, _, _, icon = (C_Item and C_Item.GetItemInfo or GetItemInfo)(e.id)
             r.link = link
             r.icon:SetTexture(icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
@@ -494,10 +586,15 @@ function M:RefreshUpgrades()
             r.price:SetText(Money(e.price) .. (stale and " (old)" or ""))
             r:Show()
         else
-            r.itemID, r.link, r.header = nil, nil, nil
+            r.itemID, r.link, r.header, r.entry = nil, nil, nil, nil
             r:Hide()
         end
     end
+    local sel
+    if self.detailEntry then
+        for _, e in ipairs(layout) do if e.id == self.detailEntry.id then sel = e break end end
+    end
+    self:ShowDetail(sel)
     p.content:SetHeight(math.max(1, #layout * ROW_H))
     local max = math.max(0, #layout * ROW_H - VISIBLE * ROW_H)
     if p.scroll:GetVerticalScroll() > max then p.scroll:SetVerticalScroll(max) end

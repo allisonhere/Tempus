@@ -239,31 +239,18 @@ AuctionHouseFrame = Frame(); AuctionHouseFrame.shown = true
 M:ToggleUpgrades()
 assert(points[1][1] == 'TOPLEFT' and points[1][2] == AuctionHouseFrame and points[1][3] == 'TOPRIGHT', 'docks beside the AH when open')
 
--- tooltip goes beside the panel, level with the row, on whichever side has room
-assert(M.TooltipSide(800, 300, 1920) == 'right' and M.TooltipSide(1700, 300, 1920) == 'left')
-assert(M.TooltipSide(1580, 320, 1920) == 'right' and M.TooltipSide(1590, 320, 1920) == 'left', 'width and gap counted')
-assert(M.TooltipSide(nil, 300, 1920) == 'right' and M.TooltipSide(1700, nil, 1920) == 'left', 'unknown width assumes 320')
-local tipPoints, shown = {}, {}
-GameTooltip = { SetOwner = function(_, owner, anchor) shown.owner, shown.anchor = owner, anchor end,
-    SetHyperlink = function(_, l) shown.link = l end, Show = function() end, Hide = function() end,
-    GetWidth = function() return 300 end, ClearAllPoints = function() tipPoints = {} end,
-    SetPoint = function(_, ...) tipPoints[#tipPoints + 1] = { ... } end }
-UIParent.GetWidth = function() return 1920 end
-local row = { GetParent = function() return nil end }
-M.upgradePanel = { GetRight = function() return 800 end }
-M.PlaceTooltip(GameTooltip, row)
-assert(tipPoints[1][1] == 'TOPLEFT' and tipPoints[1][2] == row and tipPoints[1][3] == 'TOPRIGHT' and tipPoints[1][4] == 14, 'right of the panel')
-M.upgradePanel = { GetRight = function() return 1800 end }
-M.PlaceTooltip(GameTooltip, row)
-assert(tipPoints[1][1] == 'TOPRIGHT' and tipPoints[1][3] == 'TOPLEFT' and tipPoints[1][4] == -14, 'left of the panel when the right is full')
--- hovering a real row anchors with ANCHOR_NONE (not over the row) and shows the item
+-- hovering a row fills the detail pane (no tooltip), a header does not, refresh keeps it in sync
 M.upgradePanel = nil; AuctionHouseFrame = nil
 local pr = M:BuildUpgradePanel(); Seed({ [4] = 5 * G }); pr:Show()
 local hovered = pr.rows[2]
 rawset(hovered, 'header', false)   -- the stub returns a function for unset keys; real frames return nil
-pr.GetRight = function() return 800 end
-hovered.GetParent = function() return pr end
+assert(hovered.entry and hovered.entry.id == 4, 'row remembers its entry')
 hovered.OnEnter(hovered)
-assert(shown.anchor == 'ANCHOR_NONE' and shown.link == 'item:4' and tipPoints[1][1] == 'TOPLEFT', 'row hover uses the side anchor')
-pr.rows[1].OnEnter(pr.rows[1]); assert(shown.link == 'item:4', 'header rows show no tooltip')
+assert(M.detailEntry.id == 4, 'hover selects the item')
+local info = M.DetailInfo(hovered.entry)
+assert(info.slot ~= '' and info.price == hovered.entry.price and info.gain == hovered.entry.gain, 'detail info carries slot, price, gain')
+local before = M.detailEntry
+pr.rows[1].OnEnter(pr.rows[1]); assert(M.detailEntry == before, 'header rows leave the detail alone')
+M:RefreshUpgrades(); assert(M.detailEntry and M.detailEntry.id == 4, 'selection survives a refresh')
+Seed({}); M:RefreshUpgrades(); assert(M.detailEntry == nil, 'cleared when the item leaves the list')
 print('ok')

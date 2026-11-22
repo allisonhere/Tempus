@@ -825,6 +825,9 @@ SlashCmdList.TEMPUS = function(msg)
             T.Display:SetTestMode(not T.Display.testMode)
             T:Print("test mode %s.", T.Display.testMode and "on" or "off")
         end
+    elseif msg == "tickdebug" then
+        if T.Ticker and T.Ticker.Debug then for _, line in ipairs(T.Ticker.Debug()) do T:Print("%s", line) end
+        else T:Print("the Resource ticker module is not loaded.") end
     elseif msg == "upgrades" or msg == "deals" then
         if T.Market and T.Market.ToggleUpgrades and T:ModuleEnabled("market") then T.Market:ToggleUpgrades()
         else T:Print("turn on the Auction values module to use the upgrades list.") end

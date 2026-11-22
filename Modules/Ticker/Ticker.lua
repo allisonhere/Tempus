@@ -131,6 +131,40 @@ function TK.TrackedSpells(ptype, listed, class)
     return out
 end
 
+-- Why the strip is or is not showing, one line each (for /tempus tickdebug).
+function TK.Debug()
+    local out = {}
+    local function Add(fmt, ...) out[#out + 1] = fmt:format(...) end
+    local db = TK.db
+    local class = UnitClass and select(2, UnitClass("player")) or "?"
+    Add("ticker: module %s, bar %s, kind=%s, power type=%s, power=%s/%s, tick seen=%s",
+        db and "on" or "OFF", TK.frame and TK.frame:IsShown() and "shown" or "hidden", tostring(TK.kind), tostring(TK.ptype),
+        tostring(TK.last), tostring(TK.max), TK.lastTick and "yes" or "NO (wait for one energy tick)")
+    Add("afford strip: setting %s, class %s, segments %d, API: C_Spell.GetSpellPowerCost=%s GetSpellPowerCost=%s IsPlayerSpell=%s",
+        db and db.afford and "on" or "OFF", tostring(class), TK.spells and #TK.spells or 0,
+        tostring(C_Spell and type(C_Spell.GetSpellPowerCost)), tostring(type(GetSpellPowerCost)), tostring(type(IsPlayerSpell)))
+    local entries = {}
+    for _, v in pairs(T.db.lists and T.db.lists.tickspells or {}) do entries[#entries + 1] = v end
+    if #entries == 0 then entries = TK.DEFAULT_SPELLS[class] or {} end
+    if #entries == 0 then Add("no spells to track for %s: add some on the Resource ticker page", tostring(class)) end
+    for _, entry in ipairs(entries) do
+        local id = SpellID(entry)
+        local known = id and SpellKnown(id)
+        local raw
+        if id then
+            local fn = (C_Spell and C_Spell.GetSpellPowerCost) or GetSpellPowerCost
+            local ok, costs = pcall(fn or function() end, id)
+            local parts = {}
+            if ok and type(costs) == "table" then
+                for _, c in ipairs(costs) do parts[#parts + 1] = ("type %s cost %s"):format(tostring(c.type), tostring(c.cost)) end
+            end
+            raw = ok and (#parts > 0 and table.concat(parts, "; ") or "no cost entries") or "call failed"
+        end
+        Add("  %s: spell id %s, known=%s, cost=%s", tostring(entry), tostring(id), tostring(known), tostring(raw))
+    end
+    return out
+end
+
 function TK:RebuildSpells()
     local class = UnitClass and select(2, UnitClass("player"))
     self.spells = self.ptype and TK.TrackedSpells(self.ptype, T.db.lists and T.db.lists.tickspells, class) or {}

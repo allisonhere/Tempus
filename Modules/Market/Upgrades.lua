@@ -826,7 +826,7 @@ function M:BuildUpgradePanel()
         S.SetGradient(p.band, "VERTICAL", a[1], a[2], a[3], 0, a[1], a[2], a[3], 0.26)
         for _, r in ipairs(p.rows) do
             S.SetGradient(r.hl, "HORIZONTAL", a[1], a[2], a[3], 0.26, a[1], a[2], a[3], 0)
-            S.SetGradient(r.hbg, "HORIZONTAL", 0.30, 0.34, 0.62, 0.55, 0.12, 0.14, 0.26, 0.05)
+            r.hbg:SetColorTexture(0.18, 0.2, 0.4, 0.45)
             -- Meter: green where the deal is good, shading to gold at the end.
             r.meter:SetColorTexture(1, 1, 1, 1)
             S.SetGradient(r.meter, "HORIZONTAL", 0.30, 0.85, 0.50, 0.9, a[1], a[2], a[3], 0.9)

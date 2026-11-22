@@ -276,7 +276,8 @@ function M:EnsureUpgradeButton(scanButton)
     local ok, b = pcall(CreateFrame, "Button", "TempusUpgradesButton", AuctionHouseFrame, "UIPanelButtonTemplate")
     if not (ok and b) then return end
     b:SetSize(90, 22)
-    b:SetPoint("RIGHT", scanButton, "LEFT", -4, 0)
+    b:SetPoint("LEFT", scanButton, "RIGHT", 4, 0)
+    if b.SetFrameLevel and scanButton.GetFrameLevel then b:SetFrameLevel(scanButton:GetFrameLevel()) end
     b:SetText("Upgrades")
     b:SetScript("OnClick", function() M:ToggleUpgrades() end)
     local SK = T.Skins

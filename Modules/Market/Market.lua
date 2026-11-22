@@ -223,7 +223,9 @@ function M:EnsureButton()
     local ok, b = pcall(CreateFrame, "Button", "TempusAuctionScanButton", AuctionHouseFrame, "UIPanelButtonTemplate")
     if not (ok and b) then return end
     b:SetSize(130, 22)
-    b:SetPoint("TOPRIGHT", AuctionHouseFrame, "BOTTOMRIGHT", 0, -2)
+    b:SetPoint("TOPLEFT", AuctionHouseFrame, "TOPLEFT", 4, -4)
+    -- Sit above the auction house's own art in the corner.
+    if b.SetFrameLevel and AuctionHouseFrame.GetFrameLevel then b:SetFrameLevel(AuctionHouseFrame:GetFrameLevel() + 20) end
     b:SetText("Tempus scan")
     b:SetScript("OnClick", function() M:StartScan() end)
     -- Match the Tempus window skin when it is on (stock skin and the Classic theme keep Blizzard's look).

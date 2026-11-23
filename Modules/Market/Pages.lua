@@ -22,6 +22,4 @@ T:RegisterPage("convenience", {key = "market", label = "Auction values", order =
     p:Check(cfg, "upgradeAffordable", "Only show gear I can afford")
     p:Check(cfg, "upgradeUseAHFilters", "Use the auction house filters", "The list follows the rarity and level range set in the auction house search filter, once you have opened the auction house this session.")
     p:Paragraph("Items with no scan data show 'No scanned price'; older prices are marked stale. Re-hover an item after a scan to see its updated estimate.")
-    p:Section("Help improve Gear Advisor", "Sends nothing by itself. Opens a text with your class, level, talent points and the stat names on your gear, to copy, whisper or mail to the character for your faction.")
-    p:Add(T.UI.W.Button("Share my gear data", function() T:ShowShare("gearreport") end, "Opens a text with your class, level, talent points and the stat names on your gear, to copy or whisper to someone who is improving Gear Advisor. Nothing is sent unless you press Whisper.", 200))
 end})

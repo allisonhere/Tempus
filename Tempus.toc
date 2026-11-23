@@ -85,6 +85,7 @@ Modules\GearAdvisor\Budget.lua
 Modules\GearAdvisor\Talents.lua
 Modules\GearAdvisor\TalentSignalsData.lua
 Modules\GearAdvisor\Confidence.lua
+Modules\GearAdvisor\Pages.lua
 Modules\Market\Upgrades.lua
 Modules\Market\Probe.lua
 Modules\Market\Pages.lua

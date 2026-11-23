@@ -840,7 +840,7 @@ SlashCmdList.TEMPUS = function(msg)
         if T.Market and T.Market.GearTree then for _, line in ipairs(T.Market.GearTree()) do T:Print("%s", line) end
         else T:Print("the Auction values module is not loaded.") end
     elseif msg == "gearreport" then
-        T:ShowShare("gearreport")
+        T:StartGearReport()
     elseif msg == "gearsig" then
         if T.Market and T.Market.GearSig then for _, line in ipairs(T.Market.GearSig()) do T:Print("%s", line) end
         else T:Print("the Auction values module is not loaded.") end

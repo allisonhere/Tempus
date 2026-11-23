@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- **Open Gear Advisor on the settings page.** The window opened behind the settings window, so the button seemed to do nothing. It now opens in front.
 - **No more mailbox prompt from an old report.** A report queued as mail by an earlier build kept asking at every mailbox, with no way to clear it now that the report window is gone. Old queued mail is dropped when you log in and is never offered.
 
 ## 2.20.0

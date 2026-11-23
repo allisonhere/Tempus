@@ -15,6 +15,7 @@ local T = { accent = { 0.2, 0.7, 1 }, db = { market = { staleDays = 3, upgradeMi
 T.UI = { StyledEditBox = function(parent) return CreateFrame('EditBox', nil, parent) end }
 assert(loadfile('Modules/Bags/Client.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Market.lua'))('Tempus', T)
+assert(loadfile('Modules/GearAdvisor/EquipRules.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Upgrades.lua'))('Tempus', T)
 local M = T.Market
 local G = 10000
@@ -408,3 +409,29 @@ do
 end
 
 print('ok')
+
+-- Gear Advisor equip rules inside the search: dual wield, displaced gear, unique-equipped.
+local gear = {
+    [14] = { 2, 4, 'INVTYPE_WEAPON', 45, 40 },         -- one-hand mace +5 over the main hand
+    [15] = { 4, 0, 'INVTYPE_FINGER', 70, 40 },         -- unique ring we already wear
+    [6] = { 2, 8, 'INVTYPE_2HWEAPON', 45, 40 },
+    [777] = { 4, 6, 'INVTYPE_SHIELD', 30, 1 },
+}
+local realInstant, realGetInfo = C_Item.GetItemInfoInstant, C_Item.GetItemInfo
+C_Item.GetItemInfoInstant = function(id) local i = gear[id]; if i then return id, 'x', 'y', i[3], 'icon', i[1], i[2] end end
+C_Item.GetItemInfo = function(id) local i = gear[id]; if i then return 'n' .. id, 'link' .. id, 1, i[4], i[5] end end
+local realClass, realWorn = UnitClass, worn
+worn = { [16] = 40, [11] = 50, [12] = 50 }
+GetInventoryItemID = function(_, slot) if slot == 17 then return 777 elseif slot == 11 then return 15 end end
+C_Item.GetItemUniquenessByID = function(id) return id == 15 end
+Seed({ [14] = 1 * G, [6] = 2 * G, [15] = 1 * G })
+UnitClass = function() return 'Druid', 'DRUID' end
+local druid = {} for _, e in ipairs((M:FindUpgrades())) do druid[e.id] = e end
+assert(druid[14] and druid[14].worn == 40 and druid[14].gain == 5, 'a druid compares a one-hander with the main hand, not the empty off hand')
+assert(not druid[15], 'a unique-equipped ring you already wear is not offered')
+UnitClass = function() return 'Warrior', 'WARRIOR' end
+local war = {} for _, e in ipairs((M:FindUpgrades())) do war[e.id] = e end
+assert(war[14] and war[14].worn == 0, 'a warrior who dual wields can use the empty off hand')
+assert(war[6] and war[6].note == 'Also takes off your shield', 'a two-hander warns that the shield comes off')
+UnitClass, worn, GetInventoryItemID = realClass, realWorn, nil
+C_Item.GetItemInfoInstant, C_Item.GetItemInfo, C_Item.GetItemUniquenessByID = realInstant, realGetInfo, nil

@@ -2,6 +2,15 @@
 local _, T = ...
 T.changelog = {
     { version = "Unreleased", sections = {
+        { title = "Added", items = {
+            { 0, "|cffffffffGear Advisor ranks by your stats.|r The list weighs how much the stats your class cares about improve against the price (item levels when the game gives no stats), drops gear with worse stats for your class, and has a |cffffffffRank upgrades by|r setting: best value, biggest upgrade or cheapest. The window has a new gold look with value meters." },
+            { 0, "|cffffffff|cff9fd6ff/tempus gearprobe|r|r lists which talent, stat and item calls this client really has, with what they return. It is for building the next steps of Gear Advisor on what the game offers." },
+        } },
+        { title = "Fixed", items = {
+            { 0, "|cffffffffGear Advisor and one-hand weapons.|r A class that cannot dual wield (a Druid, say) is now compared with its main hand, not the empty off hand that made every one-hander look like a huge upgrade. Characters that dual wield still see the off hand." },
+            { 0, "|cffffffffTwo-handers and shields.|r A two-hand weapon now says when it also takes off your shield or off hand, and a shield or off-hand item says when it takes off your two-hander." },
+            { 0, "|cffffffffUnique-equipped gear|r you already wear is no longer offered again." },
+        } },
         { title = "Changed", items = {
             { 0, "|cffffffffCheapest upgrades is now Gear Advisor.|r The window, the auction house button and the settings button carry the new name, and |cff9fd6ff/tempus gear|r opens it. |cff9fd6ff/tempus upgrades|r still works." },
         } },

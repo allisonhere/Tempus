@@ -80,6 +80,30 @@ local function Call(fn, ...)
     if ok then return a, b, c, d, e end
 end
 
+local R = T.GearAdvisor.EquipRules
+local Dual = false          -- can this character dual wield; refreshed at the start of each search
+
+local function CanDual()
+    local _, class = UnitClass("player")
+    local fn = (C_SpellBook and C_SpellBook.IsSpellKnown) or IsSpellKnown
+    local known
+    if fn then
+        local ok, v = pcall(fn, 674)
+        if ok and type(v) == "boolean" then known = v end
+    end
+    return R.CanDualWield(class, UnitLevel("player"), known)
+end
+
+local function HeldTypes()
+    local held = {}
+    local instant = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    for _, slot in ipairs({ R.MAIN, R.OFF }) do
+        local id = Call(GetInventoryItemID, "player", slot)
+        if id then held[slot] = select(4, Call(instant, id)) end
+    end
+    return held
+end
+
 -- Can this class use the item? Unknown classes are not filtered. Rings, necks, trinkets, cloaks and
 -- held-in-off-hand items are usable by everyone.
 function M.CanUse(class, level, classID, subClassID, equipLoc, minLevel)
@@ -109,7 +133,12 @@ local function WornLevel(loc)
         local lvl = Call(C_Item and C_Item.GetDetailedItemLevelInfo, link)
         return Num(lvl) and lvl or nil
     end
-    return T.Bags.Client.WornLevel(_G, loc)
+    return R.Baseline(loc, Dual, function(slot)
+        local link = Call(GetInventoryItemLink, "player", slot)
+        if not link then return 0 end
+        local lvl = Call(C_Item and C_Item.GetDetailedItemLevelInfo, link)
+        return Num(lvl) and lvl or nil
+    end)
 end
 
 -- Gear metadata is read once per item and remembered on its price row (c = class, l = slot, s = subclass).
@@ -286,6 +315,10 @@ function M:FindUpgrades()
     local filters = db.upgradeUseAHFilters ~= false and M.ReadAHFilters() or nil
     local hidden = 0
     if type(instant) ~= "function" or type(getInfo) ~= "function" then return out, 0, 0 end
+    Dual = CanDual()
+    local held = HeldTypes()
+    local uniqueOf = C and C.GetItemUniquenessByID
+    local wornIds = {}
 
     for id, row in pairs(store.items) do
         if GearInfo(id, row, instant) then
@@ -305,7 +338,16 @@ function M:FindUpgrades()
                     end
                 elseif ilvl - base >= minGain and M.CanUse(class, level, row.c, row.s, loc, minLevel) then
                     local gain = ilvl - base
-                    if not M.PassesFilters(filters, quality, minLevel, row.c, row.s, loc) then
+                    if wornIds[loc] == nil then
+                        wornIds[loc] = {}
+                        for _, slot in ipairs(R.Slots(loc, Dual) or {}) do
+                            local wid = Call(GetInventoryItemID, "player", slot)
+                            if wid then wornIds[loc][#wornIds[loc] + 1] = wid end
+                        end
+                    end
+                    local unique = uniqueOf and Call(uniqueOf, id)
+                    if not M.PassesFilters(filters, quality, minLevel, row.c, row.s, loc)
+                        or R.UniqueConflict(id, unique == true, wornIds[loc]) then
                         hidden = hidden + 1
                     else
                         -- What the stats are worth to your class; nil when the client gives none.
@@ -320,7 +362,8 @@ function M:FindUpgrades()
                             local rank = worth / math.sqrt(gold)
                             if age and age > staleDays then rank = rank * 0.85 end
                             out[#out + 1] = { id = id, price = row.p, gain = gain, level = ilvl, worn = base, loc = loc,
-                                age = age, score = gain / gold, quality = quality, useful = useful, worth = worth, rank = rank }
+                                age = age, score = gain / gold, quality = quality, useful = useful, worth = worth, rank = rank,
+                                note = R.Displaced(loc, held) }
                         end
                     end
                 end
@@ -435,7 +478,7 @@ local function AmountText(a) return a == math.floor(a) and ("%d"):format(a) or (
 
 -- The worn item the candidate would replace: the lowest item level among its slots (empty = nil).
 function WornLink(loc)
-    local slots = RANGED[loc] and { RANGED_SLOT } or T.Bags.Client.EQUIP_SLOTS[loc]
+    local slots = RANGED[loc] and { RANGED_SLOT } or R.Slots(loc, Dual)
     local detailed = C_Item and C_Item.GetDetailedItemLevelInfo
     local best, bestLevel
     for _, slot in ipairs(slots or {}) do
@@ -531,7 +574,7 @@ function M.DetailInfo(e)
     local worn = WornLink(e.loc)
     return { name = name, link = link, icon = icon, slot = GROUP_LABEL[GROUP_OF[e.loc]] or "", level = e.level,
         worn = e.worn, wornLink = worn, gain = e.gain, price = e.price, age = e.age,
-        perGold = e.score, stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
+        perGold = e.score, note = e.note, stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
         all = M.StatGains(link or ("item:" .. e.id), worn, TABLE_ROWS, true, true) }
 end
 
@@ -640,7 +683,7 @@ function M:ShowDetail(e)
     d.slot:SetText(i.slot)
     d.line[1]:SetText(("Item level |cffffffff%d|r  |cff66F27F+%d|r  (you wear %s)"):format(i.level or 0, i.gain or 0,
         i.worn and i.worn > 0 and tostring(i.worn) or "nothing"))
-    d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot"))
+    d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot") .. (i.note and ("  |cffE8A060" .. i.note .. "|r") or ""))
     d.line[3]:SetText("Price: " .. MoneyText(i.price) .. "  |cff8A93A0(" .. AgeText(i.age) .. ")|r")
     d.line[4]:SetText(e.useful and ("Worth: |cff7CFF8A+%.1f|r for your class  |cff8A93A0(%.1f item levels per gold)|r"):format(e.useful, i.perGold or 0)
         or i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or "")

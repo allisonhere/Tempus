@@ -76,6 +76,7 @@ Modules\CombatPulse\CombatPulse.lua
 Modules\CombatPulse\Pages.lua
 
 Modules\Market\Market.lua
+Modules\GearAdvisor\EquipRules.lua
 Modules\Market\Upgrades.lua
 Modules\Market\Probe.lua
 Modules\Market\Pages.lua

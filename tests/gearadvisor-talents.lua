@@ -134,3 +134,16 @@ assert(T.Market.FixReportTo("Dailyreporter") == "Daily Reporter" and T.Market.Fi
 assert(T.Market.FixReportTo("My Friend") == "My Friend" and T.Market.FixReportTo(nil) == nil, "other names are kept")
 UnitFactionGroup = nil
 print("PASS: old default recipients are replaced")
+
+-- The mail version is short enough for two or three mails, and carries the typed build.
+assert(T.Market.BuildFrom("Tempus gear data\nBuild: Destruction\nx") == "Destruction")
+assert(T.Market.BuildFrom("Build: (type your build here, for example Destruction)") == "" and T.Market.BuildFrom(nil) == "")
+GetInventoryItemLink = function(_, slot) if slot <= 17 and slot ~= 4 and slot ~= 16 then return "item" .. slot end end
+C_Item.GetItemStats = function() return { ITEM_MOD_AGILITY_SHORT = 12, ITEM_MOD_STAMINA_SHORT = 8, RESISTANCE0_NAME = 120, ITEM_MOD_SPELL_POWER_SHORT = 7 } end
+UnitFactionGroup = function() return "Alliance" end
+local compact = T.Market.CompactReport("Destruction")
+assert(compact:find("Build: Destruction", 1, true) and compact:find("DRUID L22 Alliance form3", 1, true) and compact:find("s1 i23 AGILITY12 SPELL_POWER7 STAMINA8 RESISTANCE0_NAME120", 1, true), compact)
+assert(compact:find("Keys: AGILITY RESISTANCE0_NAME SPELL_POWER STAMINA", 1, true), compact)
+assert(#compact < 1300 and #T.Market.CompactReport("") > 0, "short enough for three mails: " .. #compact)
+assert(compact:find("Build: Destruction") and T.Market.CompactReport(""):find("Build: ?", 1, true))
+print("PASS: the mail report is short")

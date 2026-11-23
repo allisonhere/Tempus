@@ -369,3 +369,75 @@ function M.FixReportTo(name)
     if type(name) == "string" and OLD_REPORT_TO[name:lower()] then return M.DefaultReportTo() end
     return name
 end
+
+-- The build line typed into the report (what follows "Build:"), or "" when it was left as the placeholder.
+function M.BuildFrom(text)
+    local build = tostring(text or ""):match("[Bb]uild:%s*([^\n]*)") or ""
+    build = build:gsub("^%s+", ""):gsub("%s+$", "")
+    if build:find("^%(type your build") then return "" end
+    return build
+end
+
+-- A short report for mail, which holds about 450 characters a mail: the essentials in two or three mails
+-- (character, talent points, each equipped item's level and stats, and every stat name seen on gear and in
+-- bags). The full report is for copying or whispering.
+function M.CompactReport(build)
+    local function stat(k) return (tostring(k):gsub("^ITEM_MOD_", ""):gsub("_SHORT$", "")) end
+    local _, class = UnitClass("player")
+    local race = select(2, UnitRace("player"))
+    local db = T.db and T.db.market or {}
+    local okV, version = pcall((C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata or error, "Tempus", "Version")
+    local _, label, why
+    if M.RoleWeights then _, label, why = M.RoleWeights(class) end
+    local lines = {
+        "Tempus gear data " .. (okV and tostring(version) or "?"),
+        "Build: " .. ((build and build ~= "") and build or "?"),
+        ("%s %s L%s %s form%s scored %s(%s)"):format(tostring(race), tostring(class), tostring(UnitLevel("player")),
+            tostring(UnitFactionGroup and UnitFactionGroup("player")), tostring(GetShapeshiftForm and GetShapeshiftForm() or "?"), tostring(label or "-"), tostring(why or "-")),
+    }
+    local TL = T.GearAdvisor and T.GearAdvisor.Talents
+    local _, _, display = TL and TL.Read() or nil
+    local points = {}
+    if display then
+        local names = {}
+        for name in pairs(display) do names[#names + 1] = name end
+        table.sort(names)
+        for _, name in ipairs(names) do points[#points + 1] = name .. " " .. display[name] end
+    end
+    lines[#lines + 1] = "Talents: " .. (#points > 0 and table.concat(points, ", ") or "none")
+    local keys, getStats = {}, C_Item and C_Item.GetItemStats
+    local function Stats(link)
+        if type(getStats) ~= "function" then return {} end
+        local ok, t = pcall(getStats, link)
+        return ok and type(t) == "table" and t or {}
+    end
+    for slot = 1, 19 do
+        local ok, link = pcall(GetInventoryItemLink, "player", slot)
+        if ok and type(link) == "string" then
+            local stats, bits = Stats(link), {}
+            local sorted = {}
+            for k in pairs(stats) do sorted[#sorted + 1] = tostring(k) end
+            table.sort(sorted)
+            for _, k in ipairs(sorted) do bits[#bits + 1] = stat(k) .. stats[k]; keys[stat(k)] = true end
+            local ilvl = select(2, pcall((C_Item and C_Item.GetDetailedItemLevelInfo) or error, link))
+            lines[#lines + 1] = ("s%d i%s %s"):format(slot, type(ilvl) == "number" and tostring(ilvl) or "?", table.concat(bits, " "))
+        end
+    end
+    local C = C_Container
+    for bag = 0, (NUM_BAG_SLOTS or 4) do
+        local okN, n = pcall(C and C.GetContainerNumSlots or GetContainerNumSlots, bag)
+        if okN and type(n) == "number" then
+            for slot = 1, n do
+                local ok, link = pcall(C and C.GetContainerItemLink or GetContainerItemLink, bag, slot)
+                if ok and type(link) == "string" then
+                    for k in pairs(Stats(link)) do keys[stat(k)] = true end
+                end
+            end
+        end
+    end
+    local names = {}
+    for k in pairs(keys) do names[#names + 1] = k end
+    table.sort(names)
+    lines[#lines + 1] = "Keys: " .. table.concat(names, " ")
+    return table.concat(lines, "\n")
+end

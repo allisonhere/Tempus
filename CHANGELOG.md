@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **`/tempus geartree`** lists every talent in your class tree with its position and your points, four to a line. Pasting it for a few characters lets Gear Advisor split the tree into its three tabs by position and read a build from where the points are.
+
+### Changed
+- **Gear Advisor scores split stats.** Crit, hit and haste weights now cover the melee, ranged and spell versions of the stat, mana regeneration covers both of its keys, and healing done and damage done are scored with their own weights, so a stat the game splits into variants is not left unscored.
+
 ## 2.16.0
 
 ### Added

@@ -38,8 +38,8 @@ assert(CD.FadeAlpha(0.1, 0.5) > CD.FadeAlpha(0, 0.5) and CD.FadeAlpha(0.1, 0.5) 
 print("PASS: fade dims toward the ready line and leaves the far end alone")
 
 -- Corner grip: width sets icon size and height sets length in the timeline; height sets size in the row.
-local db = { mode = "timeline", showLabels = true, size = 36, length = 320 }
-CD.ResizeFromBox(db, 28 + 14 + 2 * 40, 400 + 40)
+local db = { mode = "timeline", showLabels = true, fallMode = "SCALE", size = 36, length = 320 }
+CD.ResizeFromBox(db, 28 + 12 + 2 + 2 * 40, 400 + 40)
 assert(db.size == 40 and db.length == 400, db.size .. "," .. db.length)
 CD.ResizeFromBox(db, 10, 10)
 assert(db.size == 20 and db.length == 160, "clamped low")
@@ -76,3 +76,10 @@ assert(DT.LengthFromText("Burns the target for 12 sec, dealing damage.") == 12, 
 assert(DT.LengthFromText("Deals 100 damage over 8.5 sec.") == 8.5, "over N sec")
 assert(DT.LengthFromText("Instantly strikes.") == nil, "no length")
 print("PASS: spell text gives a debuff length")
+
+-- Each from the top: position is the share of the icon's own time left; the shared scale ignores it.
+local own = { fallMode = "OWN" }
+assert(near(CD.Position(own, CD.Marks(60), 5, 5), 1) and near(CD.Position(own, CD.Marks(60), 2.5, 5), 0.5), "own speed")
+assert(near(CD.Position(own, CD.Marks(60), 15, 30), 0.5) and CD.Position(own, CD.Marks(60), 0, 30) == 0, "own speed, long")
+assert(near(CD.Position({ fallMode = "SCALE" }, CD.Marks(60), 5, 5), 0.25), "shared scale")
+print("PASS: icons fall from the top at their own speed, or by the shared scale")

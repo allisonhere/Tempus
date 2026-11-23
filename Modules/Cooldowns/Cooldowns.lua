@@ -21,6 +21,8 @@ CD.defaults = {
     fadeBg = 0.8,               -- how far the background fades out toward the ready line
     fadeIcons = 0.5,            -- how far icons fade as they near ready
     showLabels = true, showTicks = true, accentRail = true,
+    fallMode = "OWN",           -- OWN: every icon starts at the top and lands as its own time ends | SCALE: one shared time scale
+    lanes = 3,                  -- icons that start together sit side by side in this many columns
     point = { "CENTER", "UIParent", "CENTER", 0, -170 },
 }
 
@@ -54,6 +56,8 @@ function CD.FadeAlpha(pos, strength)
     local t = math.min(math.max(pos, 0) / FADE_ZONE, 1)
     return 1 - strength * (1 - t)
 end
+
+local function ShowScale(db) return db.fallMode == "SCALE" end
 
 local function MarkLabel(m) return m >= 60 and (m / 60) .. "m" or tostring(m) end
 
@@ -172,16 +176,18 @@ function SetCooldown(b, entry)
         end
     end
     -- Secret numbers: grey through the duration object; the ticker re-evaluates it.
-    if down == nil and S.GreyFromDuration(b.icon, dur, true) then
-        b.secretDur = dur
+    local timeline = CD.db and CD.db.mode == "timeline"
+    if down == nil and (timeline or S.GreyFromDuration(b.icon, dur, true)) then
+        b.secretDur = dur or true
         b.down = nil
+        if timeline then S.SetGrey(b.icon, false) end
         return
     end
     b.secretDur = nil
     down = down == true
-    if b.down and not down then b.flash() end
+    if b.down and not down and not timeline then b.flash() end
     b.down = down
-    S.SetGrey(b.icon, down)
+    S.SetGrey(b.icon, down and not timeline)
 end
 
 ----------------------------------------------------------------------------------------
@@ -196,14 +202,15 @@ local STYLES = {                      -- fill colour, fill strength
 
 local function Geometry(db)
     local size, len = db.size, db.length
-    local labelW = db.showLabels and LABEL_W or 0
-    local panelW = size * 2 + 14
+    local lanes = math.max(1, math.min(5, db.lanes or 2))
+    local labelW = (db.showLabels and ShowScale(db)) and LABEL_W or 0
+    local panelW = size * lanes + (lanes - 1) * 2 + 12
     local left = db.labelSide ~= "RIGHT"
     local x0 = left and labelW or 0
-    local g = { size = size, len = len, panelW = panelW, x0 = x0, labelW = labelW, left = left, down = db.fall ~= "UP" }
+    local g = { size = size, len = len, panelW = panelW, x0 = x0, labelW = labelW, left = left, down = db.fall ~= "UP", lanes = lanes }
     g.w, g.h = labelW + panelW, len + size
     g.c1 = left and (x0 + 6 + size / 2) or (x0 + panelW - 6 - size / 2)
-    g.c2 = left and (g.c1 + size + 2) or (g.c1 - size - 2)
+    g.step = left and (size + 2) or -(size + 2)
     g.rail = left and x0 or (x0 + panelW - 2)
     return g
 end
@@ -283,7 +290,7 @@ local function LayoutTrack(f, db, g, marks)
         if g.down then mk.tick:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", g.x0, g.size / 2 + s)
         else mk.tick:SetPoint("TOPLEFT", f, "TOPLEFT", g.x0, -(g.size / 2 + s) + 1) end
         mk.tick:SetSize(g.panelW, 1)
-        mk.tick:SetShown(db.showTicks and m > 0)
+        mk.tick:SetShown(db.showTicks and ShowScale(db) and m > 0)
         mk.text:SetJustifyH(g.left and "RIGHT" or "LEFT")
         mk.text:ClearAllPoints()
         local anchor = g.left and "RIGHT" or "LEFT"
@@ -292,7 +299,7 @@ local function LayoutTrack(f, db, g, marks)
         mk.text:SetPoint(anchor, f, g.down and "BOTTOMLEFT" or "TOPLEFT", tx, ty)
         mk.text:SetText(MarkLabel(m))
         mk.text:SetAlpha(math.min(1, bg + 0.25) * fa)
-        mk.text:SetShown(db.showLabels and m > 0)
+        mk.text:SetShown(db.showLabels and ShowScale(db) and m > 0)
     end
     for i = #marks + 1, #tr.marks do tr.marks[i].tick:Hide(); tr.marks[i].text:Hide() end
 end
@@ -301,20 +308,32 @@ end
 local function PlaceIcons(f, db, g, order)
     table.sort(order, function(a, c) return a.pos < c.pos end)
     local gap = g.size + 2
-    local last = { -1e9, -1e9 }
+    local last = {}
+    for i = 1, g.lanes do last[i] = -1e9 end
     for _, b in ipairs(order) do
         local s = g.len * b.pos
-        local lane = 1
-        if s - last[1] < gap then
-            if s - last[2] >= gap then lane = 2 else lane = last[1] <= last[2] and 1 or 2 end
+        -- First column with room; when all are busy, the one whose icon is furthest along.
+        local lane
+        for i = 1, g.lanes do
+            if s - last[i] >= gap then lane = i break end
+        end
+        if not lane then
+            lane = 1
+            for i = 2, g.lanes do if last[i] < last[lane] then lane = i end end
         end
         last[lane] = s
         b:ClearAllPoints()
-        local x = lane == 1 and g.c1 or g.c2
+        local x = g.c1 + (lane - 1) * g.step
         if g.down then b:SetPoint("CENTER", f, "BOTTOMLEFT", x, g.size / 2 + s)
         else b:SetPoint("CENTER", f, "TOPLEFT", x, -(g.size / 2 + s)) end
         b:SetAlpha(CD.FadeAlpha(b.pos, db.fadeIcons))
     end
+end
+
+-- Where an icon sits: on one shared time scale, or by how much of its own time is left.
+function CD.Position(db, marks, remaining, total)
+    if ShowScale(db) or not (total and total > 0) then return CD.TimeFraction(remaining, marks) end
+    return math.min(1, math.max(0, remaining / total))
 end
 
 CD.NewIcon, CD.Geometry, CD.LayoutTrack, CD.HideTrack, CD.PlaceIcons = NewIcon, Geometry, LayoutTrack, HideTrack, PlaceIcons
@@ -332,7 +351,7 @@ function CD:Place()
         if b.entry and (b:IsShown() or b.parked) then
             local pos
             if b.cdStart and b.cdDur and b.down then
-                pos = CD.TimeFraction(b.cdStart + b.cdDur - now, marks)
+                pos = CD.Position(db, marks, b.cdStart + b.cdDur - now, b.cdDur)
             elseif b.secretDur then
                 pos = 1                               -- on cooldown but the time is hidden: far end
             elseif db.showReady then
@@ -355,8 +374,9 @@ end
 function CD.ResizeFromBox(db, w, h)
     local clamp = function(v, lo, hi) return math.max(lo, math.min(hi, math.floor(v + 0.5))) end
     if db.mode == "timeline" then
-        local labelW = db.showLabels and LABEL_W or 0
-        db.size = clamp((w - labelW - 14) / 2, 20, 64)
+        local lanes = math.max(1, math.min(5, db.lanes or 2))
+        local labelW = (db.showLabels and ShowScale(db)) and LABEL_W or 0
+        db.size = clamp((w - labelW - 12 - (lanes - 1) * 2) / lanes, 20, 64)
         db.length = clamp(h - db.size, 160, 600)
     else
         db.size = clamp(h, 20, 64)
@@ -376,6 +396,7 @@ function CD:Refresh()
         if not b then b = NewIcon(f); CD.icons[i] = b end
         b:SetSize(size, size)
         b.parked = nil
+        b.cd:SetDrawSwipe(not timeline)      -- the swipe's dark fill turns a falling icon into a black square
         if not timeline then b:SetAlpha(1) end
         if not timeline then
             b:ClearAllPoints()
@@ -482,7 +503,7 @@ function CD.CreateDemo(width, height, getdb)
             local life = ((now / it.period) + it.phase) % 1
             local remaining = db.range * (1 - life)
             it.b:SetSize(db.size, db.size)
-            it.b.pos = CD.TimeFraction(remaining, CD.Marks(db.range))
+            it.b.pos = CD.Position(db, CD.Marks(db.range), remaining, db.range)
             it.b:Show()
             order[#order + 1] = it.b
         end

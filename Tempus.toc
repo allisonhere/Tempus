@@ -82,6 +82,7 @@ Modules\GearAdvisor\Scoring.lua
 Modules\GearAdvisor\Owned.lua
 Modules\GearAdvisor\Verdicts.lua
 Modules\GearAdvisor\Budget.lua
+Modules\GearAdvisor\Talents.lua
 Modules\Market\Upgrades.lua
 Modules\Market\Probe.lua
 Modules\Market\Pages.lua

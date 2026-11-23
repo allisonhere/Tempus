@@ -471,10 +471,12 @@ function M.RoleWeights(class)
     local GA = T.GearAdvisor
     if not (GA and GA.Scoring) then return nil end
     local db = T.db.market or {}
-    local role, why = GA.Scoring.Role(class, db.gearRole, Call(GetShapeshiftForm), db.gearRoleLast)
+    local level = Call(UnitLevel, "player")
+    local fromTalents = (not db.gearRole or db.gearRole == "AUTO") and GA.Talents and GA.Talents.ForPlayer(class, level) or nil
+    local role, why = GA.Scoring.Role(class, db.gearRole, Call(GetShapeshiftForm), db.gearRoleLast, fromTalents)
     if not role then return nil end
     if why == "form" and T.db.market then T.db.market.gearRoleLast = role end
-    local w, label, source = GA.Scoring.Weights(class, role, Call(UnitLevel, "player"))
+    local w, label, source = GA.Scoring.Weights(class, role, level)
     if not w then return nil end
     return w, label, why, source
 end
@@ -503,7 +505,7 @@ function M.WhyText(newLink, oldLink, class, ranged)
         bits[#bits + 1] = ("%s%s %s"):format(p.change > 0 and "+" or "-", (math.abs(p.change) == math.floor(math.abs(p.change)) and ("%d"):format(math.abs(p.change)) or ("%.1f"):format(math.abs(p.change))),
             StatLabel(p.key) or p.key)
     end
-    local head = label and (("%s (%s)"):format(label, why == "chosen" and "your choice" or why == "form" and "from your form" or why == "last form" and "from your last form" or "assumed, pick one in settings")) or "your class"
+    local head = label and (("%s (%s)"):format(label, why == "chosen" and "your choice" or why == "form" and "from your form" or why == "talents" and "from your talents" or why == "last form" and "from your last form" or "assumed, pick one in settings")) or "your class"
     return ("|cff7CFF8A%+.1f|r as %s: %s  |cff8A93A0(estimate)|r"):format(total, head, #bits > 0 and table.concat(bits, ", ") or "no scored stat changes")
 end
 

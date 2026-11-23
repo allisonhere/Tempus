@@ -205,3 +205,20 @@ function M.GearStats()
     end
     return out
 end
+
+-- /tempus gearsig: the talents this character has points in, on one line, to paste back so Gear
+-- Advisor can learn which talents mark which build. Talents unlock at level 10.
+function M.GearSig()
+    local _, class = UnitClass("player")
+    local level = UnitLevel("player")
+    local TL = T.GearAdvisor and T.GearAdvisor.Talents
+    if not TL then return { "the talent reader is not loaded" } end
+    local _, total, display = TL.Read()
+    if not display then return { ("%s %s: the client gave no talent data"):format(tostring(class), tostring(level)) } end
+    local names = {}
+    for name in pairs(display) do names[#names + 1] = name end
+    table.sort(names)
+    local parts = {}
+    for _, name in ipairs(names) do parts[#parts + 1] = ("%s x%d"):format(name, display[name]) end
+    return { ("%s %s, %d points: %s"):format(tostring(class), tostring(level), total or 0, #parts > 0 and table.concat(parts, ", ") or "none yet (talents unlock at level 10)") }
+end

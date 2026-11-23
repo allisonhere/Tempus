@@ -836,6 +836,9 @@ SlashCmdList.TEMPUS = function(msg)
         if T.Market and T.Market.PrintPlan and T:ModuleEnabled("market") then
             T.Market:PrintPlan(tonumber((fullMsg or ""):match("[Gg][Ee][Aa][Rr][Pp][Ll][Aa][Nn]%s+([%d%.]+)")))
         else T:Print("turn on the Auction values module to use the gear plan.") end
+    elseif msg == "gearsig" then
+        if T.Market and T.Market.GearSig then for _, line in ipairs(T.Market.GearSig()) do T:Print("%s", line) end
+        else T:Print("the Auction values module is not loaded.") end
     elseif msg == "gearstats" then
         if T.Market and T.Market.GearStats then for _, line in ipairs(T.Market.GearStats()) do T:Print("%s", line) end
         else T:Print("the Auction values module is not loaded.") end

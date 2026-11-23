@@ -15,6 +15,8 @@
 
 - **`/tempus gearplan [gold]`** lists the best set of gear to buy for that much gold (no amount means all the gold you carry), picked from your last auction scan. It looks for the best whole set, not just the best single item: two cheaper pieces can beat one dear one. It keeps to one item per slot (two for rings and trinkets), never mixes a two-hander with a second weapon or a shield, and never buys anything. Gains are added item by item, so items that share stats can overlap, and the second ring or trinket is a rough guess.
 
+- **Gear Advisor can read your talents (switched on class by class).** When "Score gear as" is on Automatic, the build can come from the talents you have points in, after your shapeshift form and before a guess. It needs a list of which talents mark which build, and none is shipped yet: no talent names are guessed, so nothing changes until a class has been probed. Talents unlock at level 10, so below that the build comes from your form, your choice or a labelled guess. **`/tempus gearsig`** prints the talents you have points in on one line, to collect those lists.
+
 ### Fixed
 - **Gear Advisor and one-hand weapons.** A class that cannot dual wield (a Druid, say) is now compared with its main hand, not the empty off hand that made every one-hander look like a huge upgrade. Characters that dual wield still see the off hand.
 - **Two-handers and shields.** A two-hand weapon now says when it also takes off your shield or off hand, and a shield or off-hand item says when it takes off your two-hander.

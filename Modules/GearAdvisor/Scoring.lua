@@ -23,15 +23,19 @@ end
 local DRUID_FORM = { [3] = "CAT", [1] = "BEAR" }
 
 -- The role to score with. `chosen` is the setting (AUTO or a role code), `form` the current shapeshift
--- form, `last` the last role seen from a form. Returns role, why it was picked ("chosen", "form",
--- "last form" or "default": a guess the screen must call an assumption).
-function S.Role(class, chosen, form, last)
+-- form, `talents` the build the talents point to (nil when unknown), `last` the last role seen from a
+-- form. Returns role, why it was picked ("chosen", "form", "talents", "last form" or "default": a guess
+-- the screen must call an assumption).
+function S.Role(class, chosen, form, last, talents)
     local set = GA.Weights and GA.Weights[class]
     if not (set and set._order) then return nil end
     if chosen and chosen ~= "AUTO" and set[chosen] then return chosen, "chosen" end
     if class == "DRUID" then
         local fromForm = DRUID_FORM[form]
         if fromForm then return fromForm, "form" end
+    end
+    if talents and set[talents] then return talents, "talents" end
+    if class == "DRUID" then
         if last and set[last] then return last, "last form" end
         return "CAT", "default"
     end

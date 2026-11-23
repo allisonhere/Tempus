@@ -265,6 +265,14 @@ function M.GearTree()
     return out
 end
 
+-- A number without a long tail: whole numbers as they are, others to one decimal.
+local function Tidy(v)
+    if type(v) ~= "number" then return tostring(v) end
+    if v == math.floor(v) then return ("%d"):format(v) end
+    return ("%.1f"):format(v)
+end
+M.Tidy = Tidy
+
 -- One equipped or carried item as a line: its name, level, type and every stat the game lists for it.
 local function ItemLine(prefix, link)
     local getStats = C_Item and C_Item.GetItemStats
@@ -281,7 +289,7 @@ local function ItemLine(prefix, link)
             local keys = {}
             for k in pairs(stats) do keys[#keys + 1] = tostring(k) end
             table.sort(keys)
-            for _, k in ipairs(keys) do bits[#bits + 1] = (k:gsub("^ITEM_MOD_", ""):gsub("_SHORT$", "")) .. "=" .. tostring(stats[k]) end
+            for _, k in ipairs(keys) do bits[#bits + 1] = (k:gsub("^ITEM_MOD_", ""):gsub("_SHORT$", "")) .. "=" .. Tidy(stats[k]) end
         end
     end
     return ("%s %s (%s) %s: %s"):format(prefix, tostring(name), type(ilvl) == "number" and tostring(ilvl) or "?", tostring(loc), #bits > 0 and table.concat(bits, " ") or "no stats")
@@ -418,7 +426,7 @@ function M.CompactReport(build)
             local sorted = {}
             for k in pairs(stats) do sorted[#sorted + 1] = tostring(k) end
             table.sort(sorted)
-            for _, k in ipairs(sorted) do bits[#bits + 1] = stat(k) .. stats[k]; keys[stat(k)] = true end
+            for _, k in ipairs(sorted) do bits[#bits + 1] = stat(k) .. Tidy(stats[k]); keys[stat(k)] = true end
             local ilvl = select(2, pcall((C_Item and C_Item.GetDetailedItemLevelInfo) or error, link))
             lines[#lines + 1] = ("s%d i%s %s"):format(slot, type(ilvl) == "number" and tostring(ilvl) or "?", table.concat(bits, " "))
         end

@@ -147,3 +147,7 @@ assert(compact:find("Keys: AGILITY RESISTANCE0_NAME SPELL_POWER STAMINA", 1, tru
 assert(#compact < 1300 and #T.Market.CompactReport("") > 0, "short enough for three mails: " .. #compact)
 assert(compact:find("Build: Destruction") and T.Market.CompactReport(""):find("Build: ?", 1, true))
 print("PASS: the mail report is short")
+
+-- Stat values are tidied: no long decimal tails in the report.
+assert(T.Market.Tidy(1.3793103694916) == "1.4" and T.Market.Tidy(12) == "12" and T.Market.Tidy(17.5) == "17.5" and T.Market.Tidy("x") == "x")
+print("PASS: report numbers are tidy")

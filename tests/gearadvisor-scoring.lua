@@ -67,3 +67,13 @@ local hunter = T.GearAdvisor.Weights.HUNTER.MARKSMANSHIP.max
 assert(hunter.DPS_RANGED and S.ForItem(hunter, true).ITEM_MOD_DAMAGE_PER_SECOND_SHORT == hunter.DPS_RANGED)
 assert(S.ForItem(hunter, false) == hunter, "melee gear keeps the melee weight")
 print("PASS: gear advisor role lists, all-class weights, ranged DPS")
+
+-- Crit, hit and haste weights cover the melee, ranged and spell variants of the stat; healing and damage
+-- done have their own keys, so a stat the game splits is still scored.
+local arms = T.GearAdvisor.Weights.WARRIOR.ARMS.max
+assert(arms.ITEM_MOD_CRIT_MELEE_RATING_SHORT == arms.ITEM_MOD_CRIT_RATING_SHORT and arms.ITEM_MOD_CRIT_SPELL_RATING_SHORT == arms.ITEM_MOD_CRIT_RATING_SHORT)
+local holy = T.GearAdvisor.Weights.PRIEST.HOLY.max
+assert(holy.ITEM_MOD_SPELL_HEALING_DONE_SHORT and holy.ITEM_MOD_SPELL_HEALING_DONE_SHORT > 0, "healing done is scored")
+local fire = T.GearAdvisor.Weights.MAGE.FIRE.max
+assert(fire.ITEM_MOD_SPELL_DAMAGE_DONE_SHORT and not fire.ITEM_MOD_SPELL_HEALING_DONE_SHORT, "a fire mage scores damage done, not healing")
+print("PASS: split stat keys are all scored")

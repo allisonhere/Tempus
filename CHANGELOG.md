@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.16.0
 
 ### Added
 - **Gear Advisor ranks by your stats.** The list weighs how much the stats your class cares about improve against the price (item levels when the game gives no stats), drops gear with worse stats for your class, and has a **Rank upgrades by** setting: best value, biggest upgrade or cheapest. The window has a new gold look with value meters.

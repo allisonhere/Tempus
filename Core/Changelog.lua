@@ -1,7 +1,7 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
-    { version = "Unreleased", sections = {
+    { version = "2.16.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffGear Advisor ranks by your stats.|r The list weighs how much the stats your class cares about improve against the price (item levels when the game gives no stats), drops gear with worse stats for your class, and has a |cffffffffRank upgrades by|r setting: best value, biggest upgrade or cheapest. The window has a new gold look with value meters." },
             { 0, "|cffffffff|cff9fd6ff/tempus gearstats|r|r lists every stat name the game uses on the gear you wear and carry, with how often it appears, its range, an example item and whether Gear Advisor gives it a weight. It finds stat names the scoring does not know yet." },

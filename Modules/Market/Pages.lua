@@ -15,7 +15,6 @@ T:RegisterPage("convenience", {key = "market", label = "Auction values", order =
     if roles then
         p:Dropdown(cfg, "gearRole", "Score gear as", roles, "Which build to judge gear for. For a Druid, Automatic follows your shapeshift form (Cat Form scores as Cat) and remembers the last one; for other classes it is a guess, so pick yours. The weights are community estimates from GearQuest Forever, shown as estimates.")
     end
-    p:Add(T.UI.W.Button("Share my gear data", function() T:ShowShare("gearreport") end, "Opens a text with your class, level, talent points and the stat names on your gear, to copy or whisper to someone who is improving Gear Advisor. Nothing is sent unless you press Whisper.", 200))
     p:Slider(cfg, "planGold", "Budget plan gold (0 = all I carry)", 0, 5000, 10, function(v) return v == 0 and "All my gold" or (v .. "g") end, "How much gold the budget plan may spend.")
     p:Add(T.UI.W.Button("Show budget plan", function() T.Market:PrintPlan() end, "Prints the best set of gear to buy for that gold, from your last scan, in chat. Nothing is bought. Also /tempus gearplan 50.", 200))
     p:Slider(cfg, "upgradeMinGain", "Minimum item level gain", 1, 30, 1, function(v) return "+" .. v end)
@@ -23,4 +22,6 @@ T:RegisterPage("convenience", {key = "market", label = "Auction values", order =
     p:Check(cfg, "upgradeAffordable", "Only show gear I can afford")
     p:Check(cfg, "upgradeUseAHFilters", "Use the auction house filters", "The list follows the rarity and level range set in the auction house search filter, once you have opened the auction house this session.")
     p:Paragraph("Items with no scan data show 'No scanned price'; older prices are marked stale. Re-hover an item after a scan to see its updated estimate.")
+    p:Section("Help improve Gear Advisor", "Sends nothing by itself. Opens a text with your class, level, talent points and the stat names on your gear, to copy, whisper or mail to the character for your faction.")
+    p:Add(T.UI.W.Button("Share my gear data", function() T:ShowShare("gearreport") end, "Opens a text with your class, level, talent points and the stat names on your gear, to copy or whisper to someone who is improving Gear Advisor. Nothing is sent unless you press Whisper.", 200))
 end})

@@ -979,7 +979,8 @@ function M:BuildUpgradePanel()
     -- A free-standing window (not a child of the auction house) so it works anywhere: prices are saved.
     local p = CreateFrame("Frame", "TempusUpgradePanel", UIParent)
     p:SetSize(WIDTH + DETAIL_W, 78 + VISIBLE * ROW_H)
-    p:SetFrameStrata("HIGH")
+    p:SetFrameStrata("DIALOG")      -- the settings window is DIALOG too; "HIGH" opened Gear Advisor behind it
+    if p.SetToplevel then p:SetToplevel(true) end
     p:SetClampedToScreen(true)
     p:SetMovable(true)
     p:EnableMouse(true)
@@ -1389,6 +1390,7 @@ function M:ToggleUpgrades()
     if p:IsShown() then p:Hide() return end
     self:PlaceUpgradePanel(p)
     p:Show()
+    if p.Raise then p:Raise() end
 end
 
 function M:EnsureUpgradeButton(scanButton)

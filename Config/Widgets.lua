@@ -634,6 +634,20 @@ function Page:Beside(widget, height, fn)
     fn()
     self:Newline()
     self.rightOnly = nil
+    -- Sticky: while the controls scroll, the preview stays at the top of the window, until the
+    -- block ends. maxOff is how far down the block it can travel.
+    local maxOff = math.max(0, (top - self.y) - 12 - height)
+    local page, off = self, nil
+    widget:SetScript("OnUpdate", function(w)
+        local sc = page.frame:GetParent()
+        if not (sc and sc.GetVerticalScroll) then return end
+        local want = math.max(0, math.min(sc:GetVerticalScroll() - (-top) + 6, maxOff))
+        if want ~= off then
+            off = want
+            w:ClearAllPoints()
+            w:SetPoint("TOPLEFT", page.frame, "TOPLEFT", MARGIN, top - want)
+        end
+    end)
     self.y = math.min(self.y, top - height - 12)
 end
 

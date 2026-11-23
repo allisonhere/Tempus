@@ -831,6 +831,9 @@ SlashCmdList.TEMPUS = function(msg)
     elseif msg == "cddebug" then
         if T.Cooldowns and T.Cooldowns.Debug then for _, line in ipairs(T.Cooldowns.Debug()) do T:Print("%s", line) end
         else T:Print("the Cooldowns module is not loaded.") end
+    elseif msg == "tddebug" then
+        if T.TargetDebuffs and T.TargetDebuffs.Debug then for _, line in ipairs(T.TargetDebuffs.Debug()) do T:Print("%s", line) end
+        else T:Print("the Target debuff timeline module is not loaded.") end
     elseif msg == "upgrades" or msg == "deals" then
         if T.Market and T.Market.ToggleUpgrades and T:ModuleEnabled("market") then T.Market:ToggleUpgrades()
         else T:Print("turn on the Auction values module to use the upgrades list.") end

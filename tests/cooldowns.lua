@@ -48,3 +48,20 @@ assert(db.size == 64 and db.length == 600, "clamped high")
 db.mode = "icons"; CD.ResizeFromBox(db, 500, 48)
 assert(db.size == 48, "row sizes from height")
 print("PASS: resize grip maps the dragged box to icon size and timeline length")
+
+-- Target debuffs: timers per target, expired ones drop, soonest first.
+local DTf = assert(loadfile("Modules/Cooldowns/Debuffs.lua"))
+T.Movers = {}; T.NewModule = function() end
+CD.NewIcon = function() end
+DTf("Tempus", T)
+local DT = T.TargetDebuffs
+local timers = {}
+DT.Remember(timers, "g1", "Rip", 112, 12, 1)
+DT.Remember(timers, "g1", "Rake", 108, 9, 2)
+DT.Remember(timers, "g1", "Old", 99, 9, 3)
+DT.Remember(timers, "g2", "Other", 200, 9, 4)
+local live = DT.Live(timers, "g1", 100)
+assert(#live == 2 and live[1].name == "Rake" and live[2].name == "Rip", "soonest first, expired dropped")
+assert(timers.g1.Old == nil, "expired timer removed")
+assert(#DT.Live(timers, "g2", 100) == 1 and #DT.Live(timers, nil, 100) == 0, "per target")
+print("PASS: target debuff timers are per target, sorted by expiry, and expire")

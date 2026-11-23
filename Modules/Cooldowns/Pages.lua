@@ -54,3 +54,44 @@ T:RegisterPage("combat", { key = "cooldowns", label = "Cooldowns", order = 5, bu
         Changed()
     end, "Adds your class's interrupt spell if Tempus knows it."))
 end })
+
+local TD_W, TD_H = 360, 300
+local function DebuffDemo()
+    local S = T.Style
+    local f = CreateFrame("Frame")
+    f:SetSize(TD_W, TD_H + 18)
+    local title = UI.Text(f, 11, S.C.muted)
+    title:SetPoint("TOPLEFT", 0, 0)
+    title:SetText("Live preview")
+    if not (T.Cooldowns and T.Cooldowns.CreateDemo) then
+        function f:Refresh() end
+        return f
+    end
+    local box = T.Cooldowns.CreateDemo(TD_W, TD_H, function() return T.db.targetdebuffs end)
+    box:SetParent(f)
+    box:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -18)
+    function f:Refresh() box:Refresh() end
+    return f
+end
+
+T:RegisterPage("combat", { key = "targetdebuffs", label = "Target debuffs", order = 5.5, build = function(p)
+    local cfg = function() return T.db.targetdebuffs end
+    p:Section("Target debuffs", "Your debuffs on the target, falling down a timeline toward the moment they run out. Unlock the UI to move it; the corner grip resizes it. Needs the Target debuff timeline module (General > Modules).")
+    p:Check(cfg, "enabled", "Show the debuff timeline")
+    p:Check(cfg, "hideRow", "Hide the target frame's own debuff icons", "Replaces the row of debuff icons above the target frame while the timeline is on.")
+    p:Slider(cfg, "size", "Icon size", 20, 64, 1)
+    p:Slider(cfg, "length", "Timeline length", 160, 600, 10)
+    p:Dropdown(cfg, "range", "Far end of the scale", { { 15, "15 seconds" }, { 30, "30 seconds" }, { 60, "1 minute" }, { 120, "2 minutes" } })
+    p:Dropdown(cfg, "fall", "Direction", { { "DOWN", "Falls down" }, { "UP", "Rises up" } })
+    p:Add(DebuffDemo(), TD_H + 18, true)
+    p:Section("Look", "Fading dims the background and icons toward the line where a debuff runs out.")
+    p:Dropdown(cfg, "bgStyle", "Background", { { "GLASS", "Glass" }, { "SOLID", "Solid" }, { "MINIMAL", "Rail and marks only" } })
+    p:Slider(cfg, "bgOpacity", "Background opacity", 0, 1, 0.05, UI.pct)
+    p:Slider(cfg, "fadeBg", "Fade background near the end", 0, 1, 0.05, UI.pct)
+    p:Slider(cfg, "fadeIcons", "Fade icons near the end", 0, 1, 0.05, UI.pct)
+    p:Check(cfg, "showLabels", "Show time labels")
+    p:Check(cfg, "showTicks", "Show lines at each mark")
+    p:Check(cfg, "accentRail", "Colour the rail with the accent")
+    p:Dropdown(cfg, "labelSide", "Labels and rail on", { { "LEFT", "Left" }, { "RIGHT", "Right" } })
+    p:Section("In combat", "The game hides debuff times from addons during a fight. Apply each debuff once out of combat so Tempus learns how long it lasts; after that it times your casts itself. /tempus tddebug shows what it has learned.")
+end })

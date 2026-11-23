@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Target debuff timeline.** Your debuffs on the target fall down a timeline toward the moment they run out, with the same glass background, fades, preview and resize grip as the cooldown timeline. Turn it on under Combat > Target debuffs (Target debuff timeline module); it can replace the target frame's own debuff icons. In combat the game hides debuff times, so Tempus learns each length when it can read it and times your casts after that. `/tempus tddebug` shows what it has learned.
 - **Cooldown timeline.** Cooldowns > Style can now be a vertical timeline instead of a row of icons. Each spell on cooldown falls down a scale (5, 15, 30 seconds, 1 minute and on) toward a ready line, over a themed glass background with a rail, time labels and lines at each mark. The background and the icons fade out as they near the ready line, and you can set how much, the background opacity and style, the length, the far end of the scale, which side the labels sit on, and whether it falls down or rises up. The settings page has a live preview, and unlocking the UI gives the timeline a corner grip: drag it wider for bigger icons and taller for a longer scale. `/tempus cddebug` explains what the timeline is showing. The row of icons is still the default.
 
 ## 2.14.0

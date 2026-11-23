@@ -60,6 +60,7 @@ Modules\Nodes\Nodes.lua
 Modules\Nodes\Pages.lua
 
 Modules\Cooldowns\Cooldowns.lua
+Modules\Cooldowns\Debuffs.lua
 Modules\Cooldowns\Pages.lua
 Modules\Swing\Swing.lua
 Modules\Swing\Pages.lua

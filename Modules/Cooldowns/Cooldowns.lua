@@ -317,6 +317,8 @@ local function PlaceIcons(f, db, g, order)
     end
 end
 
+CD.NewIcon, CD.Geometry, CD.LayoutTrack, CD.HideTrack, CD.PlaceIcons = NewIcon, Geometry, LayoutTrack, HideTrack, PlaceIcons
+
 -- Timeline mode: move each icon to where its remaining time falls, and fade it as it nears
 -- ready. Icons that would sit on top of each other take the second lane.
 function CD:Place()
@@ -437,7 +439,8 @@ end
 
 -- Settings preview: fake spells falling down the real timeline layout, on their own clock.
 local DEMO_ICONS = { 136243, 135808, 132333, 136048, 135846 }
-function CD.CreateDemo(width, height)
+function CD.CreateDemo(width, height, getdb)
+    getdb = getdb or function() return CD.db or T.db.cooldowns end
     local box = CreateFrame("Frame")
     box:SetSize(width, height)
     local view = CreateFrame("Frame", nil, box)
@@ -450,7 +453,7 @@ function CD.CreateDemo(width, height)
         items[i] = { b = b, period = 9 + i * 3.1, phase = (i * 0.37) % 1 }
     end
     function box:Refresh()
-        local db = CD.db or T.db.cooldowns
+        local db = getdb()
         if db.mode ~= "timeline" then
             view:Hide()
             if not box.note then
@@ -472,7 +475,7 @@ function CD.CreateDemo(width, height)
     end
     box:Refresh()
     T.UI.Loop(box, 0.03, function(_, now)
-        local db = CD.db or T.db.cooldowns
+        local db = getdb()
         if db.mode ~= "timeline" or not box.g then return end
         local order = {}
         for _, it in ipairs(items) do

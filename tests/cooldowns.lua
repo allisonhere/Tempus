@@ -19,3 +19,71 @@ assert(wanted[#wanted].slot == 13, "trinkets come last")
 CD.db.trinkets = false
 for _, e in ipairs(CD:Wanted()) do assert(e.spell, "no trinkets when switched off") end
 print("PASS: cooldown tracker lists known spells in order, then trinkets, and honours the trinket switch")
+
+-- Timeline scale: equal steps between marks, clipped at the far end.
+local m = CD.Marks(60)
+assert(table.concat(m, ",") == "0,5,15,30,60", table.concat(m, ","))
+assert(table.concat(CD.Marks(45), ",") == "0,5,15,30,45", "range between marks adds its own end")
+local function near(a, b) return math.abs(a - b) < 1e-9 end
+assert(CD.TimeFraction(0, m) == 0 and CD.TimeFraction(-3, m) == 0, "ready sits at the start")
+assert(near(CD.TimeFraction(5, m), 0.25) and near(CD.TimeFraction(30, m), 0.75), "marks fall on equal steps")
+assert(near(CD.TimeFraction(10, m), 0.375), "between marks is linear")
+assert(CD.TimeFraction(60, m) == 1 and CD.TimeFraction(500, m) == 1, "past the end clips")
+print("PASS: timeline scale maps remaining time to equal steps and clips at the far end")
+
+-- Fade: solid across the far part of the scale, easing to 1 - strength at the ready line.
+assert(CD.FadeAlpha(1, 0.8) == 1 and CD.FadeAlpha(0.5, 1) == 1, "far end is untouched")
+assert(near(CD.FadeAlpha(0, 0.6), 0.4) and CD.FadeAlpha(0, 1) == 0 and CD.FadeAlpha(0, 0) == 1, "ready line takes the full fade")
+assert(CD.FadeAlpha(0.1, 0.5) > CD.FadeAlpha(0, 0.5) and CD.FadeAlpha(0.1, 0.5) < 1, "in between is a ramp")
+print("PASS: fade dims toward the ready line and leaves the far end alone")
+
+-- Corner grip: width sets icon size and height sets length in the timeline; height sets size in the row.
+local db = { mode = "timeline", showLabels = true, fallMode = "SCALE", size = 36, length = 320 }
+CD.ResizeFromBox(db, 28 + 12 + 2 + 2 * 40, 400 + 40)
+assert(db.size == 40 and db.length == 400, db.size .. "," .. db.length)
+CD.ResizeFromBox(db, 10, 10)
+assert(db.size == 20 and db.length == 160, "clamped low")
+CD.ResizeFromBox(db, 900, 2000)
+assert(db.size == 64 and db.length == 600, "clamped high")
+db.mode = "icons"; CD.ResizeFromBox(db, 500, 48)
+assert(db.size == 48, "row sizes from height")
+print("PASS: resize grip maps the dragged box to icon size and timeline length")
+
+-- Target debuffs: timers per target, expired ones drop, soonest first.
+local DTf = assert(loadfile("Modules/Cooldowns/Debuffs.lua"))
+T.Movers = {}; T.NewModule = function() end
+CD.NewIcon = function() end
+DTf("Tempus", T)
+local DT = T.TargetDebuffs
+local timers = {}
+DT.Remember(timers, "g1", "Rip", 112, 12, 1)
+DT.Remember(timers, "g1", "Rake", 108, 9, 2)
+DT.Remember(timers, "g1", "Old", 99, 9, 3)
+DT.Remember(timers, "g2", "Other", 200, 9, 4)
+local live = DT.Live(timers, "g1", 100)
+assert(#live == 2 and live[1].name == "Rake" and live[2].name == "Rip", "soonest first, expired dropped")
+assert(timers.g1.Old == nil, "expired timer removed")
+assert(#DT.Live(timers, "g2", 100) == 1 and #DT.Live(timers, nil, 100) == 0, "per target")
+print("PASS: target debuff timers are per target, sorted by expiry, and expire")
+
+T.db.lists.debuffs = { a = "Moonfire 12", b = "8921=15", c = "bogus", d = "Rend: 15s" }
+C_Spell.GetSpellInfo = function(x) if x == 8921 then return { name = "Sunfire" } end return ({ Pummel = { spellID = 6552 }, ["Zzz Fake"] = { spellID = 11 } })[x] end
+local listed = DT.Listed()
+assert(listed.moonfire == 12 and listed.sunfire == 15 and listed.rend == 15 and not listed.bogus, "listed debuff lengths")
+print("PASS: listed debuff lengths accept names, spell IDs and a trailing s")
+
+assert(DT.LengthFromText("Burns the target for 12 sec, dealing damage.") == 12, "for N sec")
+assert(DT.LengthFromText("Deals 100 damage over 8.5 sec.") == 8.5, "over N sec")
+assert(DT.LengthFromText("Instantly strikes.") == nil, "no length")
+print("PASS: spell text gives a debuff length")
+
+-- Each from the top: position is the share of the icon's own time left; the shared scale ignores it.
+local own = { fallMode = "OWN" }
+assert(near(CD.Position(own, CD.Marks(60), 5, 5), 1) and near(CD.Position(own, CD.Marks(60), 2.5, 5), 0.5), "own speed")
+assert(near(CD.Position(own, CD.Marks(60), 15, 30), 0.5) and CD.Position(own, CD.Marks(60), 0, 30) == 0, "own speed, long")
+assert(near(CD.Position({ fallMode = "SCALE" }, CD.Marks(60), 5, 5), 0.25), "shared scale")
+print("PASS: icons fall from the top at their own speed, or by the shared scale")
+
+assert(CD.FadeAlpha(0.3, 1, 0.3) == 1 and near(CD.FadeAlpha(0.15, 1, 0.3), 0.5), "a shorter fade zone starts later")
+assert(near(CD.FadeAlpha(0.5, 1, 1), 0.5), "a full-length zone fades the whole fall")
+print("PASS: the fade start is adjustable")

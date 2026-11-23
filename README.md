@@ -38,7 +38,7 @@ Built for Warcraft Forever (interface 16001), where the game hides health, auras
   - Drag the corner grip on an unlocked party or raid box to resize the frames, or pick a Compact, Standard or Large preset.
   - Party and raid frames can list tanks and healers first.
 - **Resource ticker**: a thin bar timing your next energy or mana tick (with the five-second rule for casters). A strip under it has one segment per spell you press on a tick, such as Claw and Shred for a cat: green when the game says you can cast it now (the same check your action bar icons use), amber fading up as the next tick approaches when your energy is readable and that tick gets you there, grey when not yet. At the right end of the bar, small squares time your own bleeds and buffs (Rake, Rip and Savage Roar for a cat; Slice and Dice and Rupture for a rogue): they drain and shift green to yellow to red as the time runs out, and dim when not up. In combat the game hides auras from addons, so the squares then time themselves from your own casts (using the length last seen out of combat, or the usual one). With the frames unlocked, the strip and the dots each have their own drag handle, so they can sit anywhere. Your own spell list is on its settings page.
-- **Cooldowns**: a row of icons with cooldown swipes for spells you pick, plus your trinkets.
+- **Cooldowns**: icons with cooldown swipes for spells you pick, plus your trinkets, as a row or as a vertical timeline where each icon falls down a time scale toward ready, over a background that fades out near the end.
 - **Combat Pulse**: one compact strip that gathers the fight. The layered DPS bar from Blizzard's damage meter (live, your peak, group top) and a thin swing line, plus small cues that appear only when they matter: an interruptible target cast (with your interrupt's cooldown), a buff you can purge, threat trouble and the execute range. Three modes: **Minimal** (urgent cues only), **Standard** (DPS, swing and cues) and **Full** (everything, including peak and group top numbers). Each signal can be switched off; the threat role and execute threshold follow the Nameplates settings. Swing timing needs the Swing timer module. A test mode shows every cue out of combat.
 - **Vendor**: sells grey items and repairs gear when a merchant opens.
 - **Stat tooltips**: item tooltips explain what the stats do for your character (attack power, crit, health, armor and more), including the change against the item you would replace.
@@ -79,7 +79,7 @@ Copy the `Tempus` folder into `World of Warcraft/_classic_/Interface/AddOns/` (o
 | `/tempus unlock` / `lock` | Show / hide the boxes for dragging elements |
 | `/tempus install` | Run the first-run setup again |
 | `/tempus test` | Preview buff displays with sample auras |
-| `/tempus upgrades` | Open the cheapest gear upgrades from your last auction scan (works anywhere) |
+| `/tempus gear` | Open Gear Advisor, the best gear deals from your last auction scan (works anywhere; `/tempus upgrades` also works) |
 | `/tempus safe` | Turn off everything except buffs and reload (escape hatch) |
 | `/tempus debug` | Show aura status and the last error |
 | `/tempus log` | Show recent Lua errors and blocked-action messages |

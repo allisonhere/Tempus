@@ -761,9 +761,11 @@ function UF:Layout(f)
         f.auraDebuffs.frame:SetPoint("BOTTOMLEFT", f, "TOPLEFT", 0, 6)
         f.auraBuffs.frame:SetPoint("BOTTOMLEFT", f.auraDebuffs.frame, "TOPLEFT", 0, 3)
         local D = T.Display
+        local timeline = T.DebuffTimelineOn and T.DebuffTimelineOn()
         for _, a in ipairs({ f.auraDebuffs, f.auraBuffs }) do
-            a.frame:SetShown(cfg.auras)
-            if cfg.auras and D:NativeAvailable() then
+            local hide = timeline and a == f.auraDebuffs
+            a.frame:SetShown(cfg.auras and not hide)
+            if cfg.auras and not hide and D:NativeAvailable() then
                 local ok, err = pcall(D.ConfigureNative, D, a)
                 if ok then
                     a.native:Show()

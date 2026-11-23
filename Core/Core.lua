@@ -163,7 +163,7 @@ T.defaults = {
     },
     watchHideInCombat = false,
     watchOnlyResting = false,
-    lists = { hidden = {}, important = {}, watch = {}, casts = {}, cooldowns = {}, tickspells = {} },
+    lists = { hidden = {}, important = {}, watch = {}, casts = {}, cooldowns = {}, tickspells = {}, debuffs = {} },
     groups = {
         buffs   = Group("TOPRIGHT", -205, -13),
         debuffs = Group("TOPRIGHT", -205, -150, { size = 40, perRow = 8, rows = 2, barColor = "TYPE" }),
@@ -785,7 +785,7 @@ local HELP = {
     { "test", "show sample buffs and frames while you set things up" },
     { "install", "run the first-time setup again" },
     { "shop <item> <amount>", "add to your shopping list (also: shop remove <item>, shop clear)" },
-    { "upgrades", "open the cheapest gear upgrades from your last auction scan (works anywhere)" },
+    { "gear", "open Gear Advisor, the best gear deals from your last auction scan (works anywhere; also /tempus upgrades)" },
     { "swing", "repeat the last fight's swing summary" },
     { "copychat", "open the chat log to read and copy chat (also: selectchat)" },
     { "log", "list warnings and errors from this session" },
@@ -828,9 +828,15 @@ SlashCmdList.TEMPUS = function(msg)
     elseif msg == "tickdebug" then
         if T.Ticker and T.Ticker.Debug then for _, line in ipairs(T.Ticker.Debug()) do T:Print("%s", line) end
         else T:Print("the Resource ticker module is not loaded.") end
-    elseif msg == "upgrades" or msg == "deals" then
+    elseif msg == "cddebug" then
+        if T.Cooldowns and T.Cooldowns.Debug then for _, line in ipairs(T.Cooldowns.Debug()) do T:Print("%s", line) end
+        else T:Print("the Cooldowns module is not loaded.") end
+    elseif msg == "tddebug" then
+        if T.TargetDebuffs and T.TargetDebuffs.Debug then for _, line in ipairs(T.TargetDebuffs.Debug()) do T:Print("%s", line) end
+        else T:Print("the Target debuff timeline module is not loaded.") end
+    elseif msg == "gear" or msg == "upgrades" or msg == "deals" then
         if T.Market and T.Market.ToggleUpgrades and T:ModuleEnabled("market") then T.Market:ToggleUpgrades()
-        else T:Print("turn on the Auction values module to use the upgrades list.") end
+        else T:Print("turn on the Auction values module to use Gear Advisor.") end
     elseif msg == "reset" then
         T:ConfirmReset()
     elseif msg == "undo" then

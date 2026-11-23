@@ -10,10 +10,58 @@ CD.defaults = {
     size = 36, spacing = 4,
     trinkets = true,            -- show equipped trinket cooldowns (slots 13 and 14)
     growX = "RIGHT",            -- RIGHT | LEFT
+    mode = "icons",             -- icons (a row) | timeline (icons fall along a time scale)
+    length = 320,               -- timeline: height of the scale
+    range = 60,                 -- timeline: seconds at the far end (30 | 60 | 120 | 300)
+    showReady = false,          -- timeline: keep spells that are ready parked at the ready line
+    fall = "DOWN",              -- DOWN: ready line at the bottom | UP: ready line at the top
+    labelSide = "LEFT",         -- which side the time labels and the rail sit on
+    bgStyle = "GLASS",          -- GLASS | SOLID | MINIMAL (rail and marks only) | NONE
+    bgOpacity = 0.7,            -- how strong the scale's background is
+    fadeBg = 0.8,               -- how far the background fades out toward the ready line
+    fadeIcons = 0.5,            -- how far icons fade as they near ready
+    showLabels = true, showTicks = true, accentRail = true,
+    fadeStart = 0.5,            -- timeline: how far from the ready line the fade begins (share of the fall)
+    showNumbers = true,         -- timeline: the game's countdown number on each icon
+    fallMode = "OWN",           -- OWN: every icon starts at the top and lands as its own time ends | SCALE: one shared time scale
+    lanes = 3,                  -- icons that start together sit side by side in this many columns
     point = { "CENTER", "UIParent", "CENTER", 0, -170 },
 }
 
 local TRINKET_SLOTS = { 13, 14 }
+
+-- Timeline scale: equal-width steps between these marks, so the near seconds get the room.
+local MARKS = { 0, 5, 15, 30, 60, 120, 300 }
+local FADE_ZONE = 0.5      -- the last share of the scale (by position) that fades toward ready
+local LABEL_W, EDGE = 28, 4
+
+function CD.Marks(range)
+    local out = {}
+    for _, m in ipairs(MARKS) do if m <= range then out[#out + 1] = m end end
+    if out[#out] ~= range then out[#out + 1] = range end
+    return out
+end
+
+-- Where `t` seconds from now sits along the scale, 0 (ready) to 1 (the far end).
+function CD.TimeFraction(t, marks)
+    if t <= 0 then return 0 end
+    local n = #marks - 1
+    for i = 1, n do
+        if t < marks[i + 1] then return (i - 1 + (t - marks[i]) / (marks[i + 1] - marks[i])) / n end
+    end
+    return 1
+end
+
+-- Opacity multiplier at `pos` (0 ready, 1 far end): full outside the fade zone, easing down to
+-- 1 - strength at the ready line.
+function CD.FadeAlpha(pos, strength, zone)
+    local t = math.min(math.max(pos, 0) / math.max(zone or FADE_ZONE, 0.05), 1)
+    return 1 - strength * (1 - t)
+end
+
+local function ShowScale(db) return db.fallMode == "SCALE" end
+
+local function MarkLabel(m) return m >= 60 and (m / 60) .. "m" or tostring(m) end
 
 local function SpellFor(entry)
     local id = tonumber(entry)
@@ -91,6 +139,7 @@ function SetCooldown(b, entry)
     local cd = b.cd
     local now = GetTime()
     local down, dur     -- down: true / false / nil (secret, can't tell); dur: duration object
+    b.cdStart, b.cdDur = nil, nil
     if entry.spell then
         local native = C_Spell and C_Spell.GetSpellCooldownDuration and cd.SetCooldownFromDurationObject
         if native then
@@ -104,6 +153,7 @@ function SetCooldown(b, entry)
                     if info.duration > 0 then cd:SetCooldown(info.startTime, info.duration) else cd:Clear() end
                 end
                 down = S.CooldownDown(info.startTime, info.duration, info.isActive, info.isOnGCD, now)
+                if T.Num(info.startTime) and T.Num(info.duration) then b.cdStart, b.cdDur = info.startTime, info.duration end
             end
         end
     else
@@ -117,6 +167,7 @@ function SetCooldown(b, entry)
                 end
             end)
             down = S.CooldownDown(start, duration, nil, nil, now)
+            if T.Num(start) and T.Num(duration) then b.cdStart, b.cdDur = start, duration end
             if down == nil and C_DurationUtil and C_DurationUtil.CreateDuration then
                 pcall(function()
                     local d = C_DurationUtil.CreateDuration()
@@ -127,16 +178,228 @@ function SetCooldown(b, entry)
         end
     end
     -- Secret numbers: grey through the duration object; the ticker re-evaluates it.
-    if down == nil and S.GreyFromDuration(b.icon, dur, true) then
-        b.secretDur = dur
+    local timeline = CD.db and CD.db.mode == "timeline"
+    if down == nil and (timeline or S.GreyFromDuration(b.icon, dur, true)) then
+        b.secretDur = dur or true
         b.down = nil
+        if timeline then S.SetGrey(b.icon, false) end
         return
     end
     b.secretDur = nil
     down = down == true
-    if b.down and not down then b.flash() end
+    if b.down and not down and not timeline then b.flash() end
     b.down = down
-    S.SetGrey(b.icon, down)
+    S.SetGrey(b.icon, down and not timeline)
+end
+
+----------------------------------------------------------------------------------------
+-- Timeline. s is the distance from the ready line along the scale (0 .. length); the ready
+-- line sits at the bottom (fall DOWN) or the top (fall UP) with half an icon of room beyond.
+----------------------------------------------------------------------------------------
+local STYLES = {                      -- fill colour, fill strength
+    GLASS   = { { 0.2, 0.26, 0.36 }, 0.9 },
+    SOLID   = { { 0.12, 0.13, 0.17 }, 1 },
+    MINIMAL = { { 0, 0, 0 }, 0 },
+}
+
+local function Geometry(db)
+    local size, len = db.size, db.length
+    local lanes = math.max(1, math.min(5, db.lanes or 2))
+    local labelW = (db.showLabels and ShowScale(db)) and LABEL_W or 0
+    local panelW = size * lanes + (lanes - 1) * 2 + 12
+    local left = db.labelSide ~= "RIGHT"
+    local x0 = left and labelW or 0
+    local g = { size = size, len = len, panelW = panelW, x0 = x0, labelW = labelW, left = left, down = db.fall ~= "UP", lanes = lanes,
+        zone = math.min(1, math.max(0.05, db.fadeStart or FADE_ZONE)) }
+    g.w, g.h = labelW + panelW, len + size
+    g.c1 = left and (x0 + 6 + size / 2) or (x0 + panelW - 6 - size / 2)
+    g.step = left and (size + 2) or -(size + 2)
+    g.rail = left and x0 or (x0 + panelW - 2)
+    return g
+end
+
+-- Paint a vertical strip spanning s0..s1 on tex; `dist` s is measured from the ready line.
+local function PlaceStrip(f, tex, g, x, w, s0, s1)
+    tex:ClearAllPoints()
+    if g.down then tex:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", x, g.size / 2 + s0)
+    else tex:SetPoint("TOPLEFT", f, "TOPLEFT", x, -(g.size / 2 + s0)) end
+    tex:SetSize(w, s1 - s0)
+end
+
+-- A strip that is solid over the far part of the scale and ramps from `aNear` at the ready
+-- line up to `aFar` across the fade zone. The ramp is a stack of thin flat slices rather than
+-- a gradient texture, so it draws the same on every client.
+local SLICES = 20
+local function Strip(f, tr, name, g, x, w, rgb, aFar, aNear)
+    local st = tr[name]
+    if not st then st = { far = f:CreateTexture(nil, "BACKGROUND"), slices = {} }; tr[name] = st end
+    local nz = g.len * g.zone
+    st.far:SetTexture(S.WHITE)
+    PlaceStrip(f, st.far, g, x, w, nz, g.len + EDGE)
+    st.far:SetVertexColor(rgb[1], rgb[2], rgb[3], aFar)
+    st.far:Show()
+    local span = nz + EDGE
+    local h = span / SLICES
+    for i = 1, SLICES do
+        local t = st.slices[i]
+        if not t then t = f:CreateTexture(nil, "BACKGROUND"); st.slices[i] = t end
+        local s0 = -EDGE + (i - 1) * h
+        local mid = math.min(1, math.max(0, (s0 + h / 2) / nz))
+        t:SetTexture(S.WHITE)
+        PlaceStrip(f, t, g, x, w, s0, s0 + h + 0.5)
+        t:SetVertexColor(rgb[1], rgb[2], rgb[3], aNear + (aFar - aNear) * mid)
+        t:Show()
+    end
+end
+
+local function HideTrack(f)
+    local tr = f.track
+    if not tr then return end
+    for key, v in pairs(tr) do
+        if key == "marks" then
+            for _, mk in ipairs(v) do mk.tick:Hide(); mk.text:Hide() end
+        elseif key == "line" then v:Hide()
+        else v.far:Hide(); for _, t in ipairs(v.slices) do t:Hide() end end
+    end
+end
+
+local function LayoutTrack(f, db, g, marks)
+    if db.bgStyle == "NONE" then HideTrack(f) return end      -- icons only, nothing behind them
+    local tr = f.track
+    if not tr then tr = { marks = {} }; f.track = tr end
+    local bg = db.bgOpacity
+    local style = STYLES[db.bgStyle] or STYLES.GLASS
+    local fade = db.fadeBg
+    local accent = db.accentRail and T.accent or { 0.62, 0.66, 0.74 }
+    -- Panel fill, a faint edge opposite the rail, and the rail itself.
+    local fillA = bg * style[2]
+    if fillA > 0 then
+        Strip(f, tr, "fill", g, g.x0, g.panelW, style[1], fillA, fillA * (1 - fade))
+        local ex = g.left and (g.x0 + g.panelW - 1) or g.x0
+        Strip(f, tr, "edge", g, ex, 1, { 1, 1, 1 }, bg * 0.12, bg * 0.12 * (1 - fade))
+    elseif tr.fill then
+        for _, k in ipairs({ "fill", "edge" }) do
+            tr[k].far:Hide()
+            for _, t in ipairs(tr[k].slices) do t:Hide() end
+        end
+    end
+    Strip(f, tr, "rail", g, g.rail, 2, accent, bg * 0.95, bg * 0.95 * (1 - fade))
+    -- The ready line across the panel.
+    if not tr.line then tr.line = f:CreateTexture(nil, "ARTWORK") end
+    tr.line:SetTexture(S.WHITE)
+    tr.line:SetVertexColor(accent[1], accent[2], accent[3], bg * (1 - fade))
+    tr.line:ClearAllPoints()
+    if g.down then tr.line:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", g.x0, g.size / 2 - 1)
+    else tr.line:SetPoint("TOPLEFT", f, "TOPLEFT", g.x0, -(g.size / 2 - 1)) end
+    tr.line:SetSize(g.panelW, 2)
+    tr.line:Show()
+    -- Marks: a hairline across the panel and a time label beside it.
+    for i, m in ipairs(marks) do
+        local mk = tr.marks[i]
+        if not mk then
+            mk = { tick = f:CreateTexture(nil, "ARTWORK"), text = S.Text(f, 10, S.C.muted) }
+            tr.marks[i] = mk
+        end
+        local pos = CD.TimeFraction(m, marks)
+        local s = g.len * pos
+        local fa = CD.FadeAlpha(pos, fade, g.zone)
+        mk.tick:SetTexture(S.WHITE)
+        mk.tick:SetVertexColor(1, 1, 1, bg * 0.22 * fa)
+        mk.tick:ClearAllPoints()
+        if g.down then mk.tick:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", g.x0, g.size / 2 + s)
+        else mk.tick:SetPoint("TOPLEFT", f, "TOPLEFT", g.x0, -(g.size / 2 + s) + 1) end
+        mk.tick:SetSize(g.panelW, 1)
+        mk.tick:SetShown(db.showTicks and ShowScale(db) and m > 0)
+        mk.text:SetJustifyH(g.left and "RIGHT" or "LEFT")
+        mk.text:ClearAllPoints()
+        local anchor = g.left and "RIGHT" or "LEFT"
+        local ty = g.down and (g.size / 2 + s) or -(g.size / 2 + s)
+        local tx = g.left and (g.x0 - 5) or (g.x0 + g.panelW + 5)
+        mk.text:SetPoint(anchor, f, g.down and "BOTTOMLEFT" or "TOPLEFT", tx, ty)
+        mk.text:SetText(MarkLabel(m))
+        mk.text:SetAlpha(math.min(1, bg + 0.25) * fa)
+        mk.text:SetShown(db.showLabels and ShowScale(db) and m > 0)
+    end
+    for i = #marks + 1, #tr.marks do tr.marks[i].tick:Hide(); tr.marks[i].text:Hide() end
+end
+
+-- Lay icons (each with a .pos, 0 ready .. 1 far end) down the scale of frame f.
+local function PlaceIcons(f, db, g, order)
+    table.sort(order, function(a, c) return a.pos < c.pos end)
+    local gap = g.size + 2
+    local last = {}
+    for i = 1, g.lanes do last[i] = -1e9 end
+    for _, b in ipairs(order) do
+        local s = g.len * b.pos
+        -- First column with room; when all are busy, the one whose icon is furthest along.
+        local lane
+        for i = 1, g.lanes do
+            if s - last[i] >= gap then lane = i break end
+        end
+        if not lane then
+            lane = 1
+            for i = 2, g.lanes do if last[i] < last[lane] then lane = i end end
+        end
+        last[lane] = s
+        b:ClearAllPoints()
+        local x = g.c1 + (lane - 1) * g.step
+        if g.down then b:SetPoint("CENTER", f, "BOTTOMLEFT", x, g.size / 2 + s)
+        else b:SetPoint("CENTER", f, "TOPLEFT", x, -(g.size / 2 + s)) end
+        b:SetAlpha(CD.FadeAlpha(b.pos, db.fadeIcons, g.zone))
+    end
+end
+
+-- Where an icon sits: on one shared time scale, or by how much of its own time is left.
+function CD.Position(db, marks, remaining, total)
+    if ShowScale(db) or not (total and total > 0) then return CD.TimeFraction(remaining, marks) end
+    return math.min(1, math.max(0, remaining / total))
+end
+
+CD.NewIcon, CD.Geometry, CD.LayoutTrack, CD.HideTrack, CD.PlaceIcons = NewIcon, Geometry, LayoutTrack, HideTrack, PlaceIcons
+
+-- Timeline mode: move each icon to where its remaining time falls, and fade it as it nears
+-- ready. Icons that would sit on top of each other take the second lane.
+function CD:Place()
+    local db, f = CD.db, CD.frame
+    if not (db and f) or db.mode ~= "timeline" then return end
+    local g = Geometry(db)
+    local marks = CD.Marks(db.range)
+    local now = GetTime()
+    local order = {}
+    for _, b in ipairs(CD.icons) do
+        if b.entry and (b:IsShown() or b.parked) then
+            local pos
+            if b.cdStart and b.cdDur and b.down then
+                pos = CD.Position(db, marks, b.cdStart + b.cdDur - now, b.cdDur)
+            elseif b.secretDur then
+                pos = 1                               -- on cooldown but the time is hidden: far end
+            elseif db.showReady then
+                pos = 0
+            end
+            if pos then
+                b:Show(); b.parked = nil
+                b.pos = pos
+                order[#order + 1] = b
+            else
+                b:Hide(); b.parked = true
+            end
+        end
+    end
+    PlaceIcons(f, db, g, order)
+end
+
+-- Corner grip: the box the cursor asks for sets the icon size (from width in the timeline,
+-- from height in the row) and, in the timeline, the length of the scale.
+function CD.ResizeFromBox(db, w, h)
+    local clamp = function(v, lo, hi) return math.max(lo, math.min(hi, math.floor(v + 0.5))) end
+    if db.mode == "timeline" then
+        local lanes = math.max(1, math.min(5, db.lanes or 2))
+        local labelW = (db.showLabels and ShowScale(db)) and LABEL_W or 0
+        db.size = clamp((w - labelW - 12 - (lanes - 1) * 2) / lanes, 20, 64)
+        db.length = clamp(h - db.size, 160, 600)
+    else
+        db.size = clamp(h, 20, 64)
+    end
 end
 
 function CD:Refresh()
@@ -146,13 +409,20 @@ function CD:Refresh()
     local wanted = CD:Wanted()
     local size, gap = db.size, db.spacing
     local left = db.growX == "LEFT"
+    local timeline = db.mode == "timeline"
     for i, entry in ipairs(wanted) do
         local b = CD.icons[i]
         if not b then b = NewIcon(f); CD.icons[i] = b end
         b:SetSize(size, size)
-        b:ClearAllPoints()
-        local offset = (i - 1) * (size + gap)
-        if left then b:SetPoint("TOPRIGHT", f, "TOPRIGHT", -offset, 0) else b:SetPoint("TOPLEFT", f, "TOPLEFT", offset, 0) end
+        b.parked = nil
+        b.cd:SetHideCountdownNumbers(timeline and db.showNumbers == false)
+        b.cd:SetDrawSwipe(not timeline)      -- the swipe's dark fill turns a falling icon into a black square
+        if not timeline then b:SetAlpha(1) end
+        if not timeline then
+            b:ClearAllPoints()
+            local offset = (i - 1) * (size + gap)
+            if left then b:SetPoint("TOPRIGHT", f, "TOPRIGHT", -offset, 0) else b:SetPoint("TOPLEFT", f, "TOPLEFT", offset, 0) end
+        end
         local old = b.entry
         if not (old and old.spell == entry.spell and old.slot == entry.slot) then b.down = nil end  -- new spell: no flash
         b.entry = entry
@@ -160,16 +430,122 @@ function CD:Refresh()
         SetCooldown(b, entry)
         b:Show()
     end
-    for i = #wanted + 1, #CD.icons do CD.icons[i]:Hide() end
-    local n = math.max(#wanted, 1)
-    f:SetSize(n * size + (n - 1) * gap, size)
-    f:SetShown(#wanted > 0 or not T.db.locked)
+    for i = #wanted + 1, #CD.icons do CD.icons[i]:Hide(); CD.icons[i].entry = nil; CD.icons[i].parked = nil end
+    if timeline then
+        local g = Geometry(db)
+        LayoutTrack(f, db, g, CD.Marks(db.range))
+        f:SetSize(g.w, g.h)
+        CD:Place()
+        f:SetShown(#wanted > 0 or not T.db.locked)
+    else
+        HideTrack(f)
+        local n = math.max(#wanted, 1)
+        f:SetSize(n * size + (n - 1) * gap, size)
+        f:SetShown(#wanted > 0 or not T.db.locked)
+    end
 end
 
 function CD:Update()
     for _, b in ipairs(CD.icons) do
-        if b:IsShown() and b.entry then SetCooldown(b, b.entry) end
+        if (b:IsShown() or b.parked) and b.entry then SetCooldown(b, b.entry) end
     end
+    CD:Place()
+end
+
+-- One line each on why the timeline shows what it shows (for /tempus cddebug).
+function CD.Debug()
+    local out = {}
+    local function Add(fmt, ...) out[#out + 1] = fmt:format(...) end
+    local db, f = CD.db, CD.frame
+    if not (db and f) then return { "cooldowns: module is not running (General > Modules)." } end
+    local x, y = f:GetCenter()
+    local w, h = f:GetSize()
+    Add("cooldowns: mode=%s, enabled=%s, frame %s %.0fx%.0f at %s,%s, locked=%s, bg=%s opacity=%.2f, showReady=%s",
+        tostring(db.mode), tostring(db.enabled), f:IsShown() and "shown" or "HIDDEN", w, h,
+        x and ("%.0f"):format(x) or "?", y and ("%.0f"):format(y) or "?", tostring(T.db.locked), tostring(db.bgStyle), db.bgOpacity or 0, tostring(db.showReady))
+    local wanted = CD:Wanted()
+    Add("tracked: %d entries (%d spells in your list, trinkets %s)", #wanted, (function() local n = 0 for _ in pairs(T.db.lists.cooldowns or {}) do n = n + 1 end return n end)(), db.trinkets and "on" or "off")
+    local now = GetTime()
+    for i, b in ipairs(CD.icons) do
+        if b.entry then
+            local left = b.cdStart and b.cdDur and (b.cdStart + b.cdDur - now)
+            Add("  #%d %s: %s, down=%s, remaining=%s, pos=%s, secret=%s, %s",
+                i, b.entry.spell and ("spell " .. b.entry.spell) or ("slot " .. b.entry.slot), b:IsShown() and "shown" or "hidden",
+                tostring(b.down), left and ("%.1fs"):format(left) or "unknown", b.pos and ("%.2f"):format(b.pos) or "-",
+                tostring(b.secretDur ~= nil), b.parked and "parked (ready, hidden)" or "placed")
+        end
+    end
+    return out
+end
+
+-- Settings preview: fake spells falling down the real timeline layout, on their own clock.
+local DEMO_ICONS = { 136243, 135808, 132333, 136048, 135846 }
+function CD.CreateDemo(width, height, getdb)
+    getdb = getdb or function() return CD.db or T.db.cooldowns end
+    local box = CreateFrame("Frame")
+    box:SetSize(width, height)
+    local view = CreateFrame("Frame", nil, box)
+    view:SetPoint("TOP", box, "TOP", 0, 0)
+    local items = {}
+    for i, tex in ipairs(DEMO_ICONS) do
+        local b = NewIcon(view)
+        b.icon:SetTexture(tex)
+        b.cd:Hide(); b.ready:Hide()
+        items[i] = { b = b, period = 9 + i * 3.1, phase = (i * 0.37) % 1 }
+    end
+    function box:Refresh()
+        local db = getdb()
+        if db.mode ~= "timeline" then
+            view:Hide()
+            if not box.note then
+                box.note = S.Text(box, 11, S.C.muted)
+                box.note:SetPoint("TOPLEFT", 0, 0)
+                box.note:SetText("Set Style to Timeline to see the preview.")
+            end
+            box.note:Show()
+            return
+        end
+        if box.note then box.note:Hide() end
+        local g = Geometry(db)
+        local scale = math.min(1, (height - 4) / g.h)
+        view:SetScale(scale)
+        view:SetSize(g.w, g.h)
+        view:Show()
+        LayoutTrack(view, db, g, CD.Marks(db.range))
+        -- A dashed line where the fade begins, so the slider can be judged by eye.
+        local m = box.fadeMark
+        if not m then
+            m = { line = view:CreateTexture(nil, "OVERLAY"), text = S.Text(view, 10, S.C.muted) }
+            S.Accent(m.line, 0.9)
+            box.fadeMark = m
+        end
+        m.line:SetTexture(S.WHITE)
+        m.line:ClearAllPoints()
+        local s = g.size / 2 + g.len * g.zone
+        if g.down then m.line:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", g.x0, s) else m.line:SetPoint("TOPLEFT", view, "TOPLEFT", g.x0, -s) end
+        m.line:SetSize(g.panelW, 1)
+        m.text:ClearAllPoints()
+        m.text:SetPoint("LEFT", m.line, "RIGHT", 4, 0)
+        m.text:SetText("fade starts")
+        m.line:Show(); m.text:Show()
+        box.g = g
+    end
+    box:Refresh()
+    T.UI.Loop(box, 0.03, function(_, now)
+        local db = getdb()
+        if db.mode ~= "timeline" or not box.g then return end
+        local order = {}
+        for _, it in ipairs(items) do
+            local life = ((now / it.period) + it.phase) % 1
+            local remaining = db.range * (1 - life)
+            it.b:SetSize(db.size, db.size)
+            it.b.pos = CD.Position(db, CD.Marks(db.range), remaining, db.range)
+            it.b:Show()
+            order[#order + 1] = it.b
+        end
+        PlaceIcons(view, db, box.g, order)
+    end)
+    return box
 end
 
 T:NewModule("cooldowns", {
@@ -187,6 +563,12 @@ T:NewModule("cooldowns", {
             cfg = function() return CD.db end,
             corner = function() return CD.db.point[1] end,
             enabled = function() return CD.db.enabled end,
+            onResize = function(w, h)
+                local size, length = CD.db.size, CD.db.length
+                CD.ResizeFromBox(CD.db, w, h)
+                if size ~= CD.db.size or length ~= CD.db.length then CD:Refresh() end
+            end,
+            onMoved = function() if T.Options and T.Options.Refresh then T.Options:Refresh() end end,
         })
         local ev = CreateFrame("Frame")
         ev:RegisterEvent("SPELL_UPDATE_COOLDOWN")
@@ -199,7 +581,12 @@ T:NewModule("cooldowns", {
         end))
         -- Icons greyed from a secret duration are snapshots: refresh them a few times a second.
         local acc = 0
+        local slide = 0
         f:SetScript("OnUpdate", T:Wrap("cooldowns.grey", function(_, elapsed)
+            if CD.db.mode == "timeline" then
+                slide = slide + elapsed
+                if slide >= 0.03 then slide = 0; CD:Place() end
+            end
             acc = acc + elapsed
             if acc < 0.2 then return end
             acc = 0
@@ -209,6 +596,9 @@ T:NewModule("cooldowns", {
                 end
             end
         end))
+        S.OnAccent(function()
+            if CD.db and CD.db.mode == "timeline" and CD.db.enabled then CD:Refresh() end
+        end)
         CD:Refresh()
     end,
     OnSettings = function()

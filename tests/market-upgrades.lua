@@ -295,7 +295,7 @@ assert(#(M:FindUpgrades()) == 2, 'level range 40-40 keeps the two level-40 items
 -- the panel says why it is empty
 g_auctionHouseFilters = AHF(0, 0, { 7 })
 local pf = M:BuildUpgradePanel(); pf:Show(); M:RefreshUpgrades()
-assert(pf.status.text == 'No upgrades match the AH filters', tostring(pf.status.text))
+assert(pf.status.text == 'No gear matches the AH filters', tostring(pf.status.text))
 g_auctionHouseFilters = nil
 -- the open list notices an AH filter change on its own
 g_auctionHouseFilters = AHF(0, 0)
@@ -305,9 +305,9 @@ Seed({ [4] = 5 * G, [6] = 2 * G }); M:RefreshUpgrades()
 assert(#M.Layout((M:FindUpgrades())) > 0)
 g_auctionHouseFilters = AHF(0, 0, { 7 })
 assert(M.FilterSignature() ~= '', 'a changed filter changes the signature')
-pu.OnUpdate(pu, 0.1); assert(pu.status.text ~= 'No upgrades match the AH filters', 'waits for the half second')
+pu.OnUpdate(pu, 0.1); assert(pu.status.text ~= 'No gear matches the AH filters', 'waits for the half second')
 pu.OnUpdate(pu, 0.5)
-assert(pu.status.text == 'No upgrades match the AH filters', 'refreshed after the filter changed: ' .. tostring(pu.status.text))
+assert(pu.status.text == 'No gear matches the AH filters', 'refreshed after the filter changed: ' .. tostring(pu.status.text))
 g_auctionHouseFilters = nil
 -- the category picked in the AH list (for example two-handed weapons) applies too
 local function Cat(filters, name)
@@ -358,7 +358,7 @@ pp.price.GetText = function() return 'abc' end
 pp.price.OnTextChanged(pp.price, true)
 assert(T.db.market.upgradeMaxGold == 0, 'junk means no limit')
 T.db.market.upgradeMaxGold = 0.5; M:RefreshUpgrades()
-assert(pp.status.text == 'No upgrades under 0.5 gold', tostring(pp.status.text))
+assert(pp.status.text == 'No gear under 0.5 gold', tostring(pp.status.text))
 T.db.market.upgradeMaxGold = 0
 -- Stat-aware ranking: warriors value strength and stamina, not spirit.
 do

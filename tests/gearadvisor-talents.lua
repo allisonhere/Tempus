@@ -109,3 +109,10 @@ T.GearAdvisor.TalentTabs = { DRUID = wl }
 assert(TL.ForPlayer("DRUID", 25) == "DESTRUCTION", "the player's points sit in the third tab")
 T.GearAdvisor.TalentTabs = nil
 print("PASS: build detection from talent tabs")
+
+-- A name saved from an earlier build is replaced by the current default.
+UnitFactionGroup = function() return "Alliance" end
+assert(T.Market.FixReportTo("Dailyreporter") == "Daily Reporter" and T.Market.FixReportTo("dailyreports") == "Daily Reporter")
+assert(T.Market.FixReportTo("My Friend") == "My Friend" and T.Market.FixReportTo(nil) == nil, "other names are kept")
+UnitFactionGroup = nil
+print("PASS: old default recipients are replaced")

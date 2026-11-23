@@ -300,3 +300,11 @@ function M.DefaultReportTo()
     local faction = UnitFactionGroup and UnitFactionGroup("player")
     return M.REPORT_TO[faction] or ""
 end
+
+-- Names an earlier build used as the default recipient (before character names were known to have two words).
+-- A saved copy of one of them is replaced by the current default instead of being kept.
+local OLD_REPORT_TO = { dailyreports = true, dailyreporter = true }
+function M.FixReportTo(name)
+    if type(name) == "string" and OLD_REPORT_TO[name:lower()] then return M.DefaultReportTo() end
+    return name
+end

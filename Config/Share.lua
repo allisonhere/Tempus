@@ -72,7 +72,7 @@ local function Create()
         if target == "" then win.status:SetText("Type the name to whisper it to.") return end
         local lines = T.Market and T.Market.SplitForChat and T.Market.SplitForChat(win.edit:GetText()) or {}
         if #lines == 0 then win.status:SetText("Nothing to send.") return end
-        if T.db.market then T.db.market.reportTo = target end
+        if T.db.market then T.db.market.reportTo = (target ~= (T.Market.DefaultReportTo and T.Market.DefaultReportTo())) and target or "" end
         for i, line in ipairs(lines) do
             C_Timer.After((i - 1) * 0.5, function() pcall(SendChatMessage, line, "WHISPER", nil, target) end)
         end
@@ -86,7 +86,7 @@ local function Create()
         local target = (win.name:GetText() or ""):gsub("^%s+", ""):gsub("%s+$", "")
         if target == "" then win.status:SetText("Type the name to mail it to.") return end
         if T.Market and T.Market.QueueReportMail and T.Market:QueueReportMail(target, win.edit:GetText()) then
-            T.db.market.reportTo = target
+            T.db.market.reportTo = (target ~= (T.Market.DefaultReportTo and T.Market.DefaultReportTo())) and target or ""
             win.status:SetText("Queued. Tempus will ask the next time you open a mailbox.")
         end
     end
@@ -132,7 +132,7 @@ function T:ShowShare(mode)
         win.hint:SetText("Type your build on the second line, then copy this text (Ctrl+C), whisper it to someone, or queue it as mail that Tempus offers to send when you next open a mailbox. It holds your class, level, talent points and the stat names on your gear.")
         win.edit:SetText(T.Market and T.Market.Report and T.Market.Report() or "")
         win.nameLabel:SetText("Whisper to"); win.nameLabel:Show()
-        local saved = T.db.market and T.db.market.reportTo
+        local saved = T.db.market and T.Market and T.Market.FixReportTo and T.Market.FixReportTo(T.db.market.reportTo) or (T.db.market and T.db.market.reportTo)
         win.name:SetText((saved and saved ~= "" and saved) or (T.Market and T.Market.DefaultReportTo and T.Market.DefaultReportTo()) or ""); win.name:Show()
         win.action:Hide(); win.whisper:Show(); win.mail:Show()
         win:Show()

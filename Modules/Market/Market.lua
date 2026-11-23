@@ -387,6 +387,7 @@ end
 function M:OfferQueuedMail()
     local q = T.db and T.db.market and T.db.market.mailQueue
     if not (q and q.parts and q.parts[1]) then return end
+    if M.FixReportTo then q.to = M.FixReportTo(q.to) end
     T:Confirm(("Mail your gear data to %s? It is %d short mail%s; you press Send for each."):format(q.to, #q.parts, #q.parts == 1 and "" or "s"),
         function() M:FillMail() end, "Fill in the mail")
 end

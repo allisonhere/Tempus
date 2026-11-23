@@ -227,19 +227,29 @@ local function PlaceStrip(f, tex, g, x, w, s0, s1)
 end
 
 -- A strip that is solid over the far part of the scale and ramps from `aNear` at the ready
--- line up to `aFar` across the fade zone. Two textures, one flat and one gradient.
+-- line up to `aFar` across the fade zone. The ramp is a stack of thin flat slices rather than
+-- a gradient texture, so it draws the same on every client.
+local SLICES = 20
 local function Strip(f, tr, name, g, x, w, rgb, aFar, aNear)
     local st = tr[name]
-    if not st then st = { far = f:CreateTexture(nil, "BACKGROUND"), near = f:CreateTexture(nil, "BACKGROUND") }; tr[name] = st end
+    if not st then st = { far = f:CreateTexture(nil, "BACKGROUND"), slices = {} }; tr[name] = st end
     local nz = g.len * g.zone
-    for _, t in pairs(st) do t:SetTexture(S.WHITE) end
+    st.far:SetTexture(S.WHITE)
     PlaceStrip(f, st.far, g, x, w, nz, g.len + EDGE)
     st.far:SetVertexColor(rgb[1], rgb[2], rgb[3], aFar)
-    PlaceStrip(f, st.near, g, x, w, -EDGE, nz)
-    local nearA = EDGE / (nz + EDGE) * (aFar - aNear) + aNear      -- alpha where the strip starts
-    if g.down then S.SetGradient(st.near, "VERTICAL", rgb[1], rgb[2], rgb[3], nearA, rgb[1], rgb[2], rgb[3], aFar)
-    else S.SetGradient(st.near, "VERTICAL", rgb[1], rgb[2], rgb[3], aFar, rgb[1], rgb[2], rgb[3], nearA) end
-    st.far:Show(); st.near:Show()
+    st.far:Show()
+    local span = nz + EDGE
+    local h = span / SLICES
+    for i = 1, SLICES do
+        local t = st.slices[i]
+        if not t then t = f:CreateTexture(nil, "BACKGROUND"); st.slices[i] = t end
+        local s0 = -EDGE + (i - 1) * h
+        local mid = math.min(1, math.max(0, (s0 + h / 2) / nz))
+        t:SetTexture(S.WHITE)
+        PlaceStrip(f, t, g, x, w, s0, s0 + h + 0.5)
+        t:SetVertexColor(rgb[1], rgb[2], rgb[3], aNear + (aFar - aNear) * mid)
+        t:Show()
+    end
 end
 
 local function HideTrack(f)
@@ -249,7 +259,7 @@ local function HideTrack(f)
         if key == "marks" then
             for _, mk in ipairs(v) do mk.tick:Hide(); mk.text:Hide() end
         elseif key == "line" then v:Hide()
-        else v.far:Hide(); v.near:Hide() end
+        else v.far:Hide(); for _, t in ipairs(v.slices) do t:Hide() end end
     end
 end
 
@@ -266,7 +276,12 @@ local function LayoutTrack(f, db, g, marks)
         Strip(f, tr, "fill", g, g.x0, g.panelW, style[1], fillA, fillA * (1 - fade))
         local ex = g.left and (g.x0 + g.panelW - 1) or g.x0
         Strip(f, tr, "edge", g, ex, 1, { 1, 1, 1 }, bg * 0.12, bg * 0.12 * (1 - fade))
-    elseif tr.fill then tr.fill.far:Hide(); tr.fill.near:Hide(); tr.edge.far:Hide(); tr.edge.near:Hide() end
+    elseif tr.fill then
+        for _, k in ipairs({ "fill", "edge" }) do
+            tr[k].far:Hide()
+            for _, t in ipairs(tr[k].slices) do t:Hide() end
+        end
+    end
     Strip(f, tr, "rail", g, g.rail, 2, accent, bg * 0.95, bg * 0.95 * (1 - fade))
     -- The ready line across the panel.
     if not tr.line then tr.line = f:CreateTexture(nil, "ARTWORK") end

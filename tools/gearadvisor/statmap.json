@@ -1,0 +1,97 @@
+{
+  "stats": {
+    "Agility": {
+      "key": "ITEM_MOD_AGILITY_SHORT",
+      "status": "seen"
+    },
+    "Strength": {
+      "key": "ITEM_MOD_STRENGTH_SHORT",
+      "status": "assumed"
+    },
+    "Stamina": {
+      "key": "ITEM_MOD_STAMINA_SHORT",
+      "status": "assumed"
+    },
+    "Intellect": {
+      "key": "ITEM_MOD_INTELLECT_SHORT",
+      "status": "assumed"
+    },
+    "Spirit": {
+      "key": "ITEM_MOD_SPIRIT_SHORT",
+      "status": "assumed"
+    },
+    "Ap": {
+      "key": "ITEM_MOD_ATTACK_POWER_SHORT",
+      "status": "assumed"
+    },
+    "FeralAp": {
+      "key": "ITEM_MOD_FERAL_ATTACK_POWER_SHORT",
+      "status": "assumed"
+    },
+    "MeleeDps": {
+      "key": "ITEM_MOD_DAMAGE_PER_SECOND_SHORT",
+      "status": "seen"
+    },
+    "Armor": {
+      "key": "RESISTANCE0_NAME",
+      "status": "assumed"
+    },
+    "Mp5": {
+      "key": "ITEM_MOD_MANA_REGENERATION_SHORT",
+      "status": "assumed"
+    },
+    "Rap": {
+      "key": "ITEM_MOD_RANGED_ATTACK_POWER_SHORT",
+      "status": "assumed"
+    },
+    "BlockValue": {
+      "key": "ITEM_MOD_BLOCK_VALUE_SHORT",
+      "status": "assumed"
+    },
+    "RangedDps": {
+      "key": "DPS_RANGED",
+      "status": "internal"
+    }
+  },
+  "ratings": {
+    "CritRating": {
+      "key": "ITEM_MOD_CRIT_RATING_SHORT",
+      "per": 14,
+      "status": "assumed"
+    },
+    "HitRating": {
+      "key": "ITEM_MOD_HIT_RATING_SHORT",
+      "per": 10,
+      "status": "assumed"
+    },
+    "HasteRating": {
+      "key": "ITEM_MOD_HASTE_RATING_SHORT",
+      "per": 10,
+      "status": "assumed"
+    },
+    "DodgeRating": {
+      "key": "ITEM_MOD_DODGE_RATING_SHORT",
+      "per": 12,
+      "status": "assumed"
+    },
+    "ParryRating": {
+      "key": "ITEM_MOD_PARRY_RATING_SHORT",
+      "per": 15,
+      "status": "assumed"
+    },
+    "BlockRating": {
+      "key": "ITEM_MOD_BLOCK_RATING_SHORT",
+      "per": 5,
+      "status": "assumed"
+    }
+  },
+  "spell_power": {
+    "key": "ITEM_MOD_SPELL_POWER_SHORT",
+    "from": [
+      "Healing",
+      "SpellDamage"
+    ],
+    "status": "assumed"
+  },
+  "_notes": "status: seen = read on a real Forever item; assumed = not yet confirmed (run /tempus gearstats); internal = not an item stat. Ratings: Pawn weights are per 1%; per is the rating per 1% Pawn Forever measured (crit 14, hit 10, dodge 12, parry 15) or estimated (haste 10, block 5). Edit a key or per here after reading real gearstats output, then run: python3 tools/gen_gearadvisor.py weights"
+}

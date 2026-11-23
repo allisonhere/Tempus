@@ -1,0 +1,6 @@
+# Talent signatures for Gear Advisor build detection. One line per sample character, made like this:
+#   1. On a character with a known build run  /tempus gearsig
+#   2. Paste the line here and put the build code in front:   ROLE=CAT | DRUID 22, 7 points: Ferocity x5, ...
+# Role codes are the ones in Modules/GearAdvisor/Weights.lua (DRUID: CAT BEAR RESTO BALANCE; WARRIOR: ARMS FURY
+# PROTECTION; and so on). A talent becomes a marker for a build when only that build's samples have it, so
+# add at least one sample for each build of a class. Then run: python3 tools/gen_gearadvisor.py signals

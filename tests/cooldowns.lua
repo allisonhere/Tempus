@@ -32,7 +32,7 @@ assert(CD.TimeFraction(60, m) == 1 and CD.TimeFraction(500, m) == 1, "past the e
 print("PASS: timeline scale maps remaining time to equal steps and clips at the far end")
 
 -- Fade: solid across the far part of the scale, easing to 1 - strength at the ready line.
-assert(CD.FadeAlpha(1, 0.8) == 1 and CD.FadeAlpha(0.35, 1) == 1, "far end is untouched")
+assert(CD.FadeAlpha(1, 0.8) == 1 and CD.FadeAlpha(0.5, 1) == 1, "far end is untouched")
 assert(near(CD.FadeAlpha(0, 0.6), 0.4) and CD.FadeAlpha(0, 1) == 0 and CD.FadeAlpha(0, 0) == 1, "ready line takes the full fade")
 assert(CD.FadeAlpha(0.1, 0.5) > CD.FadeAlpha(0, 0.5) and CD.FadeAlpha(0.1, 0.5) < 1, "in between is a ramp")
 print("PASS: fade dims toward the ready line and leaves the far end alone")

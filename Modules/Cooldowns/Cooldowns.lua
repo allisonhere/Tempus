@@ -31,7 +31,7 @@ local TRINKET_SLOTS = { 13, 14 }
 
 -- Timeline scale: equal-width steps between these marks, so the near seconds get the room.
 local MARKS = { 0, 5, 15, 30, 60, 120, 300 }
-local FADE_ZONE = 0.35      -- the last share of the scale (by position) that fades toward ready
+local FADE_ZONE = 0.5      -- the last share of the scale (by position) that fades toward ready
 local LABEL_W, EDGE = 28, 4
 
 function CD.Marks(range)
@@ -196,8 +196,8 @@ end
 -- line sits at the bottom (fall DOWN) or the top (fall UP) with half an icon of room beyond.
 ----------------------------------------------------------------------------------------
 local STYLES = {                      -- fill colour, fill strength
-    GLASS   = { { 0.05, 0.07, 0.11 }, 0.85 },
-    SOLID   = { { 0.02, 0.02, 0.03 }, 1 },
+    GLASS   = { { 0.2, 0.26, 0.36 }, 0.9 },
+    SOLID   = { { 0.12, 0.13, 0.17 }, 1 },
     MINIMAL = { { 0, 0, 0 }, 0 },
 }
 

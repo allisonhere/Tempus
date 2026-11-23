@@ -539,3 +539,32 @@ local compact = M.CompactTip({
 assert(compact == '|cffffffffBinds when equipped|r\n|cffffffffHead   Plate|r\n|cffffffff+12 Agility  ·  +8 Stamina|r\n|cffffffff45 Armor|r\n|cff00ff00Equip: Restores 5 mana per 5 sec.|r', compact)
 assert(M.CompactTip({ { 'Only a name', '', 1, 1, 1 } }) == '' and M.CompactTip({}) == '', 'a name alone leaves nothing')
 assert(#M.TipLines(nil) == 0 and #M.TipLines(42) == 0, 'no link, no lines')
+
+-- Sorting: each setting orders as described, _REV flips the main column, and the headings drive it.
+local rows = {
+    { id = 1, name = 'Zed', rank = 5, worth = 9, gain = 4, price = 30, score = 1 },
+    { id = 2, name = 'alpha', rank = 9, worth = 3, gain = 12, price = 10, score = 3 },
+    { id = 3, name = 'Mid', rank = 7, worth = 6, gain = 8, price = 20, score = 2 },
+}
+local function order(sort) local c = {} for i, e in ipairs(rows) do c[i] = e end table.sort(c, M.Comparator(sort)) local t = {} for _, e in ipairs(c) do t[#t + 1] = e.id end return table.concat(t, ',') end
+assert(order('VALUE') == '2,3,1' and order('BIGGEST') == '1,3,2' and order('GAIN') == '2,3,1' and order('CHEAPEST') == '2,3,1' and order('NAME') == '2,3,1', 'names sort without case: alpha, Mid, Zed')
+assert(order('LEGACY') == '2,3,1')
+assert(order('BIGGEST_REV') == '2,3,1' and order('CHEAPEST_REV') == '1,3,2' and order('NAME_REV') == '1,3,2' and order('GAIN_REV') == '1,3,2', 'the main column flips')
+assert(order('NOPE') == order('VALUE') and order(nil) == order('VALUE'), 'an unknown setting is the default')
+local b1, r1 = M.SortBase('GAIN_REV'); local b2, r2 = M.SortBase('NAME')
+assert(b1 == 'GAIN' and r1 == true and b2 == 'NAME' and r2 == false)
+local tied = { { id = 9, name = 'x', rank = 1, price = 5, worth = 1 }, { id = 4, name = 'x', rank = 1, price = 5, worth = 1 } }
+table.sort(tied, M.Comparator('VALUE')); assert(tied[1].id == 4, 'ties fall back to the id')
+-- headings: click to sort, click again to flip, another heading resets
+local hp = M.upgradePanel
+Seed({ [1] = 10 * G, [2] = 1 * G, [4] = 5 * G })
+M:ToggleUpgrades(); hp = M.upgradePanel
+local function click(key) for _, h in ipairs(hp.heads) do if h.key == key then h.OnClick(h) end end end
+T.db.market.upgradeSort = 'VALUE'
+click('BIGGEST'); assert(T.db.market.upgradeSort == 'BIGGEST')
+click('BIGGEST'); assert(T.db.market.upgradeSort == 'BIGGEST_REV')
+click('BIGGEST'); assert(T.db.market.upgradeSort == 'BIGGEST', 'a third click flips back')
+click('CHEAPEST'); assert(T.db.market.upgradeSort == 'CHEAPEST')
+click('NAME'); assert(T.db.market.upgradeSort == 'NAME')
+click('GAIN'); assert(T.db.market.upgradeSort == 'GAIN')
+T.db.market.upgradeSort = 'VALUE'

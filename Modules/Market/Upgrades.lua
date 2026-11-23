@@ -321,6 +321,42 @@ local function CarriedGear(class, level, instant, getInfo, detailed, scoreOf)
     return items
 end
 
+-- How a sort setting orders listings. Settings: VALUE (best stats for the price), BIGGEST (score), GAIN (item
+-- levels gained), CHEAPEST (price), NAME, LEGACY (item levels per gold); add _REV to flip the direction of
+-- the main column. Returns a comparator for table.sort.
+local function Cmp(x, y) if x == y then return 0 end return x > y and 1 or -1 end
+local function ByName(e) return tostring(e.name or "~"):lower() end
+local SORT_TERMS = {
+    VALUE = { { "rank", -1 }, { "price", 1 } },
+    BIGGEST = { { "worth", -1 }, { "price", 1 } },
+    LEGACY = { { "score", -1 }, { "price", 1 } },
+    CHEAPEST = { { "price", 1 }, { "worth", -1 } },
+    GAIN = { { "gain", -1 }, { "worth", -1 }, { "price", 1 } },
+    NAME = { { ByName, 1 }, { "price", 1 } },
+}
+function M.SortBase(sort)
+    sort = sort or "VALUE"
+    local base = sort:match("^(%u+)_REV$") or sort
+    return SORT_TERMS[base] and base or "VALUE", sort:sub(-4) == "_REV"
+end
+function M.Comparator(sort)
+    local base, rev = M.SortBase(sort)
+    local terms = SORT_TERMS[base]
+    return function(a, b)
+        for i, term in ipairs(terms) do
+            local f = term[1]
+            local x, y
+            if type(f) == "function" then x, y = f(a), f(b) else x, y = a[f] or 0, b[f] or 0 end
+            local c = Cmp(x, y) * term[2]
+            if c ~= 0 then
+                if rev and i == 1 then c = -c end
+                return c < 0
+            end
+        end
+        return a.id < b.id
+    end
+end
+
 -- Returns a ranked list, the number of items still waiting on item data, and how many were
 -- requested this pass. Entry: { id, price, age, gain, level, worn, loc, score }.
 local WornLink      -- defined with the detail code below
@@ -366,7 +402,7 @@ function M:FindUpgrades()
             local base = worn[loc]
             if base ~= false and M.CanUse(class, level, row.c, row.s, loc, nil)
                 and not (money and row.p > money) and not (cap and row.p > cap) then
-                local _, _, quality, ilvl, minLevel = getInfo(id)
+                local itemName, _, quality, ilvl, minLevel = getInfo(id)
                 local eff = Call(detailed, id)
                 if Num(eff) and eff > 0 then ilvl = eff end
                 if not Num(ilvl) then
@@ -408,7 +444,7 @@ function M:FindUpgrades()
                             local worth = useful or gain
                             local rank = worth / math.sqrt(gold)
                             if age and age > staleDays then rank = rank * 0.85 end
-                            out[#out + 1] = { id = id, price = row.p, gain = gain, level = ilvl, worn = base, loc = loc,
+                            out[#out + 1] = { id = id, name = itemName, price = row.p, gain = gain, level = ilvl, worn = base, loc = loc,
                                 age = age, score = gain / gold, quality = quality, useful = useful, worth = worth, rank = rank,
                                 note = R.Displaced(loc, held) }
                         end
@@ -417,29 +453,17 @@ function M:FindUpgrades()
             end
         end
     end
-    table.sort(out, function(a, b)
-        if sort == "BIGGEST" then
-            if a.worth ~= b.worth then return a.worth > b.worth end
-            if a.price ~= b.price then return a.price < b.price end
-        elseif sort == "LEGACY" then
-            if a.score ~= b.score then return a.score > b.score end
-            if a.price ~= b.price then return a.price < b.price end
-        elseif sort == "CHEAPEST" then
-            if a.price ~= b.price then return a.price < b.price end
-            if a.worth ~= b.worth then return a.worth > b.worth end
-        else
-            if a.rank ~= b.rank then return a.rank > b.rank end
-            if a.price ~= b.price then return a.price < b.price end
-        end
-        return a.id < b.id
-    end)
-    -- Keep the best few per slot group so every slot is covered, not just the best-value one.
+    -- Keep the best few per slot group so every slot is covered, then order them as asked. A name order
+    -- keeps the best by value first, otherwise A to Z would drop the good ones.
+    local base = M.SortBase(sort)
+    table.sort(out, M.Comparator(base == "NAME" and "VALUE" or sort))
     local kept, counts = {}, {}
     for _, e in ipairs(out) do
         local key = GROUP_OF[e.loc]
         counts[key] = (counts[key] or 0) + 1
         if counts[key] <= PER_GROUP then kept[#kept + 1] = e end
     end
+    if base == "NAME" then table.sort(kept, M.Comparator(sort)) end
     T.GearAdvisor.Verdicts.Tag(kept, Call(GetMoney))
     return kept, pending, requested, hidden, filters, beaten, worse
 end
@@ -529,7 +553,7 @@ function M.WhyText(newLink, oldLink, class, ranged)
 end
 
 -- Sort orders for the list.
-M.SORTS = { { "VALUE", "Best value" }, { "BIGGEST", "Biggest upgrade" }, { "CHEAPEST", "Cheapest" }, { "LEGACY", "Item levels per gold (old method)" } }
+M.SORTS = { { "VALUE", "Best value" }, { "BIGGEST", "Biggest upgrade" }, { "GAIN", "Most item levels" }, { "CHEAPEST", "Cheapest" }, { "NAME", "Name" }, { "LEGACY", "Item levels per gold (old method)" } }
 
 -- The stats that go up when `newLink` replaces `oldLink` (nil = empty slot): up to `max` entries,
 -- largest gain first, as { label, amount }.
@@ -990,12 +1014,26 @@ function M:BuildUpgradePanel()
     p.foot = S.Text(p, 11, S.C.muted)
     p.foot:SetPoint("BOTTOMLEFT", 12, 10)
     local scroll = CreateFrame("ScrollFrame", nil, p)
-    -- Column headings, aligned with the right-hand columns of the rows below.
-    for _, c in ipairs({ { "Item", "LEFT", 34 }, { "Score", "RIGHT", 10 + WIDTH - 20 - 162 }, { "Gain", "RIGHT", 10 + WIDTH - 20 - 104 },
-        { "Price", "RIGHT", 10 + WIDTH - 20 - 4 } }) do
-        local h = S.Text(p, 10, S.C.muted)
+    -- Column headings, aligned with the right-hand columns of the rows below. Click one to sort by it;
+    -- click it again to flip the direction.
+    p.heads = {}
+    for _, c in ipairs({ { "Item", "LEFT", 34, "NAME", 120 }, { "Score", "RIGHT", 10 + WIDTH - 20 - 162, "BIGGEST", 56 },
+        { "Gain", "RIGHT", 10 + WIDTH - 20 - 104, "GAIN", 54 }, { "Price", "RIGHT", 10 + WIDTH - 20 - 4, "CHEAPEST", 70 } }) do
+        local h = CreateFrame("Button", nil, p)
+        h:SetSize(c[5], 14)
         h:SetPoint(c[2], p, "TOPLEFT", c[3], -42)
-        h:SetText(c[1])
+        h.text = S.Text(h, 10, S.C.muted)
+        h.text:SetPoint(c[2], h, c[2], 0, 0)
+        h.label, h.key = c[1], c[4]
+        h:SetScript("OnClick", function()
+            local db = T.db.market
+            if not db then return end
+            local cur = db.upgradeSort or "VALUE"
+            local base = M.SortBase(cur)
+            db.upgradeSort = (base == h.key and cur == h.key) and (h.key .. "_REV") or h.key
+            M:RefreshUpgrades()
+        end)
+        p.heads[#p.heads + 1] = h
     end
     scroll:SetPoint("TOPLEFT", 10, -52)
     scroll:SetSize(WIDTH - 20, VISIBLE * ROW_H)
@@ -1130,6 +1168,25 @@ function M:ScheduleUpgradeRefresh()
     end)
 end
 
+-- Colour the heading the list is sorted by and show its direction (v = high to low, ^ = low to high).
+local SORT_DEFAULT_DESC = { NAME = false, BIGGEST = true, GAIN = true, CHEAPEST = false }
+function M:UpdateHeaders()
+    local p = self.upgradePanel
+    if not (p and p.heads) then return end
+    local base, rev = M.SortBase(T.db.market and T.db.market.upgradeSort)
+    for _, h in ipairs(p.heads) do
+        if h.key == base then
+            local desc = SORT_DEFAULT_DESC[base]
+            if rev then desc = not desc end
+            h.text:SetText(h.label .. (desc and " v" or " ^"))
+            h.text:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
+        else
+            h.text:SetText(h.label)
+            h.text:SetTextColor(S.C.muted[1], S.C.muted[2], S.C.muted[3])
+        end
+    end
+end
+
 function M:RefreshUpgrades()
     local p = self.upgradePanel
     if not (p and p:IsShown()) then return end
@@ -1139,6 +1196,7 @@ function M:RefreshUpgrades()
         p.price:SetText(maxGold > 0 and (maxGold == math.floor(maxGold) and ("%d"):format(maxGold) or tostring(maxGold)) or "")
     end
     if p.priceHint and p.price then p.priceHint:SetShown((p.price:GetText() or "") == "") end
+    self:UpdateHeaders()
     local list, pending, hidden, filters, beaten, worse = {}, 0, 0, nil, 0, 0
     if Num(store.scanned) then
         local ok, l, n, _, h, f, b, w = pcall(self.FindUpgrades, self)

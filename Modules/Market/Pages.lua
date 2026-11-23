@@ -9,7 +9,7 @@ T:RegisterPage("convenience", {key = "market", label = "Auction values", order =
     p:Add(T.UI.W.Button("Scan auction house", function() T.Market:StartScan() end, "Reads the whole auction house once. Does not buy, sell or post anything.", 200))
     p:Section("Gear Advisor", "The Gear Advisor button in the top-left corner of the auction house window, or /tempus gear from anywhere, lists the best gear deals from your last scan: items above what you wear in that slot, that you can equip, ranked by how much your stats improve for the price, so a nearly free +1 does not top the list and gear with the wrong stats for your class is left out.")
     p:Add(T.UI.W.Button("Open Gear Advisor", function() T.Market:ToggleUpgrades() end, "Opens the list from your last scan. It works anywhere; you do not need the auction house open. Drag it to move it. Also /tempus gear.", 200))
-    p:Dropdown(cfg, "upgradeSort", "Rank upgrades by", { { "VALUE", "Best value (stats for the price)" }, { "BIGGEST", "Biggest upgrade" }, { "CHEAPEST", "Cheapest first" }, { "LEGACY", "Item levels per gold (old method, no stat check)" } })
+    p:Dropdown(cfg, "upgradeSort", "Rank upgrades by", { { "VALUE", "Best value (stats for the price)" }, { "BIGGEST", "Biggest upgrade" }, { "GAIN", "Most item levels" }, { "CHEAPEST", "Cheapest first" }, { "NAME", "Name" }, { "LEGACY", "Item levels per gold (old method, no stat check)" } })
     local _, class = UnitClass("player")
     local roles = T.GearAdvisor and T.GearAdvisor.Scoring and T.GearAdvisor.Scoring.RoleList(class)
     if roles then

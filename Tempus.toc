@@ -77,6 +77,8 @@ Modules\CombatPulse\Pages.lua
 
 Modules\Market\Market.lua
 Modules\GearAdvisor\EquipRules.lua
+Modules\GearAdvisor\Weights.lua
+Modules\GearAdvisor\Scoring.lua
 Modules\Market\Upgrades.lua
 Modules\Market\Probe.lua
 Modules\Market\Pages.lua

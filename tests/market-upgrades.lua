@@ -16,6 +16,8 @@ T.UI = { StyledEditBox = function(parent) return CreateFrame('EditBox', nil, par
 assert(loadfile('Modules/Bags/Client.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Market.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/EquipRules.lua'))('Tempus', T)
+assert(loadfile('Modules/GearAdvisor/Weights.lua'))('Tempus', T)
+assert(loadfile('Modules/GearAdvisor/Scoring.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Upgrades.lua'))('Tempus', T)
 local M = T.Market
 local G = 10000
@@ -435,3 +437,14 @@ assert(war[14] and war[14].worn == 0, 'a warrior who dual wields can use the emp
 assert(war[6] and war[6].note == 'Also takes off your shield', 'a two-hander warns that the shield comes off')
 UnitClass, worn, GetInventoryItemID = realClass, realWorn, nil
 C_Item.GetItemInfoInstant, C_Item.GetItemInfo, C_Item.GetItemUniquenessByID = realInstant, realGetInfo, nil
+
+-- The "why" line names the role and the stats that moved the score.
+GetShapeshiftForm = function() return 3 end
+C_Item.GetItemStats = function(l) return ({ nw = { ITEM_MOD_AGILITY_SHORT = 12, ITEM_MOD_STAMINA_SHORT = 2 }, od = { ITEM_MOD_STAMINA_SHORT = 6 } })[l] end
+local why = M.WhyText('nw', 'od', 'DRUID')
+assert(why and why:find('Cat') and why:find('from your form') and why:find('%+12 Agility') and why:find('%-4 Stamina') and why:find('estimate'), tostring(why))
+T.db.market.gearRole = 'BEAR'
+assert(M.WhyText('nw', 'od', 'DRUID'):find('Bear') and M.WhyText('nw', 'od', 'DRUID'):find('your choice'))
+T.db.market.gearRole = 'AUTO'
+assert(M.WhyText('nw', 'od', 'WARRIOR'):find('your class'), 'classes without roles say so')
+GetShapeshiftForm, C_Item.GetItemStats = nil, nil

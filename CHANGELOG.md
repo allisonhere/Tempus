@@ -6,6 +6,8 @@
 - **Gear Advisor ranks by your stats.** The list weighs how much the stats your class cares about improve against the price (item levels when the game gives no stats), drops gear with worse stats for your class, and has a **Rank upgrades by** setting: best value, biggest upgrade or cheapest. The window has a new gold look with value meters.
 - **`/tempus gearprobe`** lists which talent, stat and item calls this client really has, with what they return. It is for building the next steps of Gear Advisor on what the game offers.
 
+- **Gear Advisor scores gear for the job you play (Druid first).** A Cat scores agility, attack power and weapon damage; a Bear scores stamina, armor and dodge; Restoration and Balance have their own weights. Choose the job under Convenience > Auction values > **Score gear as**, or leave it on Automatic to follow your shapeshift form. The detail pane now says why an item scored what it did, for example "+12.4 as Cat (from your form): +12 Agility, -4 Stamina (estimate)". The weights are community estimates from GearQuest Forever, via Pawn Forever (MIT), and are labelled as estimates. Other classes keep the existing class weights for now.
+
 ### Fixed
 - **Gear Advisor and one-hand weapons.** A class that cannot dual wield (a Druid, say) is now compared with its main hand, not the empty off hand that made every one-hander look like a huge upgrade. Characters that dual wield still see the off hand.
 - **Two-handers and shields.** A two-hand weapon now says when it also takes off your shield or off hand, and a shield or off-hand item says when it takes off your two-hander.

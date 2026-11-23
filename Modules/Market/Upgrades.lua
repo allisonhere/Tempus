@@ -317,6 +317,7 @@ function M:FindUpgrades()
     if type(instant) ~= "function" or type(getInfo) ~= "function" then return out, 0, 0 end
     Dual = CanDual()
     local held = HeldTypes()
+    local roleWeights = M.RoleWeights(class)
     local uniqueOf = C and C.GetItemUniquenessByID
     local wornIds = {}
 
@@ -352,7 +353,7 @@ function M:FindUpgrades()
                     else
                         -- What the stats are worth to your class; nil when the client gives none.
                         if wornLinks[loc] == nil then wornLinks[loc] = WornLink(loc) or false end
-                        local useful = M.UsefulScore("item:" .. id, wornLinks[loc] or nil, class)
+                        local useful = (M.UsefulScore("item:" .. id, wornLinks[loc] or nil, class, roleWeights))
                         if not (useful and useful <= 0) then
                             local gold = math.max(row.p / 10000, 0.01)
                             local age = Num(row.t) and math.max(0, math.floor((now - row.t) / 86400)) or nil
@@ -417,19 +418,45 @@ local function StatsOf(link)
     return ok and type(t) == "table" and t or {}
 end
 
+-- The weights for the role this character is playing (a druid in Cat Form scores like a cat) and
+-- where they come from. nil when the class has no role weights; callers then use the class table.
+function M.RoleWeights(class)
+    local GA = T.GearAdvisor
+    if not (GA and GA.Scoring) then return nil end
+    local db = T.db.market or {}
+    local role, why = GA.Scoring.Role(class, db.gearRole, Call(GetShapeshiftForm), db.gearRoleLast)
+    if not role then return nil end
+    if why == "form" and T.db.market then T.db.market.gearRoleLast = role end
+    local w, label, source = GA.Scoring.Weights(class, role, Call(UnitLevel, "player"))
+    if not w then return nil end
+    return w, label, why, source
+end
+
 -- How much better the stats get for this class when `newLink` replaces `oldLink` (negative when
 -- they get worse). nil when the client gives no stats for either, so callers fall back to item level.
-function M.UsefulScore(newLink, oldLink, class)
-    local w = WEIGHTS[class]
+-- `weights` is the role's table when the caller already has it. Second result: the parts, biggest first.
+function M.UsefulScore(newLink, oldLink, class, weights)
+    local w = weights or WEIGHTS[class]
     if not w then return nil end
     local new, old = StatsOf(newLink), StatsOf(oldLink)
     if next(new) == nil and next(old) == nil then return nil end
-    local total = 0
-    for key, weight in pairs(w) do
-        local n, o = Num(new[key]) and new[key] or 0, Num(old[key]) and old[key] or 0
-        total = total + (n - o) * weight
+    local total, parts = T.GearAdvisor.Scoring.Delta(new, old, w, Num)
+    return total, parts
+end
+
+-- One line saying why an item is worth what it is: the role and the stats that moved the score.
+function M.WhyText(newLink, oldLink, class)
+    local w, label, why = M.RoleWeights(class)
+    local total, parts = M.UsefulScore(newLink, oldLink, class, w)
+    if not total then return nil end
+    local bits = {}
+    for i = 1, math.min(4, #parts) do
+        local p = parts[i]
+        bits[#bits + 1] = ("%s%s %s"):format(p.change > 0 and "+" or "-", (math.abs(p.change) == math.floor(math.abs(p.change)) and ("%d"):format(math.abs(p.change)) or ("%.1f"):format(math.abs(p.change))),
+            StatLabel(p.key) or p.key)
     end
-    return total
+    local head = label and (("%s (%s)"):format(label, why == "chosen" and "your choice" or why == "form" and "from your form" or "assumed")) or "your class"
+    return ("|cff7CFF8A%+.1f|r as %s: %s  |cff8A93A0(estimate)|r"):format(total, head, #bits > 0 and table.concat(bits, ", ") or "no scored stat changes")
 end
 
 -- Sort orders for the list.
@@ -574,7 +601,7 @@ function M.DetailInfo(e)
     local worn = WornLink(e.loc)
     return { name = name, link = link, icon = icon, slot = GROUP_LABEL[GROUP_OF[e.loc]] or "", level = e.level,
         worn = e.worn, wornLink = worn, gain = e.gain, price = e.price, age = e.age,
-        perGold = e.score, note = e.note, stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
+        perGold = e.score, note = e.note, why = M.WhyText(link or ("item:" .. e.id), worn, select(2, UnitClass("player"))), stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
         all = M.StatGains(link or ("item:" .. e.id), worn, TABLE_ROWS, true, true) }
 end
 
@@ -685,8 +712,7 @@ function M:ShowDetail(e)
         i.worn and i.worn > 0 and tostring(i.worn) or "nothing"))
     d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot") .. (i.note and ("  |cffE8A060" .. i.note .. "|r") or ""))
     d.line[3]:SetText("Price: " .. MoneyText(i.price) .. "  |cff8A93A0(" .. AgeText(i.age) .. ")|r")
-    d.line[4]:SetText(e.useful and ("Worth: |cff7CFF8A+%.1f|r for your class  |cff8A93A0(%.1f item levels per gold)|r"):format(e.useful, i.perGold or 0)
-        or i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or "")
+    d.line[4]:SetText(i.why or (i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or ""))
     for k, h in ipairs(d.tableHead) do h:SetText(({ "Stat", "Current", "Buy", "Change" })[k]) end
     for r, row in ipairs(d.table) do
         local g = i.all[r]

@@ -32,9 +32,12 @@ Talents unlock at level 10, so use characters at level 10 or higher.
    then `tools/check.sh`. With markers in place, Automatic scoring can use the talents (after the shapeshift
    form, before a guess).
 
+## Confirmed in game
+
+- `GetShapeshiftForm()`: Cat = 3 and Bear = 1 (level 22 Druid: attack power 177 and 130 match the classic cat and bear formulas).
+
 ## Other facts still to confirm in game
 
-- Bear Form's `GetShapeshiftForm()` number (assumed 1; Cat = 3 is confirmed).
 - Whether crit, hit and haste arrive on items as ratings (assumed) or percentages.
 - The level at which talents unlock (10, as reported; not read from the client).
 - GearQuest Forever's own licence terms (the weights reach us through Pawn Forever, MIT).

@@ -409,6 +409,32 @@ function CD:Update()
     CD:Place()
 end
 
+-- One line each on why the timeline shows what it shows (for /tempus cddebug).
+function CD.Debug()
+    local out = {}
+    local function Add(fmt, ...) out[#out + 1] = fmt:format(...) end
+    local db, f = CD.db, CD.frame
+    if not (db and f) then return { "cooldowns: module is not running (General > Modules)." } end
+    local x, y = f:GetCenter()
+    local w, h = f:GetSize()
+    Add("cooldowns: mode=%s, enabled=%s, frame %s %.0fx%.0f at %s,%s, locked=%s, bg=%s opacity=%.2f, showReady=%s",
+        tostring(db.mode), tostring(db.enabled), f:IsShown() and "shown" or "HIDDEN", w, h,
+        x and ("%.0f"):format(x) or "?", y and ("%.0f"):format(y) or "?", tostring(T.db.locked), tostring(db.bgStyle), db.bgOpacity or 0, tostring(db.showReady))
+    local wanted = CD:Wanted()
+    Add("tracked: %d entries (%d spells in your list, trinkets %s)", #wanted, (function() local n = 0 for _ in pairs(T.db.lists.cooldowns or {}) do n = n + 1 end return n end)(), db.trinkets and "on" or "off")
+    local now = GetTime()
+    for i, b in ipairs(CD.icons) do
+        if b.entry then
+            local left = b.cdStart and b.cdDur and (b.cdStart + b.cdDur - now)
+            Add("  #%d %s: %s, down=%s, remaining=%s, pos=%s, secret=%s, %s",
+                i, b.entry.spell and ("spell " .. b.entry.spell) or ("slot " .. b.entry.slot), b:IsShown() and "shown" or "hidden",
+                tostring(b.down), left and ("%.1fs"):format(left) or "unknown", b.pos and ("%.2f"):format(b.pos) or "-",
+                tostring(b.secretDur ~= nil), b.parked and "parked (ready, hidden)" or "placed")
+        end
+    end
+    return out
+end
+
 -- Settings preview: fake spells falling down the real timeline layout, on their own clock.
 local DEMO_ICONS = { 136243, 135808, 132333, 136048, 135846 }
 function CD.CreateDemo(width, height)

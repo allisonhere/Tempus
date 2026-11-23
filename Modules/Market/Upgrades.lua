@@ -631,7 +631,7 @@ local GOLD = { 1, 0.80, 0.32 }
 local function Paint(tex, c, a) tex:SetVertexColor(c[1], c[2], c[3], a or 1) return tex end
 
 
-local TABLE_ROW, TABLE_ROWS = 16, 10                  -- stat table rows
+local TABLE_ROW, TABLE_ROWS = 16, 14                  -- stat table rows
 local FACT_X = 84                                       -- value column of the facts block
 local GROUP_LABEL = {}
 local GROUP_LABEL = {}
@@ -678,7 +678,7 @@ end
 
 -- The text of an item's own tooltip, read from a hidden tooltip, so the window can show everything the
 -- game shows for it (binding, armor, stats, requirements, Equip and Use effects) without opening one.
-local TIP_NAME, TIP_MAX = "TempusGearAdvisorScan", 12
+local TIP_NAME = "TempusGearAdvisorScan"
 
 -- Lines of a tooltip as { left, right, r, g, b }; empty lines are skipped. `get(name)` gives a global
 -- by name (the game's TooltipNameTextLeft1 ... fontstrings), so tests can feed a fake one.
@@ -720,37 +720,39 @@ function M.TipLines(link)
     return lines
 end
 
--- Fill one block of the Item text tab: a heading and up to TIP_MAX lines (the item's name is the heading,
--- so the first line is skipped); more lines than fit end in a count.
-function M.FillTip(block, heading, lines)
-    block.head:SetText(heading)
-    local first = 2
-    local room = TIP_MAX
-    local more = math.max(0, (#lines - first + 1) - room)
-    for i = 1, TIP_MAX do
-        local row, line = block.rows[i], lines[first + i - 1]
-        if more > 0 and i == TIP_MAX then
-            row.left:SetText(("(%d more lines)"):format(more + 1)); row.left:SetTextColor(0.55, 0.58, 0.63); row.right:SetText("")
-        elseif line then
-            row.left:SetText(line[1]); row.left:SetTextColor(line[3], line[4], line[5])
-            row.right:SetText(line[2]); row.right:SetTextColor(line[3], line[4], line[5])
-        else
-            row.left:SetText(""); row.right:SetText("")
+-- A tooltip squeezed into a few lines of coloured text: the name line is dropped (the heading has it),
+-- a line's right-hand text joins it, and plain "+12 Agility" lines share one line. Colours are the game's.
+local function Hex(r, g, b) return ("|cff%02x%02x%02x"):format(math.floor(r * 255 + 0.5), math.floor(g * 255 + 0.5), math.floor(b * 255 + 0.5)) end
+
+function M.CompactTip(lines)
+    local out, stats = {}, nil
+    local function flush()
+        if stats then
+            out[#out + 1] = Hex(stats.r, stats.g, stats.b) .. table.concat(stats.items, "  ·  ") .. "|r"
+            stats = nil
         end
     end
+    for i = 2, #lines do
+        local l = lines[i]
+        local text = l[1]
+        if l[2] and l[2] ~= "" then text = (text ~= "" and (text .. "   ") or "") .. l[2] end
+        if text:match("^%+%d[%d%.,]*%%?%s+[%a][%a%s%.']*$") then
+            stats = stats or { items = {}, r = l[3], g = l[4], b = l[5] }
+            stats.items[#stats.items + 1] = text
+        else
+            flush()
+            out[#out + 1] = Hex(l[3], l[4], l[5]) .. text .. "|r"
+        end
+    end
+    flush()
+    return table.concat(out, "\n")
 end
 
 function M.BuildDetail(p, scroll)
     local d = CreateFrame("Frame", nil, p)
     d:SetPoint("TOPLEFT", scroll, "TOPRIGHT", 8, 0)
     d:SetSize(DETAIL_W - 18, VISIBLE * ROW_H)
-    local W = DETAIL_W - 20
-    -- Two views of the same listing: Compare (facts and the stat table) and Item text (the tooltips).
-    local cmp = CreateFrame("Frame", nil, d)
-    cmp:SetAllPoints(d)
-    local txt = CreateFrame("Frame", nil, d)
-    txt:SetAllPoints(d)
-    d.cmp, d.txt = cmp, txt
+    local W = DETAIL_W - 24
     d.icon = d:CreateTexture(nil, "ARTWORK")
     d.icon:SetSize(36, 36)
     d.icon:SetPoint("TOPLEFT", 0, 0)
@@ -767,98 +769,70 @@ function M.BuildDetail(p, scroll)
     d.slot:SetPoint("TOPLEFT", d.name, "BOTTOMLEFT", 0, -3)
     d.slot:SetWidth(W - 44)
     d.slot:SetWordWrap(false)
-    -- Facts: a muted label and its value, one pair per row. Rows that can run long wrap onto a second line.
+    -- Everything below the header scrolls: the worn item's tooltip, the listing's tooltip, then the math.
+    local sc = CreateFrame("ScrollFrame", nil, d)
+    sc:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -46)
+    sc:SetSize(DETAIL_W - 18, VISIBLE * ROW_H - 46)
+    sc:EnableMouseWheel(true)
+    local c = CreateFrame("Frame", nil, sc)
+    c:SetSize(W, 1)
+    sc:SetScrollChild(c)
+    sc:SetScript("OnMouseWheel", function(f, delta)
+        local max = math.max(0, c:GetHeight() - f:GetHeight())
+        f:SetVerticalScroll(math.max(0, math.min(max, f:GetVerticalScroll() - delta * 36)))
+    end)
+    d.scroll, d.content, d.W = sc, c, W
+    local function Block()
+        local b = {}
+        b.head = S.Text(c, 11, GOLD)
+        b.head:SetWidth(W)
+        b.head:SetWordWrap(false)
+        b.body = S.Text(c, 10, S.C.text)
+        b.body:SetWidth(W)
+        b.body:SetJustifyH("LEFT")
+        b.body:SetJustifyV("TOP")
+        b.body:SetWordWrap(true)
+        return b
+    end
+    d.wear, d.buy = Block(), Block()
+    -- The math: a muted label and its value per row, then the stat table.
+    d.mathHead = S.Text(c, 11, GOLD)
+    d.mathHead:SetWidth(W)
+    d.mathHead:SetText("The math")
+    d.rule = Paint(S.Tex(c, "ARTWORK"), GOLD, 0.5)
+    d.rule:SetSize(W, 1)
     d.facts = {}
-    local y = 48
-    for _, f in ipairs({ { "Score", 16 }, { "Item level", 16 }, { "Price", 16 }, { "Replaces", 30 }, { "Trust", 44 }, { "Why", 44 } }) do
-        local label = S.Text(cmp, 11, S.C.muted)
-        label:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -y)
+    for _, name in ipairs({ "Score", "Item level", "Price", "Replaces", "Trust", "Why" }) do
+        local label = S.Text(c, 11, S.C.muted)
         label:SetWidth(FACT_X - 6)
         label:SetJustifyH("LEFT")
-        label:SetText(f[1])
-        local value = S.Text(cmp, 11, S.C.text)
-        value:SetPoint("TOPLEFT", d, "TOPLEFT", FACT_X, -y)
-        value:SetSize(W - FACT_X, f[2])
+        label:SetText(name)
+        local value = S.Text(c, 11, S.C.text)
+        value:SetWidth(W - FACT_X)
         value:SetJustifyH("LEFT")
         value:SetJustifyV("TOP")
-        value:SetWordWrap(f[2] > 16)
-        d.facts[f[1]] = { label = label, value = value }
-        y = y + f[2] + 4
+        value:SetWordWrap(true)
+        d.facts[name] = { label = label, value = value }
     end
-    d.rule = Paint(S.Tex(cmp, "ARTWORK"), GOLD, 0.5)
-    d.rule:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(y + 2))
-    d.rule:SetSize(W, 1)
-    local tableY = y + 10
-    -- Side-by-side table: what you wear against what you would buy, and what each stat adds to the score.
-    local cols = { { 0, 104, "LEFT" }, { 106, 52, "RIGHT" }, { 160, 52, "RIGHT" }, { 214, 52, "RIGHT" }, { 268, W - 268, "RIGHT" } }
-    local function Cell(c, yy, color)
-        local fs = S.Text(cmp, 11, color or S.C.text)
-        fs:SetPoint("TOPLEFT", d, "TOPLEFT", c[1], -yy)
-        fs:SetWidth(c[2])
-        fs:SetJustifyH(c[3])
+    d.cols = { { 0, 104, "LEFT" }, { 106, 52, "RIGHT" }, { 160, 52, "RIGHT" }, { 214, 52, "RIGHT" }, { 268, W - 268, "RIGHT" } }
+    local function Cell(col, color)
+        local fs = S.Text(c, 11, color or S.C.text)
+        fs:SetWidth(col[2])
+        fs:SetJustifyH(col[3])
         fs:SetWordWrap(false)
         return fs
     end
     d.tableHead = {}
-    for k, c in ipairs(cols) do
-        d.tableHead[k] = Cell(c, tableY, GOLD)
+    for k, col in ipairs(d.cols) do
+        d.tableHead[k] = Cell(col, GOLD)
         d.tableHead[k]:SetText(({ "Stat", "Current", "Buy", "Change", "Score" })[k])
     end
     d.table = {}
     for r = 1, TABLE_ROWS do
         local row = {}
-        for k, c in ipairs(cols) do row[k] = Cell(c, tableY + 4 + r * TABLE_ROW) end
+        for k, col in ipairs(d.cols) do row[k] = Cell(col) end
         d.table[r] = row
     end
-    -- Item text: the listing's tooltip above the tooltip of what you wear, as the game writes them.
-    local function Block(top)
-        local block = { rows = {} }
-        block.head = S.Text(txt, 11, GOLD)
-        block.head:SetPoint("TOPLEFT", txt, "TOPLEFT", 0, -top)
-        block.head:SetWidth(W)
-        block.head:SetWordWrap(false)
-        for i = 1, TIP_MAX do
-            local row = {}
-            row.left = S.Text(txt, 10, S.C.text)
-            row.left:SetPoint("TOPLEFT", txt, "TOPLEFT", 0, -(top + 4 + i * 13))
-            row.left:SetWidth(W - 96)
-            row.left:SetJustifyH("LEFT")
-            row.left:SetWordWrap(false)
-            row.right = S.Text(txt, 10, S.C.text)
-            row.right:SetPoint("TOPRIGHT", txt, "TOPLEFT", W, -(top + 4 + i * 13))
-            row.right:SetWidth(90)
-            row.right:SetJustifyH("RIGHT")
-            row.right:SetWordWrap(false)
-            block.rows[i] = row
-        end
-        return block
-    end
-    d.buy, d.wear = Block(46), Block(46 + 4 + (TIP_MAX + 1) * 13 + 10)
-    d.note = S.Text(txt, 10, S.C.muted)
-    d.note:SetPoint("TOPLEFT", txt, "TOPLEFT", 0, -(46 + 4 + (TIP_MAX + 1) * 13 + 10 + 4 + (TIP_MAX + 1) * 13 + 2))
-    d.note:SetWidth(W)
-    d.note:SetText("Equip and Use effects are shown, but not scored.")
-    -- Tabs along the bottom edge.
-    d.tabs = {}
-    local function Tab(key, label, x)
-        local b = CreateFrame("Button", nil, d)
-        b:SetSize(90, 18)
-        b:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", x, 0)
-        b.text = S.Text(b, 11, S.C.muted)
-        b.text:SetPoint("LEFT", 0, 0)
-        b.text:SetText(label)
-        b.line = Paint(S.Tex(b, "ARTWORK"), GOLD, 1)
-        b.line:SetPoint("BOTTOMLEFT", 0, 0)
-        b.line:SetPoint("BOTTOMRIGHT", -14, 0)
-        b.line:SetHeight(1)
-        b:SetScript("OnClick", function()
-            if T.db.market then T.db.market.detailTab = key end
-            M:ShowDetail(M.detailEntry)
-        end)
-        d.tabs[key] = b
-    end
-    Tab("COMPARE", "Compare", 0)
-    Tab("TEXT", "Item text", 90)
     d.hint = S.Text(d, 11, S.C.muted)
     d.hint:SetPoint("TOPLEFT", 0, 0)
     d.hint:SetWidth(W)
@@ -875,39 +849,44 @@ function M:ShowDetail(e)
     local p, d = self.upgradePanel, self.upgradePanel and self.upgradePanel.detail
     if not d then return end
     self.detailEntry = e
-    local function Clear()
-        d.hint:Show(); d.icon:Hide(); d.glow:Hide(); d.name:SetText(""); d.slot:SetText(""); d.rule:Hide()
-        d.cmp:Hide(); d.txt:Hide()
-        for _, b in pairs(d.tabs) do b:Hide() end
-        for _, f in pairs(d.facts) do f.label:Hide(); f.value:SetText("") end
-        for _, h in ipairs(d.tableHead) do h:SetText("") end
-        for _, row in ipairs(d.table) do for _, c in ipairs(row) do c:SetText("") end end
+    if not e then
+        d.hint:Show(); d.icon:Hide(); d.glow:Hide(); d.name:SetText(""); d.slot:SetText("")
+        d.scroll:Hide()
+        return
     end
-    if not e then Clear() return end
     local i = M.DetailInfo(e)
     d.hint:Hide()
     d.icon:Show()
-    d.rule:Show()
-    local tab = T.db.market and T.db.market.detailTab == "TEXT" and "TEXT" or "COMPARE"
-    d.cmp:SetShown(tab == "COMPARE")
-    d.txt:SetShown(tab == "TEXT")
-    for key, b in pairs(d.tabs) do
-        b:Show()
-        b.text:SetTextColor(key == tab and GOLD[1] or S.C.muted[1], key == tab and GOLD[2] or S.C.muted[2], key == tab and GOLD[3] or S.C.muted[3])
-        b.line:SetShown(key == tab)
-    end
-    if tab == "TEXT" then
-        M.FillTip(d.buy, "Buying  " .. (i.link or i.name or ""), M.TipLines(i.link or ("item:" .. e.id)))
-        M.FillTip(d.wear, "Wearing  " .. (i.wornLink or "nothing in that slot"), i.wornLink and M.TipLines(i.wornLink) or {})
-    end
+    d.scroll:Show()
     d.glow:SetVertexColor(QualityColor(e.quality))
     d.glow:Show()
     d.icon:SetTexture(i.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
     d.name:SetText(i.link or i.name or ("item:" .. e.id))
     d.slot:SetText(i.slot .. ((i.tags and #i.tags > 0) and ("   |cffFFD651" .. table.concat(i.tags, "  ·  ") .. "|r") or ""))
-    for _, f in pairs(d.facts) do f.label:Show() end
-    local F = d.facts
     local muted = "|cff8A93A0"
+    local content = d.content
+    local y = 0
+    local function Place(region, x, at)
+        region:ClearAllPoints()
+        region:SetPoint("TOPLEFT", content, "TOPLEFT", x, -at)
+    end
+    local function Height(fs, minimum)
+        local h = fs.GetStringHeight and fs:GetStringHeight()
+        return math.max(minimum or 12, Num(h) and h or 0)
+    end
+    -- 1. What you wear, then 2. what you would buy, each as the game's tooltip squeezed into a few lines.
+    d.wear.head:SetText("Wearing  " .. (i.wornLink or muted .. "nothing in that slot|r"))
+    d.wear.body:SetText(i.wornLink and M.CompactTip(M.TipLines(i.wornLink)) or "")
+    d.buy.head:SetText("Buying  " .. (i.link or i.name or ""))
+    d.buy.body:SetText(M.CompactTip(M.TipLines(i.link or ("item:" .. e.id))))
+    for _, block in ipairs({ d.wear, d.buy }) do
+        Place(block.head, 0, y); y = y + 16
+        Place(block.body, 0, y); y = y + Height(block.body, 12) + 10
+    end
+    -- 3. The math.
+    Place(d.mathHead, 0, y); y = y + 16
+    Place(d.rule, 0, y); y = y + 6
+    local F = d.facts
     F.Score.value:SetText(i.score
         and (("|cff7CFF8A%+.1f|r as %s%s"):format(i.score, i.role or "your class",
             i.roleWhy and (" " .. muted .. "(" .. (i.roleWhy == "chosen" and "your choice" or i.roleWhy == "form" and "from your form"
@@ -919,9 +898,17 @@ function M:ShowDetail(e)
     F.Replaces.value:SetText((i.wornLink or "empty slot") .. (i.note and ("\n|cffE8A060" .. i.note .. "|r") or ""))
     F.Trust.value:SetText(("|cffffffff%s|r\n%s%s|r"):format(i.confidenceLabel or "", muted, i.confidenceReasons or ""))
     F.Why.value:SetText(i.parts or (i.perGold and ("%.1f item levels per gold"):format(i.perGold) or ""))
-    for k, h in ipairs(d.tableHead) do h:SetText(({ "Stat", "Current", "Buy", "Change", "Score" })[k]) end
+    for _, name in ipairs({ "Score", "Item level", "Price", "Replaces", "Trust", "Why" }) do
+        local f = F[name]
+        Place(f.label, 0, y); Place(f.value, FACT_X, y)
+        y = y + Height(f.value, 14) + 4
+    end
+    y = y + 6
+    for k, h in ipairs(d.tableHead) do Place(h, d.cols[k][1], y) end
+    y = y + 16
     for r, row in ipairs(d.table) do
         local g = i.all[r]
+        for k, cell in ipairs(row) do Place(cell, d.cols[k][1], y) end
         if g then
             local c = M.BarColor(g.label, g.key)
             row[1]:SetText(g.label); row[1]:SetTextColor(c[1], c[2], c[3])
@@ -930,10 +917,15 @@ function M:ShowDetail(e)
             row[4]:SetText(g.amount > 0 and ("|cff7CFF8A+" .. AmountText(g.amount) .. "|r")
                 or g.amount < 0 and ("|cffFF6B6B-" .. AmountText(-g.amount) .. "|r") or "|cff888888=|r")
             row[5]:SetText(g.score and (g.score >= 0 and ("|cffFFD651+%.1f|r"):format(g.score) or ("|cffFF6B6B%.1f|r"):format(g.score)) or "|cff888888-|r")
+            y = y + TABLE_ROW
         else
             for _, cell in ipairs(row) do cell:SetText("") end
         end
     end
+    content:SetHeight(y + 8)
+    local viewH, scrolled = d.scroll:GetHeight(), d.scroll:GetVerticalScroll()
+    local limit = math.max(0, y + 8 - (Num(viewH) and viewH or 0))
+    if Num(scrolled) and scrolled > limit then d.scroll:SetVerticalScroll(limit) end
 end
 
 function M:BuildUpgradePanel()

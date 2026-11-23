@@ -351,10 +351,6 @@ function W.Slider(label, minV, maxV, step, get, set, fmt, tip)
             Changed()
         end
     end)
-    s:EnableMouseWheel(true)
-    s:SetScript("OnMouseWheel", function(self, delta)
-        self:SetValue(math.min(maxV, math.max(minV, self:GetValue() + delta * step)))
-    end)
     value:SetScript("OnEnterPressed", function(self)
         local v = tonumber((self:GetText():gsub("[^%d%.%-]", "")))
         if v then s:SetValue(math.min(maxV, math.max(minV, v))) end

@@ -135,3 +135,73 @@ function M.GearProbe()
     end
     return out
 end
+
+-- /tempus gearstats: every stat name the game uses on the gear you carry, with how often it shows up,
+-- the range of values, one example item, and whether Gear Advisor gives it a weight. Run it on
+-- characters that wear different kinds of gear to find stat names the scoring does not know.
+function M.GearStats()
+    local out = {}
+    local getStats = C_Item and C_Item.GetItemStats
+    if type(getStats) ~= "function" then return { "C_Item.GetItemStats is missing on this client" } end
+    local links = {}
+    for slot = 1, 19 do
+        local ok, link = pcall(GetInventoryItemLink, "player", slot)
+        if ok and type(link) == "string" then links[#links + 1] = link end
+    end
+    local C = C_Container
+    local bags = (NUM_BAG_SLOTS or 4)
+    for bag = 0, bags do
+        local okN, n = pcall(C and C.GetContainerNumSlots or GetContainerNumSlots, bag)
+        if okN and type(n) == "number" then
+            for slot = 1, n do
+                local ok, link = pcall(C and C.GetContainerItemLink or GetContainerItemLink, bag, slot)
+                if ok and type(link) == "string" then links[#links + 1] = link end
+            end
+        end
+    end
+    local weighted = {}
+    local W = T.GearAdvisor and T.GearAdvisor.Weights
+    if W then
+        for key, roles in pairs(W) do
+            if type(roles) == "table" then
+                for _, set in pairs(roles) do
+                    for _, tbl in ipairs({ set.leveling or {}, set.max or {} }) do
+                        for stat in pairs(tbl) do weighted[stat] = true end
+                    end
+                end
+            end
+        end
+    end
+    local seen, seenItems = {}, 0
+    for _, link in ipairs(links) do
+        local ok, stats = pcall(getStats, link)
+        if ok and type(stats) == "table" then
+            seenItems = seenItems + 1
+            for key, amount in pairs(stats) do
+                if not (T.issecret and T.issecret(key)) then
+                    local e = seen[key] or { n = 0 }
+                    seen[key] = e
+                    e.n = e.n + 1
+                    if type(amount) == "number" then
+                        e.lo = math.min(e.lo or amount, amount)
+                        e.hi = math.max(e.hi or amount, amount)
+                    end
+                    if not e.example then
+                        local okI, name = pcall((C_Item and C_Item.GetItemInfo) or GetItemInfo or error, link)
+                        e.example = okI and name or link
+                    end
+                end
+            end
+        end
+    end
+    local keys = {}
+    for key in pairs(seen) do keys[#keys + 1] = key end
+    table.sort(keys)
+    out[#out + 1] = ("%d items read, %d stat names"):format(seenItems, #keys)
+    for _, key in ipairs(keys) do
+        local e = seen[key]
+        local range = e.lo and (e.lo == e.hi and tostring(e.lo) or (e.lo .. " to " .. e.hi)) or "?"
+        out[#out + 1] = ("%s%s: %d items, %s, e.g. %s"):format(weighted[key] and "" or "NO WEIGHT  ", tostring(key), e.n, range, tostring(e.example))
+    end
+    return out
+end

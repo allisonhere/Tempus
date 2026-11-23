@@ -4,6 +4,7 @@
 
 ### Added
 - **Gear Advisor ranks by your stats.** The list weighs how much the stats your class cares about improve against the price (item levels when the game gives no stats), drops gear with worse stats for your class, and has a **Rank upgrades by** setting: best value, biggest upgrade or cheapest. The window has a new gold look with value meters.
+- **`/tempus gearstats`** lists every stat name the game uses on the gear you wear and carry, with how often it appears, its range, an example item and whether Gear Advisor gives it a weight. It finds stat names the scoring does not know yet.
 - **`/tempus gearprobe`** lists which talent, stat and item calls this client really has, with what they return. It is for building the next steps of Gear Advisor on what the game offers.
 
 - **Gear Advisor scores gear for the job you play (Druid first).** A Cat scores agility, attack power and weapon damage; a Bear scores stamina, armor and dodge; Restoration and Balance have their own weights. Choose the job under Convenience > Auction values > **Score gear as**, or leave it on Automatic to follow your shapeshift form. The detail pane now says why an item scored what it did, for example "+12.4 as Cat (from your form): +12 Agility, -4 Stamina (estimate)". The weights are community estimates from GearQuest Forever, via Pawn Forever (MIT), and are labelled as estimates. Other classes keep the existing class weights for now.

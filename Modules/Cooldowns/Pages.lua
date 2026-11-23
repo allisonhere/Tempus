@@ -93,7 +93,16 @@ T:RegisterPage("combat", { key = "targetdebuffs", label = "Target debuffs", orde
     p:Check(cfg, "showTicks", "Show lines at each mark")
     p:Check(cfg, "accentRail", "Colour the rail with the accent")
     p:Dropdown(cfg, "labelSide", "Labels and rail on", { { "LEFT", "Left" }, { "RIGHT", "Right" } })
-    p:Section("Your debuffs and their length", "The surest way to get a debuff on the timeline: list it with how many seconds it lasts, for example Moonfire 12 or Corruption 18. Casting it then starts its timer, in or out of combat. A spell ID works too (8921 12).")
+    p:Section("Your debuffs and their length", "The surest way to get a debuff on the timeline: pick it from your spells, or type it with how many seconds it lasts, for example Moonfire 12 or Corruption 18. Casting it then starts its timer, in or out of combat. A spell ID works too (8921 12).")
+    p:Add(W.Button("Pick from my spells", function(btn)
+        local TD = T.TargetDebuffs
+        local items = {}
+        for _, e in ipairs(TD and TD.KnownDebuffs() or {}) do
+            items[#items + 1] = { e.name .. " " .. e.seconds, ("%s |cff9aa4b2%ds|r"):format(e.name, e.seconds) }
+        end
+        if #items == 0 then items = { { "", "|cff888888No debuff spells found for your level and class|r" } } end
+        UI.OpenMenu(btn, items, function(v) if v ~= "" then T:ListAdd("debuffs", v) Changed() end end)
+    end, "Lists your known harmful spells whose text gives a length, such as Moonfire 12s. The length comes from the spell's own text, so check it against what you see."))
     p:Add(W.List("debuffs", "Debuff and seconds, e.g. Rake 9", true), 236, true)
     p:Section("In combat", "The game hides debuffs from addons during a fight, so Tempus cannot read them then. It times your casts instead, using how long each debuff lasted the last time it could read it out of combat (Rake, Rip and Rupture have built-in lengths). Apply each of your other debuffs once out of combat, on a dummy or a mob, and Tempus learns it. /tempus tddebug shows what it has learned.")
 end })

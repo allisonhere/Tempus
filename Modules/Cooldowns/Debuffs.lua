@@ -97,6 +97,61 @@ function DT.Listed()
     return out
 end
 
+-- Seconds a spell's text says it lasts ("for 12 sec", "over 18 sec"), or nil.
+function DT.LengthFromText(text)
+    if type(text) ~= "string" then return nil end
+    local n = text:match("[Ff]or (%d+%.?%d*) sec") or text:match("over (%d+%.?%d*) sec") or text:match("(%d+%.?%d*) sec")
+    return tonumber(n)
+end
+
+-- The player's usable spells that look like debuffs: harmful, with a length in their text.
+-- Each is { name, id, seconds }, sorted by name.
+function DT.KnownDebuffs()
+    local out, seen = {}, {}
+    local function Add(name, id)
+        if type(name) ~= "string" or seen[name] or not id then return end
+        if IsHarmfulSpell then
+            local ok, harmful = pcall(IsHarmfulSpell, name)
+            if ok and not (T.issecret and T.issecret(harmful)) and harmful == false then return end
+        end
+        local text
+        if C_Spell and C_Spell.GetSpellDescription then
+            local ok, d = pcall(C_Spell.GetSpellDescription, id)
+            if ok and Plain(d) then text = d end
+        end
+        local secs = DT.LengthFromText(text)
+        if not secs then return end
+        seen[name] = true
+        out[#out + 1] = { name = name, id = id, seconds = secs }
+    end
+    pcall(function()
+        if C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and C_SpellBook.GetSpellBookItemInfo then
+            local bank = Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+            local spellType = Enum.SpellBookItemType and Enum.SpellBookItemType.Spell
+            for i = 1, C_SpellBook.GetNumSpellBookSkillLines() do
+                local line = C_SpellBook.GetSpellBookSkillLineInfo(i)
+                if line and not line.offSpecID then
+                    for j = line.itemIndexOffset + 1, line.itemIndexOffset + line.numSpellBookItems do
+                        local info = C_SpellBook.GetSpellBookItemInfo(j, bank)
+                        if info and (spellType == nil or info.itemType == spellType) and not info.isPassive then Add(info.name, info.spellID) end
+                    end
+                end
+            end
+        elseif GetNumSpellTabs and GetSpellTabInfo then
+            for t = 1, GetNumSpellTabs() do
+                local _, _, offset, count = GetSpellTabInfo(t)
+                for i = offset + 1, offset + count do
+                    local name = GetSpellBookItemName(i, BOOKTYPE_SPELL or "spell")
+                    local kind, id = GetSpellBookItemInfo(i, BOOKTYPE_SPELL or "spell")
+                    if kind == "SPELL" then Add(name, id) end
+                end
+            end
+        end
+    end)
+    table.sort(out, function(a, b) return a.name < b.name end)
+    return out
+end
+
 -- Your cast landed: if it is a debuff we know the length of (learned, or the seeds above),
 -- start its timer on the target. This works in combat, when auras cannot be read.
 function DT:OnCast(spellID)

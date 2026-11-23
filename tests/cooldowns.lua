@@ -71,3 +71,8 @@ C_Spell.GetSpellInfo = function(x) if x == 8921 then return { name = "Sunfire" }
 local listed = DT.Listed()
 assert(listed.moonfire == 12 and listed.sunfire == 15 and listed.rend == 15 and not listed.bogus, "listed debuff lengths")
 print("PASS: listed debuff lengths accept names, spell IDs and a trailing s")
+
+assert(DT.LengthFromText("Burns the target for 12 sec, dealing damage.") == 12, "for N sec")
+assert(DT.LengthFromText("Deals 100 damage over 8.5 sec.") == 8.5, "over N sec")
+assert(DT.LengthFromText("Instantly strikes.") == nil, "no length")
+print("PASS: spell text gives a debuff length")

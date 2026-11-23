@@ -30,6 +30,7 @@ local function Create()
     win.hint:SetWordWrap(true)
 
     local box = CreateFrame("Frame", nil, win)
+    win.box = box
     box:SetPoint("TOPLEFT", 16, -78)
     box:SetPoint("BOTTOMRIGHT", -16, 90)
     Tex(box, "BACKGROUND", C.field or { 0.03, 0.035, 0.045, 1 }):SetAllPoints()
@@ -107,8 +108,22 @@ local function Create()
     end
 end
 
+-- The report window has three buttons on the bottom row, so its name box moves up onto its own row.
+local function Layout(report)
+    win:SetHeight(report and 424 or 380)
+    win.box:ClearAllPoints()
+    win.box:SetPoint("TOPLEFT", 16, -78)
+    win.box:SetPoint("BOTTOMRIGHT", -16, report and 134 or 90)
+    win.nameLabel:ClearAllPoints()
+    win.nameLabel:SetPoint("BOTTOMLEFT", 16, report and 62 or 22)
+    win.status:ClearAllPoints()
+    win.status:SetPoint("BOTTOMLEFT", 16, report and 102 or 62)
+    win.status:SetPoint("RIGHT", win, "RIGHT", -16, 0)
+end
+
 function T:ShowShare(mode)
     if not win then Create() end
+    Layout(mode == "gearreport")
     win.mode = mode
     win.status:SetText("")
     win.whisper:Hide(); win.mail:Hide()

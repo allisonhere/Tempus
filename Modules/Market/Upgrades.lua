@@ -291,6 +291,36 @@ function M.FilterSummary(filters)
     return table.concat(parts, ", ")
 end
 
+-- Gear in your bags you could wear now, as { group, level, link } for GearAdvisor.Owned.
+local function CarriedGear(class, level, instant, getInfo, detailed)
+    local items = {}
+    local C = C_Container
+    local numSlots = (C and C.GetContainerNumSlots) or GetContainerNumSlots
+    local getLink = (C and C.GetContainerItemLink) or GetContainerItemLink
+    if type(numSlots) ~= "function" or type(getLink) ~= "function" then return items end
+    for bag = 0, (NUM_BAG_SLOTS or 4) do
+        local n = Call(numSlots, bag)
+        if Num(n) then
+            for slot = 1, n do
+                local link = Call(getLink, bag, slot)
+                if type(link) == "string" then
+                    local okI, _, _, _, loc, _, classID, subClassID = pcall(instant, link)
+                    if not okI then loc = nil end
+                    local group = type(loc) == "string" and GROUP_OF[loc]
+                    if group and (classID == 2 or classID == 4) and not SKIP_LOCS[loc] then
+                        local _, _, _, _, minLevel = Call(getInfo, link)
+                        local ilvl = Call(detailed, link)
+                        if Num(ilvl) and M.CanUse(class, level, classID, subClassID, loc, minLevel) then
+                            items[#items + 1] = { group = group, level = ilvl, link = link }
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return items
+end
+
 -- Returns a ranked list, the number of items still waiting on item data, and how many were
 -- requested this pass. Entry: { id, price, age, gain, level, worn, loc, score }.
 local WornLink      -- defined with the detail code below
@@ -318,6 +348,8 @@ function M:FindUpgrades()
     Dual = CanDual()
     local held = HeldTypes()
     local roleWeights = M.RoleWeights(class)
+    local carried = T.GearAdvisor.Owned.Best(CarriedGear(class, level, instant, getInfo, detailed))
+    local beaten = 0
     local uniqueOf = C and C.GetItemUniquenessByID
     local wornIds = {}
 
@@ -347,7 +379,9 @@ function M:FindUpgrades()
                         end
                     end
                     local unique = uniqueOf and Call(uniqueOf, id)
-                    if not M.PassesFilters(filters, quality, minLevel, row.c, row.s, loc)
+                    if T.GearAdvisor.Owned.Beats(carried, GROUP_OF[loc], ilvl) then
+                        beaten = beaten + 1
+                    elseif not M.PassesFilters(filters, quality, minLevel, row.c, row.s, loc)
                         or R.UniqueConflict(id, unique == true, wornIds[loc]) then
                         hidden = hidden + 1
                     else
@@ -391,7 +425,7 @@ function M:FindUpgrades()
         counts[key] = (counts[key] or 0) + 1
         if counts[key] <= PER_GROUP then kept[#kept + 1] = e end
     end
-    return kept, pending, requested, hidden, filters
+    return kept, pending, requested, hidden, filters, beaten
 end
 
 -- What improves ------------------------------------------------------------------------------
@@ -964,10 +998,10 @@ function M:RefreshUpgrades()
         p.price:SetText(maxGold > 0 and (maxGold == math.floor(maxGold) and ("%d"):format(maxGold) or tostring(maxGold)) or "")
     end
     if p.priceHint and p.price then p.priceHint:SetShown((p.price:GetText() or "") == "") end
-    local list, pending, hidden, filters = {}, 0, 0, nil
+    local list, pending, hidden, filters, beaten = {}, 0, 0, nil, 0
     if Num(store.scanned) then
-        local ok, l, n, _, h, f = pcall(self.FindUpgrades, self)
-        if ok then list, pending, hidden, filters = l, n, h or 0, f end
+        local ok, l, n, _, h, f, b = pcall(self.FindUpgrades, self)
+        if ok then list, pending, hidden, filters, beaten = l, n, h or 0, f, b or 0 end
     end
     local layout = M.Layout(list)
     local maxRank = {}
@@ -1050,10 +1084,11 @@ function M:RefreshUpgrades()
         p.status:SetText("")
     end
     local scanned = Num(store.scanned) and (time() - store.scanned) or nil
-    p.foot:SetText(scanned and (("Scanned %s ago. Ranked by item levels gained per gold.")
+    p.foot:SetText(scanned and (("Scanned %s ago. Ranked by how much your stats improve for the price.")
         :format(scanned >= 86400 and (math.floor(scanned / 86400) .. " d") or scanned >= 3600
         and (math.floor(scanned / 3600) .. " h") or (math.floor(scanned / 60) .. " min"))
-        .. (filters and ("  Using AH filters: " .. M.FilterSummary(filters)) or "")) or "")
+        .. (filters and ("  Using AH filters: " .. M.FilterSummary(filters)) or "")
+        .. (beaten > 0 and (("  %d left out: you already carry something as good."):format(beaten)) or "")) or "")
 end
 
 function M:HideUpgrades()

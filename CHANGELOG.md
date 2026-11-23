@@ -9,6 +9,8 @@
 
 - **Gear Advisor scores gear for the build you play, for every class.** A Cat scores agility, attack power and weapon damage; a Bear scores stamina, armor and dodge; every class has its own builds (Arms, Fury, Protection, Holy, Shadow, Frost and so on, plus Forever's extra Shockadin, Battle Mage and Enhancement Tank). Choose the build under Convenience > Auction values > **Score gear as**. Druids can leave it on Automatic to follow their shapeshift form; for other classes Automatic is a guess, so pick yours. A ranged weapon's damage counts at the ranged weight. The detail pane says why an item scored what it did, for example "+12.4 as Cat (from your form): +12 Agility, -4 Stamina (estimate)". The weights are community estimates from GearQuest Forever, via Pawn Forever (MIT), and are labelled as estimates. A few stat names (spell power, ranged attack power, block, parry) are assumed until `/tempus gearstats` confirms them on real gear.
 
+- **Gear Advisor leaves out listings you already beat.** If something in your bags that you can wear is as good as an auction listing for the same slot, the listing is hidden, and the footer says how many were left out. It never suggests buying what you already carry.
+
 ### Fixed
 - **Gear Advisor and one-hand weapons.** A class that cannot dual wield (a Druid, say) is now compared with its main hand, not the empty off hand that made every one-hander look like a huge upgrade. Characters that dual wield still see the off hand.
 - **Two-handers and shields.** A two-hand weapon now says when it also takes off your shield or off hand, and a shield or off-hand item says when it takes off your two-hander.

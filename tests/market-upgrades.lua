@@ -18,6 +18,7 @@ assert(loadfile('Modules/Market/Market.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/EquipRules.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Weights.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Scoring.lua'))('Tempus', T)
+assert(loadfile('Modules/GearAdvisor/Owned.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Upgrades.lua'))('Tempus', T)
 local M = T.Market
 local G = 10000
@@ -449,3 +450,30 @@ T.db.market.gearRole = 'AUTO'
 assert(M.WhyText('nw', 'od', 'WARRIOR'):find('Arms') and M.WhyText('nw', 'od', 'WARRIOR'):find('assumed'), 'other classes say the role is a guess')
 assert(M.WhyText('nw', 'od', 'NOPE') == nil, 'a class with no weights has nothing to say')
 GetShapeshiftForm, C_Item.GetItemStats = nil, nil
+
+-- Carried gear that already beats a listing hides the listing.
+local bagLevel = 62
+local prevInstant, prevInfo, prevDetailed = C_Item.GetItemInfoInstant, C_Item.GetItemInfo, C_Item.GetDetailedItemLevelInfo
+C_Item.GetItemInfoInstant = function(id)
+    if id == 'bag:head' then return 1, 'x', 'y', 'INVTYPE_HEAD', 'icon', 4, 4 end
+    return prevInstant(id)
+end
+C_Item.GetItemInfo = function(id)
+    if id == 'bag:head' then return 'Carried helm', id, 1, bagLevel, 40 end
+    return prevInfo(id)
+end
+C_Item.GetDetailedItemLevelInfo = function(a)
+    if a == 'bag:head' then return bagLevel end
+    return prevDetailed(a)
+end
+NUM_BAG_SLOTS = 0
+C_Container = { GetContainerNumSlots = function() return 1 end, GetContainerItemLink = function() return 'bag:head' end }
+UnitClass = function() return 'Warrior', 'WARRIOR' end
+Seed({ [1] = 10 * G })
+local beatenList, _, _, _, _, beatenCount = M:FindUpgrades()
+assert(#beatenList == 0 and beatenCount == 1, 'a carried helm of 62 hides a listing of 60 (' .. #beatenList .. ',' .. tostring(beatenCount) .. ')')
+bagLevel = 55
+local keptList, _, _, _, _, keptCount = M:FindUpgrades()
+assert(#keptList == 1 and keptCount == 0, 'a weaker carried helm does not hide it')
+C_Container, NUM_BAG_SLOTS = nil, nil
+C_Item.GetItemInfoInstant, C_Item.GetItemInfo, C_Item.GetDetailedItemLevelInfo = prevInstant, prevInfo, prevDetailed

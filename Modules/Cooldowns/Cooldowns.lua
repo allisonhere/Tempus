@@ -297,6 +297,26 @@ local function LayoutTrack(f, db, g, marks)
     for i = #marks + 1, #tr.marks do tr.marks[i].tick:Hide(); tr.marks[i].text:Hide() end
 end
 
+-- Lay icons (each with a .pos, 0 ready .. 1 far end) down the scale of frame f.
+local function PlaceIcons(f, db, g, order)
+    table.sort(order, function(a, c) return a.pos < c.pos end)
+    local gap = g.size + 2
+    local last = { -1e9, -1e9 }
+    for _, b in ipairs(order) do
+        local s = g.len * b.pos
+        local lane = 1
+        if s - last[1] < gap then
+            if s - last[2] >= gap then lane = 2 else lane = last[1] <= last[2] and 1 or 2 end
+        end
+        last[lane] = s
+        b:ClearAllPoints()
+        local x = lane == 1 and g.c1 or g.c2
+        if g.down then b:SetPoint("CENTER", f, "BOTTOMLEFT", x, g.size / 2 + s)
+        else b:SetPoint("CENTER", f, "TOPLEFT", x, -(g.size / 2 + s)) end
+        b:SetAlpha(CD.FadeAlpha(b.pos, db.fadeIcons))
+    end
+end
+
 -- Timeline mode: move each icon to where its remaining time falls, and fade it as it nears
 -- ready. Icons that would sit on top of each other take the second lane.
 function CD:Place()
@@ -325,22 +345,7 @@ function CD:Place()
             end
         end
     end
-    table.sort(order, function(a, c) return a.pos < c.pos end)
-    local gap = g.size + 2
-    local last = { -1e9, -1e9 }
-    for _, b in ipairs(order) do
-        local s = g.len * b.pos
-        local lane = 1
-        if s - last[1] < gap then
-            if s - last[2] >= gap then lane = 2 else lane = last[1] <= last[2] and 1 or 2 end
-        end
-        last[lane] = s
-        b:ClearAllPoints()
-        local x = lane == 1 and g.c1 or g.c2
-        if g.down then b:SetPoint("CENTER", f, "BOTTOMLEFT", x, g.size / 2 + s)
-        else b:SetPoint("CENTER", f, "TOPLEFT", x, -(g.size / 2 + s)) end
-        b:SetAlpha(CD.FadeAlpha(b.pos, db.fadeIcons))
-    end
+    PlaceIcons(f, db, g, order)
 end
 
 function CD:Refresh()
@@ -389,6 +394,59 @@ function CD:Update()
         if (b:IsShown() or b.parked) and b.entry then SetCooldown(b, b.entry) end
     end
     CD:Place()
+end
+
+-- Settings preview: fake spells falling down the real timeline layout, on their own clock.
+local DEMO_ICONS = { 136243, 135808, 132333, 136048, 135846 }
+function CD.CreateDemo(width, height)
+    local box = CreateFrame("Frame")
+    box:SetSize(width, height)
+    local view = CreateFrame("Frame", nil, box)
+    view:SetPoint("TOP", box, "TOP", 0, 0)
+    local items = {}
+    for i, tex in ipairs(DEMO_ICONS) do
+        local b = NewIcon(view)
+        b.icon:SetTexture(tex)
+        b.cd:Hide(); b.ready:Hide()
+        items[i] = { b = b, period = 9 + i * 3.1, phase = (i * 0.37) % 1 }
+    end
+    function box:Refresh()
+        local db = CD.db or T.db.cooldowns
+        if db.mode ~= "timeline" then
+            view:Hide()
+            if not box.note then
+                box.note = S.Text(box, 11, S.C.muted)
+                box.note:SetPoint("TOPLEFT", 0, 0)
+                box.note:SetText("Set Style to Timeline to see the preview.")
+            end
+            box.note:Show()
+            return
+        end
+        if box.note then box.note:Hide() end
+        local g = Geometry(db)
+        local scale = math.min(1, (height - 4) / g.h)
+        view:SetScale(scale)
+        view:SetSize(g.w, g.h)
+        view:Show()
+        LayoutTrack(view, db, g, CD.Marks(db.range))
+        box.g = g
+    end
+    box:Refresh()
+    T.UI.Loop(box, 0.03, function(_, now)
+        local db = CD.db or T.db.cooldowns
+        if db.mode ~= "timeline" or not box.g then return end
+        local order = {}
+        for _, it in ipairs(items) do
+            local life = ((now / it.period) + it.phase) % 1
+            local remaining = db.range * (1 - life)
+            it.b:SetSize(db.size, db.size)
+            it.b.pos = CD.TimeFraction(remaining, CD.Marks(db.range))
+            it.b:Show()
+            order[#order + 1] = it.b
+        end
+        PlaceIcons(view, db, box.g, order)
+    end)
+    return box
 end
 
 T:NewModule("cooldowns", {

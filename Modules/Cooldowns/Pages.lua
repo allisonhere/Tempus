@@ -3,6 +3,25 @@ local _, T = ...
 local UI = T.UI
 local W, Changed = UI.W, UI.Changed
 
+local DEMO_W, DEMO_H = 360, 300
+local function TimelineDemo()
+    local S = T.Style
+    local f = CreateFrame("Frame")
+    f:SetSize(DEMO_W, DEMO_H + 18)
+    local title = UI.Text(f, 11, S.C.muted)
+    title:SetPoint("TOPLEFT", 0, 0)
+    title:SetText("Live preview")
+    if not (T.Cooldowns and T.Cooldowns.CreateDemo) then
+        function f:Refresh() end
+        return f
+    end
+    local box = T.Cooldowns.CreateDemo(DEMO_W, DEMO_H)
+    box:SetParent(f)
+    box:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -18)
+    function f:Refresh() box:Refresh() end
+    return f
+end
+
 T:RegisterPage("combat", { key = "cooldowns", label = "Cooldowns", order = 5, build = function(p)
     local cfg = function() return T.db.cooldowns end
     p:Section("Cooldowns", "Icons with cooldown swipes for the spells you list and your equipped trinkets. Unlock the UI to move them. Needs the Cooldowns module (General > Modules).")
@@ -17,6 +36,7 @@ T:RegisterPage("combat", { key = "cooldowns", label = "Cooldowns", order = 5, bu
     p:Dropdown(cfg, "range", "Far end of the scale", { { 30, "30 seconds" }, { 60, "1 minute" }, { 120, "2 minutes" }, { 300, "5 minutes" } })
     p:Dropdown(cfg, "fall", "Direction", { { "DOWN", "Falls down" }, { "UP", "Rises up" } })
     p:Check(cfg, "showReady", "Keep ready spells at the ready line")
+    p:Add(TimelineDemo(), DEMO_H + 18, true)
     p:Section("Timeline look", "The background is drawn behind the icons. Fading dims it toward the ready line so the near end melts away.")
     p:Dropdown(cfg, "bgStyle", "Background", { { "GLASS", "Glass" }, { "SOLID", "Solid" }, { "MINIMAL", "Rail and marks only" } })
     p:Slider(cfg, "bgOpacity", "Background opacity", 0, 1, 0.05, UI.pct)

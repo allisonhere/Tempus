@@ -64,19 +64,18 @@ local function Create()
     win.name = StyledEditBox(win, 200, 26)
     win.name:SetPoint("LEFT", win.nameLabel, "RIGHT", 10, 0)
 
-    win.whisper = FlatButton(win, "Whisper", 100, 26, function() win:DoWhisper() end)
+    win.whisper = FlatButton(win, "Send now", 100, 26, function() win:DoWhisper() end)
     win.whisper:SetPoint("BOTTOMRIGHT", -126, 16)
     win.whisper:Hide()
     function win:DoWhisper()
         local target = (win.name:GetText() or ""):gsub("^%s+", ""):gsub("%s+$", "")
-        if target == "" then win.status:SetText("Type the name to whisper it to.") return end
-        local lines = T.Market and T.Market.SplitForChat and T.Market.SplitForChat(win.edit:GetText()) or {}
-        if #lines == 0 then win.status:SetText("Nothing to send.") return end
+        if target == "" then win.status:SetText("Type the name to send it to.") return end
         if T.db.market then T.db.market.reportTo = (target ~= (T.Market.DefaultReportTo and T.Market.DefaultReportTo())) and target or "" end
-        for i, line in ipairs(lines) do
-            C_Timer.After((i - 1) * 0.5, function() pcall(SendChatMessage, line, "WHISPER", nil, target) end)
+        if T.Market and T.Market.QueueWhisper and T.Market:QueueWhisper(target, win.edit:GetText()) then
+            win.status:SetText(("Sending to %s. If they are offline, Tempus waits and tries again every 2 minutes."):format(target))
+        else
+            win.status:SetText("Nothing to send.")
         end
-        win.status:SetText(("Whispering %d lines to %s..."):format(#lines, target))
     end
 
     win.mail = FlatButton(win, "Mail it later", 100, 26, function() win:DoMail() end)
@@ -130,7 +129,7 @@ function T:ShowShare(mode)
     win.whisper:Hide(); win.mail:Hide()
     if mode == "gearreport" then
         win.title:SetText("Gear data report")
-        win.hint:SetText("Type your build on the second line, then copy this text (Ctrl+C), whisper it to someone, or queue it as mail that Tempus offers to send when you next open a mailbox (a short version, two or three mails). It holds your class, level, talent points and the stat names on your gear.")
+        win.hint:SetText("Type your build on the second line, then copy this text (Ctrl+C), send it by whisper (it waits if they are offline), or queue it as mail that Tempus offers to send when you next open a mailbox (a short version, two or three mails). It holds your class, level, talent points and the stat names on your gear.")
         win.edit:SetText(T.Market and T.Market.Report and T.Market.Report() or "")
         win.nameLabel:SetText("Whisper to"); win.nameLabel:Show()
         local saved = T.db.market and T.Market and T.Market.FixReportTo and T.Market.FixReportTo(T.db.market.reportTo) or (T.db.market and T.db.market.reportTo)

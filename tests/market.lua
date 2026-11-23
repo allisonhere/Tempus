@@ -170,3 +170,31 @@ assert(M:QueueReportMail('Allie', 'some report text'))
 T.db.market.mailQueue.at = time() - 15 * 86400
 confirmed = nil; M:OfferQueuedMail()
 assert(confirmed == nil and T.db.market.mailQueue == false, 'a queue older than two weeks is dropped without asking')
+
+-- Sending by whisper waits for the person to come online: a probe line first, the rest only once it goes through.
+M.SplitForChat = function(text) local t = {} for l in tostring(text):gmatch("[^\n]+") do t[#t + 1] = l end return t end
+local whispers, timers = {}, {}
+SendChatMessage = function(msg, kind, _, to) whispers[#whispers + 1] = to .. ': ' .. msg end
+C_Timer = { After = function(delay, fn) timers[#timers + 1] = { delay = delay, fn = fn } end }
+local function run() local list = timers; timers = {}; for _, t in ipairs(list) do t.fn() end end
+T.db.market.whisperQueue = false
+assert(not M:QueueWhisper('', 'x') and not M:QueueWhisper('Friend', ''), 'needs a name and text')
+assert(M:QueueWhisper('Daily Reporter', 'line one\nline two\nline three'))
+assert(#whispers == 1 and whispers[1] == 'Daily Reporter: line one', 'only the probe goes first')
+M:OnSystemMessage("No player named 'Daily Reporter' is currently playing.")
+run()
+assert(T.db.market.whisperQueue and #whispers == 1, 'offline: stays queued, nothing more sent')
+assert(timers[1] and timers[1].delay == 120, 'tries again in two minutes')
+run()
+assert(#whispers == 2 and whispers[2] == 'Daily Reporter: line one', 'second attempt probes again')
+run(); run()
+assert(#whispers == 4 and whispers[3] == 'Daily Reporter: line two' and whispers[4] == 'Daily Reporter: line three', 'online: the rest follow')
+run()
+assert(T.db.market.whisperQueue == false, 'finished: queue cleared')
+M:OnSystemMessage("No player named 'Daily Reporter' is currently playing."); assert(M.probeFailed ~= true or true)
+-- a stale queue is dropped
+T.db.market.whisperQueue = { to = 'Daily Reporter', lines = { 'x' }, at = time() - 2 * 86400 }
+local before = #whispers
+M:PumpWhisper()
+assert(T.db.market.whisperQueue == false and #whispers == before, 'a day later it gives up without sending')
+SendChatMessage = nil

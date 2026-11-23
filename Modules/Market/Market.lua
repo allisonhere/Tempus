@@ -1,7 +1,7 @@
 -- Tempus scans the auction house itself (C_AuctionHouse.ReplicateItems) and keeps the lowest
 -- buyout per item for each realm, account-wide. No other addon is involved.
 local _, T = ...
-local M = { defaults = { tooltips = true, staleDays = 3, autoScan = false, upgradeMinGain = 3, upgradeSort = "VALUE", planGold = 0, reportTo = "", mailQueue = false, gearRole = "AUTO", gearRoleLast = false, upgradeAffordable = false, upgradeMaxGold = 0, upgradeUseAHFilters = true, upgradePos = false } }
+local M = { defaults = { tooltips = true, staleDays = 3, autoScan = false, upgradeMinGain = 3, upgradeSort = "VALUE", planGold = 0, reportTo = "", mailQueue = false, whisperQueue = false, gearRole = "AUTO", gearRoleLast = false, upgradeAffordable = false, upgradeMaxGold = 0, upgradeUseAHFilters = true, upgradePos = false } }
 T.Market = M
 
 local SCAN_COOLDOWN = 15 * 60       -- the client only serves a full replicate about every 15 minutes
@@ -306,8 +306,10 @@ function M:EnsureFrame()
     f:RegisterEvent("AUCTION_HOUSE_SHOW")
     f:RegisterEvent("AUCTION_HOUSE_CLOSED")
     f:RegisterEvent("MAIL_SHOW")
+    f:RegisterEvent("CHAT_MSG_SYSTEM")
+    f:RegisterEvent("PLAYER_LOGIN")
     f:RegisterEvent("MAIL_SEND_SUCCESS")
-    f:SetScript("OnEvent", function(_, event)
+    f:SetScript("OnEvent", function(_, event, arg1)
         if event == "AUCTION_HOUSE_SHOW" then
             M.ahOpen = true
             if T:ModuleEnabled("market") then
@@ -317,6 +319,10 @@ function M:EnsureFrame()
         elseif event == "AUCTION_HOUSE_CLOSED" then
             M.ahOpen = false
             if M.scanning then M:Fail("the auction house was closed.") end
+        elseif event == "CHAT_MSG_SYSTEM" then
+            M:OnSystemMessage(arg1)
+        elseif event == "PLAYER_LOGIN" then
+            M:ResumeWhisper()
         elseif event == "MAIL_SHOW" then
             M:OfferQueuedMail()
         elseif event == "MAIL_SEND_SUCCESS" then
@@ -430,4 +436,61 @@ function M:MailSent()
     elseif C_Timer and C_Timer.After then
         C_Timer.After(0.6, function() M:FillMail() end)
     end
+end
+
+-- Sending the report by whisper, waiting for the person to come online -----------------------------------
+-- The first line is a probe: if the game answers that nobody by that name is playing, the report stays queued
+-- and Tempus tries again every few minutes (and again after you log in) for a day. Once a line goes through,
+-- the rest follow. Nothing is sent until you press Send, and only to the name shown.
+local RETRY_EVERY, GIVE_UP = 120, 86400
+
+function M:QueueWhisper(to, text)
+    to = tostring(to or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local lines = M.SplitForChat and M.SplitForChat(text) or {}
+    if to == "" or #lines == 0 or not T.db.market then return false end
+    T.db.market.whisperQueue = { to = to, lines = lines, at = time() }
+    T:Print("sending gear data to %s. If they are offline Tempus waits and tries again every %d minutes.", to, RETRY_EVERY / 60)
+    self:PumpWhisper()
+    return true
+end
+
+function M:ResumeWhisper()
+    local q = T.db and T.db.market and T.db.market.whisperQueue
+    if q and C_Timer and C_Timer.After then C_Timer.After(10, function() M:PumpWhisper() end) end
+end
+
+function M:OnSystemMessage(msg)
+    local q = T.db and T.db.market and T.db.market.whisperQueue
+    if not (q and self.probing and type(msg) == "string") then return end
+    local pattern = _G.ERR_CHAT_PLAYER_NOT_FOUND_S or "No player named '%s' is currently playing."
+    local escaped = pattern:gsub("([%^%$%(%)%.%[%]%*%+%-%?])", "%%%1"):gsub("%%s", ".+")
+    if msg:find("^" .. escaped .. "$") and msg:lower():find(q.to:lower(), 1, true) then self.probeFailed = true end
+end
+
+function M:PumpWhisper()
+    local q = T.db and T.db.market and T.db.market.whisperQueue
+    if not q or self.probing then return end
+    if time() - (q.at or time()) > GIVE_UP then
+        T.db.market.whisperQueue = false
+        T:Print("gear data to %s was not sent: they did not come online in a day.", q.to)
+        return
+    end
+    self.probing, self.probeFailed = true, false
+    pcall(SendChatMessage, q.lines[1], "WHISPER", nil, q.to)
+    C_Timer.After(3, function()
+        M.probing = false
+        local cur = T.db.market.whisperQueue
+        if cur ~= q then return end
+        if M.probeFailed then
+            C_Timer.After(RETRY_EVERY, function() M:PumpWhisper() end)
+            return
+        end
+        for i = 2, #q.lines do
+            C_Timer.After((i - 1) * 0.5, function() pcall(SendChatMessage, q.lines[i], "WHISPER", nil, q.to) end)
+        end
+        C_Timer.After(#q.lines * 0.5 + 0.5, function()
+            if T.db.market.whisperQueue == q then T.db.market.whisperQueue = false end
+            T:Print("gear data sent to %s. Thank you!", q.to)
+        end)
+    end)
 end

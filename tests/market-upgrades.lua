@@ -19,6 +19,7 @@ assert(loadfile('Modules/GearAdvisor/EquipRules.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Weights.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Scoring.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Owned.lua'))('Tempus', T)
+assert(loadfile('Modules/GearAdvisor/Verdicts.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Upgrades.lua'))('Tempus', T)
 local M = T.Market
 local G = 10000

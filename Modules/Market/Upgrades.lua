@@ -355,7 +355,7 @@ function M:FindUpgrades()
     local carried = T.GearAdvisor.Owned.Best(CarriedGear(class, level, instant, getInfo, detailed, function(link, loc)
         return (M.UsefulScore(link, wornLinkFor(loc), class, roleWeights, RANGED[loc]))
     end))
-    local beaten = 0
+    local beaten, worse = 0, 0
     local uniqueOf = C and C.GetItemUniquenessByID
     local wornIds = {}
 
@@ -398,7 +398,9 @@ function M:FindUpgrades()
                         -- What the stats are worth to your class; nil when the client gives none.
                         if wornLinks[loc] == nil then wornLinks[loc] = WornLink(loc) or false end
                         local useful = (M.UsefulScore("item:" .. id, wornLinks[loc] or nil, class, roleWeights, RANGED[loc]))
-                        if not (useful and useful <= 0) then
+                        if useful and useful <= 0 then
+                            worse = worse + 1
+                        else
                             local gold = math.max(row.p / 10000, 0.01)
                             local age = Num(row.t) and math.max(0, math.floor((now - row.t) / 86400)) or nil
                             -- Worth, balanced against price: sqrt so a +1 for pennies does not beat a real
@@ -435,7 +437,8 @@ function M:FindUpgrades()
         counts[key] = (counts[key] or 0) + 1
         if counts[key] <= PER_GROUP then kept[#kept + 1] = e end
     end
-    return kept, pending, requested, hidden, filters, beaten
+    T.GearAdvisor.Verdicts.Tag(kept, Call(GetMoney))
+    return kept, pending, requested, hidden, filters, beaten, worse
 end
 
 -- What improves ------------------------------------------------------------------------------
@@ -752,7 +755,7 @@ function M:ShowDetail(e)
     d.glow:Show()
     d.icon:SetTexture(i.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
     d.name:SetText(i.link or i.name or ("item:" .. e.id))
-    d.slot:SetText(i.slot)
+    d.slot:SetText(i.slot .. ((e.tags and #e.tags > 0) and ("  |cffFFD651" .. table.concat(e.tags, ", ") .. "|r") or ""))
     d.line[1]:SetText(("Item level |cffffffff%d|r  |cff66F27F+%d|r  (you wear %s)"):format(i.level or 0, i.gain or 0,
         i.worn and i.worn > 0 and tostring(i.worn) or "nothing"))
     d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot") .. (i.note and ("  |cffE8A060" .. i.note .. "|r") or ""))
@@ -1008,10 +1011,10 @@ function M:RefreshUpgrades()
         p.price:SetText(maxGold > 0 and (maxGold == math.floor(maxGold) and ("%d"):format(maxGold) or tostring(maxGold)) or "")
     end
     if p.priceHint and p.price then p.priceHint:SetShown((p.price:GetText() or "") == "") end
-    local list, pending, hidden, filters, beaten = {}, 0, 0, nil, 0
+    local list, pending, hidden, filters, beaten, worse = {}, 0, 0, nil, 0, 0
     if Num(store.scanned) then
-        local ok, l, n, _, h, f, b = pcall(self.FindUpgrades, self)
-        if ok then list, pending, hidden, filters, beaten = l, n, h or 0, f, b or 0 end
+        local ok, l, n, _, h, f, b, w = pcall(self.FindUpgrades, self)
+        if ok then list, pending, hidden, filters, beaten, worse = l, n, h or 0, f, b or 0, w or 0 end
     end
     local layout = M.Layout(list)
     local maxRank = {}
@@ -1098,7 +1101,8 @@ function M:RefreshUpgrades()
         :format(scanned >= 86400 and (math.floor(scanned / 86400) .. " d") or scanned >= 3600
         and (math.floor(scanned / 3600) .. " h") or (math.floor(scanned / 60) .. " min"))
         .. (filters and ("  Using AH filters: " .. M.FilterSummary(filters)) or "")
-        .. (beaten > 0 and (("  %d left out: you already carry something as good."):format(beaten)) or "")) or "")
+        .. (beaten > 0 and (("  %d left out: you already carry something as good."):format(beaten)) or "")
+        .. (worse > 0 and (("  %d left out: worse stats for your build."):format(worse)) or "")) or "")
 end
 
 function M:HideUpgrades()

@@ -11,6 +11,8 @@
 
 - **Gear Advisor leaves out listings you already beat.** If something in your bags that you can wear is as good as an auction listing for the same slot, the listing is hidden, and the footer says how many were left out. When the game gives stats for both, your build's score decides, so a higher item level with worse stats for you does not hide a better listing; otherwise item level decides. It never suggests buying what you already carry.
 
+- **Gear Advisor verdict tags.** The detail pane marks the Biggest upgrade, the Best value, the Best you can afford (when it differs from the biggest) and a Small upgrade (the cheapest listing that is still a real gain). The footer also says how many listings were left out for worse stats for your build.
+
 ### Fixed
 - **Gear Advisor and one-hand weapons.** A class that cannot dual wield (a Druid, say) is now compared with its main hand, not the empty off hand that made every one-hander look like a huge upgrade. Characters that dual wield still see the off hand.
 - **Two-handers and shields.** A two-hand weapon now says when it also takes off your shield or off hand, and a shield or off-hand item says when it takes off your two-hander.

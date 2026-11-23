@@ -45,6 +45,51 @@ function M.GearProbe()
     -- Trait system.
     Try(out, "C_ClassTalents.GetActiveConfigID", C_ClassTalents and C_ClassTalents.GetActiveConfigID)
     Try(out, "C_Traits.GetConfigInfo", C_Traits and C_Traits.GetConfigInfo, 0)
+    -- Spec and trait details, read with the real config id (the first probe used 0).
+    local SI = C_SpecializationInfo
+    if SI then
+        Try(out, "SI.GetNumSpecializations", SI.GetNumSpecializations)
+        Try(out, "SI.GetSpecializationInfo(1)", SI.GetSpecializationInfo, 1)
+        Try(out, "SI.GetSpecializationInfo(2)", SI.GetSpecializationInfo, 2)
+        Try(out, "SI.GetSpecializationInfo(3)", SI.GetSpecializationInfo, 3)
+        Try(out, "SI.GetSpecializationRole(1)", SI.GetSpecializationRole, 1)
+        Try(out, "SI.GetActiveSpecGroup", SI.GetActiveSpecGroup)
+    end
+    local okc, cfg = pcall(function() return C_ClassTalents and C_ClassTalents.GetActiveConfigID() end)
+    if okc and cfg and C_Traits then
+        local okI, info = pcall(C_Traits.GetConfigInfo, cfg)
+        out[#out + 1] = "config " .. Show(cfg) .. " info: " .. (okI and Show(info) or "error")
+        if okI and type(info) == "table" then
+            out[#out + 1] = "  config name: " .. Show(info.name) .. ", type: " .. Show(info.type) .. ", trees: " .. Show(info.treeIDs)
+            local tree = type(info.treeIDs) == "table" and info.treeIDs[1]
+            if tree then
+                local okN, nodes = pcall(C_Traits.GetTreeNodes, tree)
+                out[#out + 1] = "  tree " .. Show(tree) .. " nodes: " .. (okN and Show(nodes) or "error")
+                local bought, names = 0, {}
+                if okN and type(nodes) == "table" then
+                    for _, id in ipairs(nodes) do
+                        local okNode, ni = pcall(C_Traits.GetNodeInfo, cfg, id)
+                        if okNode and type(ni) == "table" and (ni.currentRank or 0) > 0 then
+                            bought = bought + 1
+                            local entry = ni.activeEntry and ni.activeEntry.entryID or (ni.entryIDs and ni.entryIDs[1])
+                            local name = "node " .. id
+                            local okE, ei = pcall(C_Traits.GetEntryInfo, cfg, entry or 0)
+                            if okE and type(ei) == "table" and ei.definitionID then
+                                local okD, di = pcall(C_Traits.GetDefinitionInfo, ei.definitionID)
+                                if okD and type(di) == "table" and di.spellID then
+                                    local sn = C_Spell and C_Spell.GetSpellName and select(2, pcall(C_Spell.GetSpellName, di.spellID))
+                                    name = tostring(sn or di.spellID)
+                                end
+                            end
+                            if #names < 30 then names[#names + 1] = name .. " x" .. tostring(ni.currentRank) end
+                        end
+                    end
+                end
+                out[#out + 1] = "  talents with points: " .. bought
+                if #names > 0 then out[#out + 1] = "  " .. table.concat(names, ", ") end
+            end
+        end
+    end
     -- Stats and ratings.
     for i = 1, 5 do Try(out, "UnitStat(" .. i .. ")", UnitStat, "player", i) end
     Try(out, "UnitAttackPower", UnitAttackPower, "player")

@@ -568,3 +568,18 @@ click('CHEAPEST'); assert(T.db.market.upgradeSort == 'CHEAPEST')
 click('NAME'); assert(T.db.market.upgradeSort == 'NAME')
 click('GAIN'); assert(T.db.market.upgradeSort == 'GAIN')
 T.db.market.upgradeSort = 'VALUE'
+
+-- Find: runs the auction house's own search for the item; nothing is bought.
+local found = {}
+local printedFind = {}
+T.Print = function(_, fmt, ...) printedFind[#printedFind + 1] = fmt:format(...) end
+AuctionHouseFrame = nil
+assert(M:FindAtAuctionHouse('Test Helm') == false and printedFind[#printedFind]:find('open the auction house first'), 'closed auction house: say so')
+AuctionHouseFrameDisplayMode = { Buy = 'BUY' }
+AuctionHouseFrame = { IsShown = function() return true end, SetDisplayMode = function(_, m) found[#found + 1] = 'mode ' .. m end,
+    SearchBar = { SetSearchText = function(_, t) found[#found + 1] = 'text ' .. t end, StartSearch = function() found[#found + 1] = 'search' end } }
+assert(M:FindAtAuctionHouse('Test Helm') == true and table.concat(found, '|') == 'mode BUY|text Test Helm|search', table.concat(found, '|'))
+assert(M:FindAtAuctionHouse(nil) == false and printedFind[#printedFind]:find('not loaded yet'), 'no name yet')
+AuctionHouseFrame.SearchBar = nil
+assert(M:FindAtAuctionHouse('Test Helm') == false and printedFind[#printedFind]:find('no search bar'))
+AuctionHouseFrame, AuctionHouseFrameDisplayMode = nil, nil

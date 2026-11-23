@@ -787,12 +787,29 @@ function M.BuildDetail(p, scroll)
     d.glow:SetPoint("BOTTOMRIGHT", d.icon, 2, -2)
     d.name = S.Text(d, 13, S.C.text)
     d.name:SetPoint("TOPLEFT", d.icon, "TOPRIGHT", 8, -2)
-    d.name:SetWidth(W - 44)
+    d.name:SetWidth(W - 104)
     d.name:SetWordWrap(false)
     d.slot = S.Text(d, 11, S.C.muted)
     d.slot:SetPoint("TOPLEFT", d.name, "BOTTOMLEFT", 0, -3)
     d.slot:SetWidth(W - 44)
     d.slot:SetWordWrap(false)
+    -- Find: search for this item in the auction house window (does not buy anything).
+    d.find = CreateFrame("Button", nil, d)
+    d.find:SetSize(56, 20)
+    d.find:SetPoint("TOPRIGHT", d, "TOPRIGHT", -2, -2)
+    d.find.bg = S.Tex(d.find, "BACKGROUND", { GOLD[1], GOLD[2], GOLD[3], 0.16 })
+    d.find.bg:SetAllPoints()
+    d.find.text = S.Text(d.find, 11, GOLD)
+    d.find.text:SetPoint("CENTER")
+    d.find.text:SetText("Find")
+    d.find:SetScript("OnClick", function()
+        local e = M.detailEntry
+        if not e then return end
+        local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+        local name = getInfo and getInfo(e.id)
+        M:FindAtAuctionHouse(name)
+    end)
+    d.find:Hide()
     -- Everything below the header scrolls: the worn item's tooltip, the listing's tooltip, then the math.
     local sc = CreateFrame("ScrollFrame", nil, d)
     sc:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -46)
@@ -875,13 +892,13 @@ function M:ShowDetail(e)
     self.detailEntry = e
     if not e then
         d.hint:Show(); d.icon:Hide(); d.glow:Hide(); d.name:SetText(""); d.slot:SetText("")
-        d.scroll:Hide()
+        d.scroll:Hide(); d.find:Hide()
         return
     end
     local i = M.DetailInfo(e)
     d.hint:Hide()
     d.icon:Show()
-    d.scroll:Show()
+    d.scroll:Show(); d.find:Show()
     d.glow:SetVertexColor(QualityColor(e.quality))
     d.glow:Show()
     d.icon:SetTexture(i.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
@@ -1319,6 +1336,30 @@ function M:PrintPlan(gold)
         end
     end
     if pending > 0 then T:Print("%d listings are still loading item data; run it again in a moment.", pending) end
+end
+
+-- Open a search for an item in the auction house window (the same search its own search bar runs), so you
+-- see the live listings and buy with Blizzard's own Buy button. Spends nothing and buys nothing.
+function M:FindAtAuctionHouse(name)
+    local ah = AuctionHouseFrame
+    if not (ah and ah.IsShown and ah:IsShown()) then
+        T:Print("open the auction house first, then click Find.")
+        return false
+    end
+    if type(name) ~= "string" or name == "" then
+        T:Print("that item's name is not loaded yet; try again in a moment.")
+        return false
+    end
+    local mode = AuctionHouseFrameDisplayMode and AuctionHouseFrameDisplayMode.Buy
+    if mode and ah.SetDisplayMode then pcall(ah.SetDisplayMode, ah, mode) end
+    local bar = ah.SearchBar
+    if not (bar and bar.SetSearchText and bar.StartSearch) then
+        T:Print("this auction house window has no search bar to use.")
+        return false
+    end
+    local ok = pcall(bar.SetSearchText, bar, name) and pcall(bar.StartSearch, bar)
+    if not ok then T:Print("the auction house search could not start.") end
+    return ok and true or false
 end
 
 function M:HideUpgrades()

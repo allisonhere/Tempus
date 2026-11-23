@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **A Find button in the Gear Advisor detail pane.** It opens a search for the selected item in the auction house window (the same search the auction house's own search bar runs), so you see the real listings and buy with Blizzard's own Buy button. It needs the auction house open, spends nothing and buys nothing.
+
 ## 2.18.0
 
 ### Changed

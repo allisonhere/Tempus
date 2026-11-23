@@ -1,13 +1,14 @@
 -- The gear data report notice, and the Gear Report page that carries its button.
 local confirmed, shown = nil, nil
 local T = { Confirm = function(_, text, accept, label) confirmed = { text = text, accept = accept, label = label } end,
-    ShowShare = function(_, mode) shown = mode end }
+    ShowShare = function(_, mode) shown = mode end,
+    Market = { SendReport = function() shown = "sent" end } }
 assert(loadfile("Modules/GearAdvisor/Pages.lua"))("Tempus", T)
 T:StartGearReport()
-assert(confirmed and confirmed.text:find("no account") and confirmed.text:find("Nothing is sent") and confirmed.label == "I understand, continue")
-assert(shown == nil, "the report opens only after the notice is accepted")
+assert(confirmed and confirmed.text:find("no account") and confirmed.text:find("in the background") and confirmed.text:find("30 minutes") and confirmed.label == "I understand, send it")
+assert(shown == nil, "nothing is sent until the notice is accepted")
 confirmed.accept()
-assert(shown == "gearreport")
+assert(shown == "sent", "accepting sends it in the background; no window opens")
 
 -- The page: renamed Gear Report, with the button at the very top.
 local page

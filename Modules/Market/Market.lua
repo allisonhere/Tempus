@@ -440,18 +440,25 @@ end
 
 -- Sending the report by whisper, waiting for the person to come online -----------------------------------
 -- The first line is a probe: if the game answers that nobody by that name is playing, the report stays queued
--- and Tempus tries again every few minutes (and again after you log in) for a day. Once a line goes through,
--- the rest follow. Nothing is sent until you press Send, and only to the name shown.
-local RETRY_EVERY, GIVE_UP = 120, 86400
+-- and Tempus checks again every 30 minutes (and again after you log in) for a day. Once a line goes through,
+-- the rest follow. It only runs after the player accepts the notice, and only to the faction's report character.
+local RETRY_EVERY, GIVE_UP = 1800, 86400
 
 function M:QueueWhisper(to, text)
     to = tostring(to or ""):gsub("^%s+", ""):gsub("%s+$", "")
     local lines = M.SplitForChat and M.SplitForChat(text) or {}
     if to == "" or #lines == 0 or not T.db.market then return false end
     T.db.market.whisperQueue = { to = to, lines = lines, at = time() }
-    T:Print("sending gear data to %s. If they are offline Tempus waits and tries again every %d minutes.", to, RETRY_EVERY / 60)
     self:PumpWhisper()
     return true
+end
+
+-- The whole share in one call: the report for the character on your faction, sent in the background. Chat
+-- shows the whispers as usual, and one Tempus line when it is done; nothing is filtered or hidden.
+function M:SendReport()
+    local to = M.DefaultReportTo and M.DefaultReportTo()
+    if not to or to == "" or not M.CompactReport then return false end
+    return self:QueueWhisper(to, M.CompactReport(""))
 end
 
 function M:ResumeWhisper()

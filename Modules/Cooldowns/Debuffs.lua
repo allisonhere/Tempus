@@ -11,7 +11,7 @@ T.TargetDebuffs = DT
 
 DT.defaults = {
     enabled = false,
-    hideRow = true,             -- hide the target frame's own debuff icons while this is on
+    hideRow = false,            -- hide the target frame's own debuff icons while this is on
     mode = "timeline",
     size = 30, length = 260, range = 30,
     fall = "DOWN", labelSide = "LEFT", bgStyle = "GLASS",
@@ -68,19 +68,34 @@ function DT:Read(now)
     return DT.Live(DT.timers, guid, now)
 end
 
--- Your cast landed: if it is a debuff we know the length of, start its timer on the target.
+-- Lengths to start from before one has been read: the resource ticker's own bleed lengths.
+local function Seed(name)
+    local TK = T.Ticker
+    if not (TK and TK.DOT_DURATION and TK.DEFAULT_DOTS) then return nil end
+    for _, list in pairs(TK.DEFAULT_DOTS) do
+        for _, d in ipairs(list) do
+            if d.debuff and d.name == name then return TK.DOT_DURATION[name] end
+        end
+    end
+end
+
+-- Your cast landed: if it is a debuff we know the length of (learned, or the seeds above),
+-- start its timer on the target. This works in combat, when auras cannot be read.
 function DT:OnCast(spellID)
     local guid = TargetGUID()
     if not guid or not spellID then return end
-    local name
+    local name, icon
     if C_Spell and C_Spell.GetSpellInfo then
         local ok, info = pcall(C_Spell.GetSpellInfo, spellID)
-        if ok and type(info) == "table" then name = info.name end
+        if ok and type(info) == "table" then name, icon = info.name, info.iconID end
     end
     if type(name) ~= "string" or not Plain(name) then return end
+    if not Plain(icon) then icon = nil end
     local known = DT.db.learned[name]
-    if known and known.dur then
-        DT.Remember(DT.timers, guid, name, GetTime() + known.dur, known.dur, known.icon)
+    local dur = known and known.dur or Seed(name)
+    if dur then
+        DT.Remember(DT.timers, guid, name, GetTime() + dur, dur, known and known.icon or icon)
+        DT:Update(true)
     end
 end
 
@@ -164,7 +179,7 @@ function DT.Debug()
     end
     local n = 0
     for name, v in pairs(db.learned) do n = n + 1; Add("  learned %s: %ds", name, v.dur) end
-    if n == 0 then Add("  nothing learned yet: apply each debuff once out of combat so its length can be read.") end
+    if n == 0 then Add("  nothing learned yet: apply each debuff once out of combat so its length can be read (Rake, Rip and Rupture start with built-in lengths).") end
     return out
 end
 

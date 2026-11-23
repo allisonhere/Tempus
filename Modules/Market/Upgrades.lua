@@ -979,7 +979,7 @@ function M:BuildUpgradePanel()
     -- A free-standing window (not a child of the auction house) so it works anywhere: prices are saved.
     local p = CreateFrame("Frame", "TempusUpgradePanel", UIParent)
     p:SetSize(WIDTH + DETAIL_W, 78 + VISIBLE * ROW_H)
-    p:SetFrameStrata("DIALOG")      -- the settings window is DIALOG too; "HIGH" opened Gear Advisor behind it
+    p:SetFrameStrata("FULLSCREEN")  -- above the settings window (DIALOG); "HIGH" opened Gear Advisor behind it
     if p.SetToplevel then p:SetToplevel(true) end
     p:SetClampedToScreen(true)
     p:SetMovable(true)

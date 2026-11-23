@@ -17,7 +17,7 @@ DT.defaults = {
     fall = "DOWN", labelSide = "LEFT", bgStyle = "GLASS",
     bgOpacity = 0.7, fadeBg = 0.8, fadeIcons = 0.3,
     showLabels = true, showTicks = true, accentRail = true,
-    fallMode = "OWN", lanes = 3,
+    fallMode = "OWN", lanes = 3, showNumbers = true,
     learned = {},               -- debuff name -> { dur, icon }, kept so a first cast in combat is timed
     point = { "CENTER", "UIParent", "CENTER", 470, -40 },
 }
@@ -200,6 +200,7 @@ function DT:Update(reread)
         local b = DT.icons[i]
         if not b then b = CD.NewIcon(f); b.ready:Hide(); b.cd:SetDrawSwipe(false); DT.icons[i] = b end
         b:SetSize(db.size, db.size)
+        b.cd:SetHideCountdownNumbers(db.showNumbers == false)
         if b.key ~= e.name or b.exp ~= e.exp then
             b.key, b.exp = e.name, e.exp
             b.icon:SetTexture(e.icon or 134400)

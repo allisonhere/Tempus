@@ -21,6 +21,7 @@ CD.defaults = {
     fadeBg = 0.8,               -- how far the background fades out toward the ready line
     fadeIcons = 0.5,            -- how far icons fade as they near ready
     showLabels = true, showTicks = true, accentRail = true,
+    showNumbers = true,         -- timeline: the game's countdown number on each icon
     fallMode = "OWN",           -- OWN: every icon starts at the top and lands as its own time ends | SCALE: one shared time scale
     lanes = 3,                  -- icons that start together sit side by side in this many columns
     point = { "CENTER", "UIParent", "CENTER", 0, -170 },
@@ -396,6 +397,7 @@ function CD:Refresh()
         if not b then b = NewIcon(f); CD.icons[i] = b end
         b:SetSize(size, size)
         b.parked = nil
+        b.cd:SetHideCountdownNumbers(timeline and db.showNumbers == false)
         b.cd:SetDrawSwipe(not timeline)      -- the swipe's dark fill turns a falling icon into a black square
         if not timeline then b:SetAlpha(1) end
         if not timeline then

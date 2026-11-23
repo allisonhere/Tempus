@@ -63,6 +63,21 @@ local function Create()
     win.name = StyledEditBox(win, 200, 26)
     win.name:SetPoint("LEFT", win.nameLabel, "RIGHT", 10, 0)
 
+    win.whisper = FlatButton(win, "Whisper", 100, 26, function() win:DoWhisper() end)
+    win.whisper:SetPoint("BOTTOMRIGHT", -126, 16)
+    win.whisper:Hide()
+    function win:DoWhisper()
+        local target = (win.name:GetText() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if target == "" then win.status:SetText("Type the name to whisper it to.") return end
+        local lines = T.Market and T.Market.SplitForChat and T.Market.SplitForChat(win.edit:GetText()) or {}
+        if #lines == 0 then win.status:SetText("Nothing to send.") return end
+        if T.db.market then T.db.market.reportTo = target end
+        for i, line in ipairs(lines) do
+            C_Timer.After((i - 1) * 0.5, function() pcall(SendChatMessage, line, "WHISPER", nil, target) end)
+        end
+        win.status:SetText(("Whispering %d lines to %s..."):format(#lines, target))
+    end
+
     win.action = FlatButton(win, "Import", 100, 26, function() win:DoImport() end)
     win.action:SetPoint("BOTTOMRIGHT", -126, 16)
     win.action:SetActive(true)
@@ -84,6 +99,20 @@ function T:ShowShare(mode)
     if not win then Create() end
     win.mode = mode
     win.status:SetText("")
+    win.whisper:Hide()
+    if mode == "gearreport" then
+        win.title:SetText("Gear data report")
+        win.hint:SetText("Type your build on the second line, then copy this text (Ctrl+C) or whisper it to someone. It holds your class, level, talent points and the stat names on your gear.")
+        win.edit:SetText(T.Market and T.Market.Report and T.Market.Report() or "")
+        win.nameLabel:SetText("Whisper to"); win.nameLabel:Show()
+        win.name:SetText((T.db.market and T.db.market.reportTo) or ""); win.name:Show()
+        win.action:Hide(); win.whisper:Show()
+        win:Show()
+        win.edit:SetFocus()
+        win.edit:HighlightText()
+        return
+    end
+    win.nameLabel:SetText("New profile name")
     if mode == "export" then
         win.title:SetText("Export profile")
         win.hint:SetText("Copy this text (Ctrl+C) and share it. Anyone can paste it into Import to get your settings.")

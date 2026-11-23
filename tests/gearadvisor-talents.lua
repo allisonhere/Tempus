@@ -69,3 +69,15 @@ assert(tree[2] == "Ferocity 5/5 @100,50; Unspent 0/3 @900,50; Feral Swiftness 2/
 C_ClassTalents.GetActiveConfigID = function() return nil end
 assert(T.Market.GearTree()[1]:find("no talent tree"))
 print("PASS: geartree lists talent nodes with positions")
+
+-- The gear data report: one text, and a whisper-sized split of it.
+T.Market.GearSig = function() return { "DRUID 22, 5 points: Ferocity x5" } end
+T.Market.GearTree = function() return { "tree line" } end
+T.Market.GearStats = function() return { "|cffaabbcc2 items read|r" } end
+local rep = T.Market.Report()
+assert(rep == "Tempus gear data\nBuild: (type your build here, for example Destruction)\nDRUID 22, 5 points: Ferocity x5\ntree line\n2 items read", rep)
+local parts = T.Market.SplitForChat("one\n\n  two|cffaabbcc  \n" .. string.rep("word ", 100), 50)
+assert(parts[1] == "one" and parts[2] == "two/cffaabbcc", parts[2])
+for _, line in ipairs(parts) do assert(#line <= 50 and not line:find("|", 1, true), line) end
+assert(#parts >= 4 and #T.Market.SplitForChat(nil) == 0)
+print("PASS: gear report text and whisper split")

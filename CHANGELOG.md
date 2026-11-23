@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- **Share my gear data.** A button on Convenience > Auction values opens a text with your class, level, talent points and the stat names on your gear. Copy it, or type a character name and press Whisper to send it to them in chat. Nothing is sent unless you press Whisper. It is for helping improve Gear Advisor.
 - **A Find button on the Buying section of the Gear Advisor detail pane.** It opens a search for the selected item in the auction house window (the same search the auction house's own search bar runs), so you see the real listings and buy with Blizzard's own Buy button. It sits on the **Buying** heading, with the listing's price, age and item level listed under it, and the same for the item you wear (its item level and what else would come off). It needs the auction house open, spends nothing and buys nothing.
 
 ## 2.18.0

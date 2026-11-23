@@ -264,3 +264,30 @@ function M.GearTree()
     end
     return out
 end
+
+-- A single text with everything gathered for improving Gear Advisor: the build (typed by the player), the
+-- talent points, the talent tree and the stat names on carried gear.
+function M.Report()
+    local lines = { "Tempus gear data", "Build: (type your build here, for example Destruction)" }
+    for _, part in ipairs({ M.GearSig, M.GearTree, M.GearStats }) do
+        for _, line in ipairs(part()) do lines[#lines + 1] = (tostring(line):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+    end
+    return table.concat(lines, "\n")
+end
+
+-- Text cut into chat-sized lines: blank lines dropped, "|" turned into "/" (it starts game escape codes),
+-- and lines over `max` characters split. For whispering the report.
+function M.SplitForChat(text, max)
+    max = max or 240
+    local out = {}
+    for raw in tostring(text or ""):gmatch("[^\n]+") do
+        local line = raw:gsub("|", "/"):gsub("^%s+", ""):gsub("%s+$", "")
+        while #line > max do
+            local cut = line:sub(1, max):match("^.*()%s") or max
+            out[#out + 1] = line:sub(1, cut)
+            line = line:sub(cut + 1):gsub("^%s+", "")
+        end
+        if line ~= "" then out[#out + 1] = line end
+    end
+    return out
+end

@@ -511,3 +511,11 @@ T.db.market.upgradeSort = 'VALUE'
 assert(M.ConfidenceText('nw', 'od', 'DRUID', false, 1):find('Medium'), 'a scored upgrade for a known build is Medium')
 assert(M.ConfidenceText('nw', 'od', 'DRUID', false, 9):find('Low') and M.ConfidenceText('nw', 'od', 'DRUID', false, 9):find('9 days old'), 'a stale price lowers it')
 GetShapeshiftForm, C_Item.GetItemStats = nil, nil
+
+-- The plan uses the Budget plan setting when no amount is given.
+T.db.market.planGold = 4
+printed = {}
+Seed({ [1] = 10 * G, [2] = 1 * G, [4] = 5 * G, [6] = 2 * G, [11] = 3 * G })
+M:PrintPlan()
+assert(table.concat(printed, '\n'):find('plan for 4'), table.concat(printed, '\n'))
+T.db.market.planGold = 0

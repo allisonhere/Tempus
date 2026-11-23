@@ -1137,11 +1137,12 @@ function M:BuildPlan(budget)
     return T.GearAdvisor.Budget.Plan(cands, budget, groups), pending
 end
 
--- /tempus gearplan [gold]: print the plan. No amount means all the gold you carry.
+-- /tempus gearplan [gold]: print the plan. No amount means the Budget plan setting, or all the gold you carry.
 function M:PrintPlan(gold)
     local store = self.Store()
     if not Num(store.scanned) then T:Print("scan the auction house first.") return end
-    local budget = Num(gold) and gold * 10000 or Call(GetMoney) or 0
+    local setting = T.db.market and Num(T.db.market.planGold) and T.db.market.planGold > 0 and T.db.market.planGold or nil
+    local budget = Num(gold) and gold * 10000 or setting and setting * 10000 or Call(GetMoney) or 0
     local plan, pending = self:BuildPlan(budget)
     if #plan.picks == 0 then
         T:Print("nothing in the last scan is worth buying for %s.", M.MoneyText(budget))

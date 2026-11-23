@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Cheapest upgrades is now Gear Advisor.** The window, the auction house button and the settings button carry the new name, and `/tempus gear` opens it. `/tempus upgrades` still works.
+
 ## 2.15.0
 
 ### Added

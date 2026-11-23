@@ -79,7 +79,7 @@ Copy the `Tempus` folder into `World of Warcraft/_classic_/Interface/AddOns/` (o
 | `/tempus unlock` / `lock` | Show / hide the boxes for dragging elements |
 | `/tempus install` | Run the first-run setup again |
 | `/tempus test` | Preview buff displays with sample auras |
-| `/tempus upgrades` | Open the cheapest gear upgrades from your last auction scan (works anywhere) |
+| `/tempus gear` | Open Gear Advisor, the best gear deals from your last auction scan (works anywhere; `/tempus upgrades` also works) |
 | `/tempus safe` | Turn off everything except buffs and reload (escape hatch) |
 | `/tempus debug` | Show aura status and the last error |
 | `/tempus log` | Show recent Lua errors and blocked-action messages |

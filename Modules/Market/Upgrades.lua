@@ -579,7 +579,7 @@ function M:BuildUpgradePanel()
     if S and S.Backdrop then S.Backdrop(p, {}) end
     p.title = S.Text(p, 14, S.C.text)
     p.title:SetPoint("TOPLEFT", 12, -10)
-    p.title:SetText("Cheapest upgrades")
+    p.title:SetText("Gear Advisor")
     p.priceLabel = S.Text(p, 11, S.C.muted)
     p.priceLabel:SetPoint("LEFT", p.title, "RIGHT", 18, 0)
     p.priceLabel:SetText("Max price (gold)")
@@ -746,9 +746,9 @@ function M:RefreshUpgrades()
     elseif pending > 0 then
         p.status:SetText(("Loading item data (%d)..."):format(pending))
     elseif #list == 0 then
-        p.status:SetText(hidden > 0 and "No upgrades match the AH filters"
-            or maxGold > 0 and ("No upgrades under %s gold"):format(maxGold == math.floor(maxGold) and ("%d"):format(maxGold) or tostring(maxGold))
-            or "No upgrades found")
+        p.status:SetText(hidden > 0 and "No gear matches the AH filters"
+            or maxGold > 0 and ("No gear under %s gold"):format(maxGold == math.floor(maxGold) and ("%d"):format(maxGold) or tostring(maxGold))
+            or "No gear upgrades found")
     else
         p.status:SetText("")
     end
@@ -787,10 +787,10 @@ function M:EnsureUpgradeButton(scanButton)
     if self.upgradeButton or not scanButton then return end
     local ok, b = pcall(CreateFrame, "Button", "TempusUpgradesButton", AuctionHouseFrame, "UIPanelButtonTemplate")
     if not (ok and b) then return end
-    b:SetSize(90, 22)
+    b:SetSize(110, 22)
     b:SetPoint("LEFT", scanButton, "RIGHT", 4, 0)
     if b.SetFrameLevel and scanButton.GetFrameLevel then b:SetFrameLevel(scanButton:GetFrameLevel()) end
-    b:SetText("Upgrades")
+    b:SetText("Gear Advisor")
     b:SetScript("OnClick", function() M:ToggleUpgrades() end)
     local SK = T.Skins
     if SK and SK.On and SK.Button and SK:On("windows") then pcall(SK.Button, SK, b) end

@@ -785,7 +785,7 @@ local HELP = {
     { "test", "show sample buffs and frames while you set things up" },
     { "install", "run the first-time setup again" },
     { "shop <item> <amount>", "add to your shopping list (also: shop remove <item>, shop clear)" },
-    { "upgrades", "open the cheapest gear upgrades from your last auction scan (works anywhere)" },
+    { "gear", "open Gear Advisor, the best gear deals from your last auction scan (works anywhere; also /tempus upgrades)" },
     { "swing", "repeat the last fight's swing summary" },
     { "copychat", "open the chat log to read and copy chat (also: selectchat)" },
     { "log", "list warnings and errors from this session" },
@@ -834,9 +834,9 @@ SlashCmdList.TEMPUS = function(msg)
     elseif msg == "tddebug" then
         if T.TargetDebuffs and T.TargetDebuffs.Debug then for _, line in ipairs(T.TargetDebuffs.Debug()) do T:Print("%s", line) end
         else T:Print("the Target debuff timeline module is not loaded.") end
-    elseif msg == "upgrades" or msg == "deals" then
+    elseif msg == "gear" or msg == "upgrades" or msg == "deals" then
         if T.Market and T.Market.ToggleUpgrades and T:ModuleEnabled("market") then T.Market:ToggleUpgrades()
-        else T:Print("turn on the Auction values module to use the upgrades list.") end
+        else T:Print("turn on the Auction values module to use Gear Advisor.") end
     elseif msg == "reset" then
         T:ConfirmReset()
     elseif msg == "undo" then

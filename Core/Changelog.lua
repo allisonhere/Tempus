@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Changed", items = {
+            { 0, "|cffffffffCheapest upgrades is now Gear Advisor.|r The window, the auction house button and the settings button carry the new name, and |cff9fd6ff/tempus gear|r opens it. |cff9fd6ff/tempus upgrades|r still works." },
+        } },
+    } },
     { version = "2.15.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffTarget debuff timeline.|r Your debuffs on the target fall down a timeline toward the moment they run out, with each icon starting at the top and landing as its own time ends (a 5 second debuff falls fast, a 30 second one slowly; a Columns setting spaces icons that start together, and one shared time scale is still available), the same glass background, fades, preview and resize grip as the cooldown timeline. Turn it on under Combat > Target debuffs (Target debuff timeline module); it can replace the target frame's own debuff icons. In combat the game hides debuff times, so Tempus learns each length when it can read it and times your casts after that. Pick your debuffs from a list of your own spells (the length is read from the spell's text) or type them (Moonfire 12), and casting one starts its timer. |cff9fd6ff/tempus tddebug|r shows what it has learned." },

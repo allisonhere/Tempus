@@ -398,7 +398,7 @@ function M:FindUpgrades()
                         -- What the stats are worth to your class; nil when the client gives none.
                         if wornLinks[loc] == nil then wornLinks[loc] = WornLink(loc) or false end
                         local useful = (M.UsefulScore("item:" .. id, wornLinks[loc] or nil, class, roleWeights, RANGED[loc]))
-                        if useful and useful <= 0 then
+                        if useful and useful <= 0 and sort ~= "LEGACY" then
                             worse = worse + 1
                         else
                             local gold = math.max(row.p / 10000, 0.01)
@@ -420,6 +420,9 @@ function M:FindUpgrades()
     table.sort(out, function(a, b)
         if sort == "BIGGEST" then
             if a.worth ~= b.worth then return a.worth > b.worth end
+            if a.price ~= b.price then return a.price < b.price end
+        elseif sort == "LEGACY" then
+            if a.score ~= b.score then return a.score > b.score end
             if a.price ~= b.price then return a.price < b.price end
         elseif sort == "CHEAPEST" then
             if a.price ~= b.price then return a.price < b.price end
@@ -490,8 +493,19 @@ function M.UsefulScore(newLink, oldLink, class, weights, ranged)
     w = T.GearAdvisor.Scoring.ForItem(w, ranged)
     local new, old = StatsOf(newLink), StatsOf(oldLink)
     if next(new) == nil and next(old) == nil then return nil end
-    local total, parts = T.GearAdvisor.Scoring.Delta(new, old, w, Num)
-    return total, parts
+    local total, parts, unscored = T.GearAdvisor.Scoring.Delta(new, old, w, Num)
+    return total, parts, unscored
+end
+
+-- "Confidence: Medium (weights are estimates)" for an item, or nil when there is nothing to say.
+function M.ConfidenceText(newLink, oldLink, class, ranged, age)
+    local db = T.db.market or {}
+    local w, _, why = M.RoleWeights(class)
+    local legacy = db.upgradeSort == "LEGACY"
+    local total, _, unscored = M.UsefulScore(newLink, oldLink, class, w, ranged)
+    local label, reasons = T.GearAdvisor.Confidence.Of({ hasStats = total ~= nil, legacy = legacy, roleWhy = why,
+        unscored = unscored and #unscored or 0, age = age, staleDays = Num(db.staleDays) and db.staleDays or 3 })
+    return ("Confidence: %s (%s)"):format(label, table.concat(reasons, ", "))
 end
 
 -- One line saying why an item is worth what it is: the role and the stats that moved the score.
@@ -510,7 +524,7 @@ function M.WhyText(newLink, oldLink, class, ranged)
 end
 
 -- Sort orders for the list.
-M.SORTS = { { "VALUE", "Best value" }, { "BIGGEST", "Biggest upgrade" }, { "CHEAPEST", "Cheapest" } }
+M.SORTS = { { "VALUE", "Best value" }, { "BIGGEST", "Biggest upgrade" }, { "CHEAPEST", "Cheapest" }, { "LEGACY", "Item levels per gold (old method)" } }
 
 -- The stats that go up when `newLink` replaces `oldLink` (nil = empty slot): up to `max` entries,
 -- largest gain first, as { label, amount }.
@@ -651,7 +665,7 @@ function M.DetailInfo(e)
     local worn = WornLink(e.loc)
     return { name = name, link = link, icon = icon, slot = GROUP_LABEL[GROUP_OF[e.loc]] or "", level = e.level,
         worn = e.worn, wornLink = worn, gain = e.gain, price = e.price, age = e.age,
-        perGold = e.score, note = e.note, why = M.WhyText(link or ("item:" .. e.id), worn, select(2, UnitClass("player")), RANGED[e.loc]), stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
+        perGold = e.score, note = e.note, confidence = M.ConfidenceText(link or ("item:" .. e.id), worn, select(2, UnitClass("player")), RANGED[e.loc], e.age), why = M.WhyText(link or ("item:" .. e.id), worn, select(2, UnitClass("player")), RANGED[e.loc]), stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
         all = M.StatGains(link or ("item:" .. e.id), worn, TABLE_ROWS, true, true) }
 end
 
@@ -761,7 +775,9 @@ function M:ShowDetail(e)
     d.line[1]:SetText(("Item level |cffffffff%d|r  |cff66F27F+%d|r  (you wear %s)"):format(i.level or 0, i.gain or 0,
         i.worn and i.worn > 0 and tostring(i.worn) or "nothing"))
     d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot") .. (i.note and ("  |cffE8A060" .. i.note .. "|r") or ""))
-    d.line[3]:SetText("Price: " .. MoneyText(i.price) .. "  |cff8A93A0(" .. AgeText(i.age) .. ")|r")
+    local conf = i.confidence and i.confidence:match("^Confidence: ([^%(]+)")
+    d.line[3]:SetText("Price: " .. MoneyText(i.price) .. "  |cff8A93A0(" .. AgeText(i.age) .. ")|r"
+        .. (conf and ("   |cff8A93A0Confidence: " .. conf:gsub("%s+$", "") .. "|r") or ""))
     d.line[4]:SetText(i.why or (i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or ""))
     for k, h in ipairs(d.tableHead) do h:SetText(({ "Stat", "Current", "Buy", "Change" })[k]) end
     for r, row in ipairs(d.table) do

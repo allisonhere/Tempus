@@ -17,6 +17,8 @@
 
 - **Gear Advisor can read your talents (switched on class by class).** When "Score gear as" is on Automatic, the build can come from the talents you have points in, after your shapeshift form and before a guess. It needs a list of which talents mark which build, and none is shipped yet: no talent names are guessed, so nothing changes until a class has been probed. Talents unlock at level 10, so below that the build comes from your form, your choice or a labelled guess. **`/tempus gearsig`** prints the talents you have points in on one line, to collect those lists.
 
+- **Gear Advisor confidence and the old ranking.** The detail pane shows a confidence next to the price: **Medium** at best, because the stat weights are community estimates, and **Low** when the build is assumed, some stats changed but have no weight, or the price is stale. When the game gives no stats, or you pick the old method, it says **Item level only**. **Rank upgrades by** has a new **Item levels per gold (old method)** choice that brings back the original ranking, with no stat check, and says so instead of passing itself off as a stat score.
+
 ### Fixed
 - **Gear Advisor and one-hand weapons.** A class that cannot dual wield (a Druid, say) is now compared with its main hand, not the empty off hand that made every one-hander look like a huge upgrade. Characters that dual wield still see the off hand.
 - **Two-handers and shields.** A two-hand weapon now says when it also takes off your shield or off hand, and a shield or off-hand item says when it takes off your two-hander.

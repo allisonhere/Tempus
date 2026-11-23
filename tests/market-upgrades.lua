@@ -21,6 +21,7 @@ assert(loadfile('Modules/GearAdvisor/Scoring.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Owned.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Verdicts.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Budget.lua'))('Tempus', T)
+assert(loadfile('Modules/GearAdvisor/Confidence.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Upgrades.lua'))('Tempus', T)
 local M = T.Market
 local G = 10000
@@ -496,3 +497,17 @@ printed = {}
 Seed({})
 M:PrintPlan(8)
 assert(table.concat(printed, '\n'):find('nothing in the last scan'), 'no listings: say so')
+
+-- Legacy ranking: item levels per gold, no stat check, and the confidence line says so.
+Seed({ [1] = 10 * G, [2] = 1 * G, [4] = 5 * G, [6] = 2 * G, [11] = 3 * G })
+T.db.market.upgradeSort = 'LEGACY'
+local legacy = M:FindUpgrades()
+assert(#legacy >= 2, 'legacy lists items')
+for i = 2, #legacy do assert(legacy[i - 1].score >= legacy[i].score, 'ordered by item levels per gold') end
+GetShapeshiftForm = function() return 3 end
+C_Item.GetItemStats = function(l) return ({ nw = { ITEM_MOD_AGILITY_SHORT = 12 }, od = { ITEM_MOD_STAMINA_SHORT = 6 } })[l] end
+assert(M.ConfidenceText('nw', 'od', 'DRUID', false, 1):find('Item level only'), 'legacy is never called a stat score')
+T.db.market.upgradeSort = 'VALUE'
+assert(M.ConfidenceText('nw', 'od', 'DRUID', false, 1):find('Medium'), 'a scored upgrade for a known build is Medium')
+assert(M.ConfidenceText('nw', 'od', 'DRUID', false, 9):find('Low') and M.ConfidenceText('nw', 'od', 'DRUID', false, 9):find('9 days old'), 'a stale price lowers it')
+GetShapeshiftForm, C_Item.GetItemStats = nil, nil

@@ -28,7 +28,7 @@ function TL.Read()
     if not tree then return nil end
     local okN, nodes = pcall(CTr.GetTreeNodes, tree)
     if not (okN and type(nodes) == "table") then return nil end
-    local ranks, total, display = {}, 0, {}
+    local ranks, total, display, positions = {}, 0, {}, {}
     for _, id in ipairs(nodes) do
         local okNode, ni = pcall(CTr.GetNodeInfo, cfg, id)
         local rank = okNode and type(ni) == "table" and ni.currentRank
@@ -45,6 +45,7 @@ function TL.Read()
                 local okS, n = pcall(C_Spell.GetSpellName, spell)
                 if okS then name = n end
             end
+            if type(ni.posX) == "number" then positions[#positions + 1] = { rank = rank, x = ni.posX } end
             if type(name) == "string" then
                 ranks[name:lower()] = rank
                 display[name] = rank
@@ -52,7 +53,7 @@ function TL.Read()
             end
         end
     end
-    return ranks, total, display
+    return ranks, total, display, positions
 end
 
 -- Which build the talents point to: the role code, or nil when there is no clear signal. `signals` is
@@ -80,11 +81,35 @@ function TL.Detect(level, ranks, signals)
     return top.role
 end
 
+-- Which build the points in each tab point to. `positions` is { { rank, x } ... } for the talents with points;
+-- `tabs` is { { role, maxX } ... } left to right. Same rules as Detect: level gate, enough points, a clear lead.
+function TL.DetectByTab(level, positions, tabs)
+    if type(level) ~= "number" or level < TL.MIN_LEVEL then return nil end
+    if type(positions) ~= "table" or type(tabs) ~= "table" or #tabs == 0 then return nil end
+    local scores = {}
+    for i, tab in ipairs(tabs) do scores[i] = { role = tab[1], score = 0 } end
+    for _, node in ipairs(positions) do
+        for i, tab in ipairs(tabs) do
+            if node.x <= tab[2] then scores[i].score = scores[i].score + node.rank break end
+        end
+    end
+    table.sort(scores, function(a, b)
+        if a.score ~= b.score then return a.score > b.score end
+        return a.role < b.role
+    end)
+    local top, second = scores[1], scores[2]
+    if not top or top.score < TL.MIN_POINTS then return nil end
+    if second and second.score > 0 and top.score < second.score * TL.LEAD then return nil end
+    return top.role
+end
+
 -- The build the character's own talents point to, or nil (no data for the class, too low, unclear).
 function TL.ForPlayer(class, level)
     local signals = GA.TalentSignals[class]
-    if not signals or next(signals) == nil then return nil end
-    local ranks = TL.Read()
+    local tabs = GA.TalentTabs and GA.TalentTabs[class]
+    local hasSignals = signals and next(signals) ~= nil
+    if not hasSignals and not tabs then return nil end
+    local ranks, _, _, positions = TL.Read()
     if not ranks then return nil end
-    return TL.Detect(level, ranks, signals)
+    return (hasSignals and TL.Detect(level, ranks, signals)) or (tabs and TL.DetectByTab(level, positions, tabs)) or nil
 end

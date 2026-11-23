@@ -47,3 +47,20 @@ grep -q "ITEM_MOD_WEIRD_THING_SHORT.*NO WEIGHT" <<<"$report" || { echo "stats: u
 grep -q "ITEM_MOD_AGILITY_SHORT.*Agility (seen)" <<<"$report" || { echo "stats: mapped key not reported" >&2; exit 1; }
 grep -q "ITEM_MOD_BLOCK_RATING_SHORT" <<<"$report" || { echo "stats: unseen assumed keys not listed" >&2; exit 1; }
 echo "ok    tools/gen_gearadvisor.py stats"
+
+python3 tools/gen_gearadvisor.py tabs --check
+mkdir "$TEMP_DIR/trees"
+cat > "$TEMP_DIR/trees/x.txt" <<'TREE'
+WARLOCK tree 1, 6 talents (name rank/max @x,y):
+A 0/1 @1000,1; B 0/1 @2000,1; C 0/1 @5000,1; D 0/1 @6000,1; E 0/1 @9000,1; F 0/1 @10000,1
+TREE
+echo '{"WARLOCK": ["ONE", "TWO", "THREE"]}' > "$TEMP_DIR/tabs.json"
+python3 - "$TEMP_DIR" <<'PY'
+import sys, pathlib
+sys.path.insert(0, "tools")
+import gen_gearadvisor as g
+d = pathlib.Path(sys.argv[1])
+out = g.render_tabs(d / "trees", d / "tabs.json")
+assert 'GA.TalentTabs.WARLOCK = { { "ONE", 3500 }, { "TWO", 7500 }, { "THREE", 1000000000 } }' in out, out
+PY
+echo "ok    tools/gen_gearadvisor.py tabs"

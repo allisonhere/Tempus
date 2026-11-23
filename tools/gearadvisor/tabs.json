@@ -1,0 +1,4 @@
+{
+  "_notes": "Roles of a class's three talent tabs, left to right by talent x position, checked against the talent names in tools/gearadvisor/trees/<class>.txt. Add a class here only after reading its tree.",
+  "WARLOCK": ["AFFLICTION", "DEMONOLOGY", "DESTRUCTION"]
+}

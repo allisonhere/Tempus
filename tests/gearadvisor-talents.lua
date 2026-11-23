@@ -92,3 +92,20 @@ assert(T.Market.DefaultReportTo() == "", "no default for a faction without one")
 UnitFactionGroup = nil
 assert(T.Market.DefaultReportTo() == "")
 print("PASS: the report recipient follows the sender's faction")
+
+-- Builds from the tab the points sit in (tabs split by talent x position).
+local wl = { { "AFFLICTION", 3920 }, { "DEMONOLOGY", 7950 }, { "DESTRUCTION", 1000000000 } }
+assert(TL.DetectByTab(18, { { rank = 4, x = 6220 }, { rank = 5, x = 2220 } }, wl) == nil, "a split build (5 and 4 points) is not guessed")
+assert(TL.DetectByTab(25, { { rank = 5, x = 9680 }, { rank = 3, x = 10280 }, { rank = 1, x = 2220 } }, wl) == "DESTRUCTION", "eight points in the right tab lead")
+assert(TL.DetectByTab(9, { { rank = 5, x = 9680 } }, wl) == nil, "below level 10 there is no signal")
+assert(TL.DetectByTab(25, { { rank = 3, x = 9680 } }, wl) == nil, "too few points")
+assert(TL.DetectByTab(25, {}, wl) == nil and TL.DetectByTab(25, nil, wl) == nil and TL.DetectByTab(25, { { rank = 9, x = 1 } }, {}) == nil)
+assert(T.GearAdvisor.TalentTabs == nil or true)
+-- ForPlayer reads node positions through the trait calls.
+C_ClassTalents.GetActiveConfigID = function() return 7 end
+nodes = { [1] = { currentRank = 5, maxRanks = 5, posX = 9680, posY = 1, entryIDs = { 11 } }, [2] = { currentRank = 0, maxRanks = 3, posX = 2220, posY = 1, entryIDs = { 12 } },
+    [3] = { currentRank = 3, maxRanks = 3, posX = 10280, posY = 1, entryIDs = { 13 } } }
+T.GearAdvisor.TalentTabs = { DRUID = wl }
+assert(TL.ForPlayer("DRUID", 25) == "DESTRUCTION", "the player's points sit in the third tab")
+T.GearAdvisor.TalentTabs = nil
+print("PASS: build detection from talent tabs")

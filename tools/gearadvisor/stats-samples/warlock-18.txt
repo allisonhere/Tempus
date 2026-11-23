@@ -1,0 +1,8 @@
+Tempus: 37 items read, 7 stat names
+Tempus: ITEM_MOD_DAMAGE_PER_SECOND_SHORT: 6 items, 1 to 17.5, e.g. Hook Dagger of the Eagle
+Tempus: ITEM_MOD_INTELLECT_SHORT: 4 items, 1 to 4, e.g. Apprentice Wizard's Gown
+Tempus: ITEM_MOD_SPELL_POWER_SHORT: 6 items, 1 to 4, e.g. Double-Stitched Woolen Shoulders
+Tempus: ITEM_MOD_SPIRIT_SHORT: 1 items, 4, e.g. Heavy Woolen Cloak
+Tempus: ITEM_MOD_STAMINA_SHORT: 6 items, 2 to 5, e.g. Double-Stitched Woolen Shoulders
+Tempus: ITEM_MOD_STRENGTH_SHORT: 2 items, 2, e.g. Leggings of the People's Militia
+Tempus: RESISTANCE0_NAME: 9 items, 12 to 27, e.g. Double-Stitched Woolen Shoulders

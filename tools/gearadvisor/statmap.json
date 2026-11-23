@@ -140,5 +140,15 @@
     },
     "status": "assumed"
   },
-  "_notes": "status: seen = read on a real Forever item; assumed = not yet confirmed (run /tempus gearstats); internal = not an item stat. Ratings: Pawn weights are per 1%; per is the rating per 1% Pawn Forever measured (crit 14, hit 10, dodge 12, parry 15) or estimated (haste 10, block 5). Edit a key or per here after reading real gearstats output, then run: python3 tools/gen_gearadvisor.py weights A Pawn stat can map to several game keys (melee, ranged and spell variants of crit, hit and haste; healing and damage done); each gets the same weight. In spell_power, Healing and SpellDamage use that Pawn weight and max uses the larger of the two."
+  "_notes": "status: seen = read on a real Forever item; assumed = not yet confirmed (run /tempus gearstats); internal = not an item stat. Ratings: Pawn weights are per 1%; per is the rating per 1% Pawn Forever measured (crit 14, hit 10, dodge 12, parry 15) or estimated (haste 10, block 5). Edit a key or per here after reading real gearstats output, then run: python3 tools/gen_gearadvisor.py weights A Pawn stat can map to several game keys (melee, ranged and spell variants of crit, hit and haste; healing and damage done); each gets the same weight. In spell_power, Healing and SpellDamage use that Pawn weight and max uses the larger of the two. seen (top level) lists the keys read on real Forever items; Forever has one ITEM_MOD_SPELL_POWER_SHORT, not separate healing and damage keys (seen on a warlock).",
+  "seen": [
+    "ITEM_MOD_AGILITY_SHORT",
+    "ITEM_MOD_DAMAGE_PER_SECOND_SHORT",
+    "ITEM_MOD_INTELLECT_SHORT",
+    "ITEM_MOD_SPELL_POWER_SHORT",
+    "ITEM_MOD_SPIRIT_SHORT",
+    "ITEM_MOD_STAMINA_SHORT",
+    "ITEM_MOD_STRENGTH_SHORT",
+    "RESISTANCE0_NAME"
+  ]
 }

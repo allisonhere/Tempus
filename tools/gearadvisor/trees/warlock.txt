@@ -1,0 +1,14 @@
+WARLOCK tree 1116, 52 talents (name rank/max @x,y):
+Incinerate 0/1 @9680,5730; Shadow and Flame 0/5 @10280,5130; Bane of Havoc 0/1 @9680,4530; Fire and Brimstone 0/3 @10280,4530
+Pyroclasm 0/2 @9080,4530; Agonizing Flames 0/3 @9680,3930; Conflagrate 0/1 @10280,3930; Destructive Reach 0/2 @9080,2130
+Intensity 0/3 @9080,3930; Ruin 0/5 @9680,3330; Shadowburn 0/1 @10280,3330; Molten Skin 0/5 @9080,2730
+Aftermath 0/5 @10280,2730; Cataclysm 0/3 @9680,2730; Bane 0/5 @10280,2130; Improved Shadow Bolt 0/5 @9680,2130
+Demonic Pact 0/1 @5620,5730; Master Demonologist 0/5 @6220,5130; Soul Link 0/1 @5620,4530; Demonic Knowledge 0/3 @6220,4530
+Improved Felhunter 0/3 @5020,4530; Fel Domination 0/1 @6220,3930; Demonic Brand 0/3 @6820,3930; Decimation 0/2 @5020,3930
+Master Summoner 0/2 @6220,3330; Demonic Energies 0/2 @6820,2730; Demonic Sacrifice 0/1 @5620,3330; Improved Sayaad 0/3 @5020,3330
+Demonic Aegis 0/2 @5020,2730; Fel Vitality 0/3 @6220,2730; Improved Voidwalker 0/3 @5620,2730; Improved Health Funnel 0/2 @5020,2130
+Unholy Power 0/5 @6820,2130; Demonic Embrace 4/5 @6220,2130; Improved Imp 0/3 @5620,2130; Wrack 0/1 @1620,5730
+Shadow Mastery 0/5 @2220,5130; Soul Siphon 0/3 @2220,4530; Siphon Life 0/1 @1620,4530; Curse of Exhaustion 0/1 @2220,3930
+Nightfall 0/2 @1620,3930; Amplify Curse 0/1 @2220,3320; Pandemic 0/3 @2820,3330; Fel Concentration 0/3 @1620,3330
+Improved Bane of Agony 0/2 @1020,3330; Improved Drains 0/3 @2220,2730; Improved Life Tap 0/2 @1020,2120; Soul Harvest 0/2 @1620,2730
+Grim Reach 0/2 @1020,2730; Improved Corruption 5/5 @2220,2130; Suppression 0/5 @1620,2130; Malevolence 0/5 @1020,3930

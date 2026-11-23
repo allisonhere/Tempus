@@ -35,7 +35,8 @@ Talents unlock at level 10, so use characters at level 10 or higher.
 ## 3. The talent tree: `/tempus geartree`
 
 Prints every node of the class tree: `Name rank/max @x,y`, four to a line. Paste it for a character (any level
-10 or higher) into `tools/gearadvisor/trees/<class>.txt`. The x positions split the one tree into its three
+10 or higher) into `tools/gearadvisor/trees/<class>.txt`, add the class's three tab roles (left to right) to
+`tools/gearadvisor/tabs.json`, then run `python3 tools/gen_gearadvisor.py tabs`. The x positions split the one tree into its three
 tabs, and the tab holding most of a character's points names the build (Feral tab versus Restoration tab). The
 Cat or Bear choice inside Feral still comes from the shapeshift form.
 
@@ -47,6 +48,8 @@ Cat or Bear choice inside Feral still comes from the shapeshift form.
 
 ## Confirmed in game
 
+- Items use one `ITEM_MOD_SPELL_POWER_SHORT`, plus `ITEM_MOD_INTELLECT_SHORT`, `SPIRIT`, `STAMINA`, `STRENGTH`, `DAMAGE_PER_SECOND` and `RESISTANCE0_NAME` (armor), read on a level 18 Warlock's gear.
+- The Warlock tree (id 1116, 52 talents) splits by talent x position into Affliction (x up to 2820), Demonology (5020 to 6820) and Destruction (9080 to 10280).
 - `GetShapeshiftForm()`: Cat = 3 and Bear = 1 (level 22 Druid: attack power 177 and 130 match the classic cat and bear formulas).
 
 ## Other facts still to confirm in game

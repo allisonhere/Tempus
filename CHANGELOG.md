@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.20.1
 
 ### Fixed
 - **Open Gear Advisor on the settings page.** The window opened behind the settings window, so the button seemed to do nothing. It now opens in front.

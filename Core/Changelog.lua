@@ -1,7 +1,7 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
-    { version = "Unreleased", sections = {
+    { version = "2.20.1", sections = {
         { title = "Fixed", items = {
             { 0, "|cffffffffOpen Gear Advisor on the settings page.|r The window opened behind the settings window, so the button seemed to do nothing. It now opens in front." },
             { 0, "|cffffffffNo more mailbox prompt from an old report.|r A report queued as mail by an earlier build kept asking at every mailbox, with no way to clear it now that the report window is gone. Old queued mail is dropped when you log in and is never offered." },

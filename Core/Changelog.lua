@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Changed", items = {
+            { 0, "|cffffffffGear Advisor window, redesigned and flat.|r The gradients are gone from the list (the hover wash, the gain badge and the value meter are plain colours now) and the hover tooltip is gone: everything is in the window. The list has column headings and shows each listing's |cffffffffScore|r for your build next to its item levels gained and its price. The detail pane is now a clean set of rows: Score (and which build it was scored as), Item level, Price and age, what it Replaces (and what else comes off), Trust (the confidence and its reasons) and Why (each stat with the score it adds, and any stat that moved with no weight). The stat table gained a |cffffffffScore|r column, so you can see what each stat adds, and the vertical chart is gone." },
+        } },
+    } },
     { version = "2.17.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffff|cff9fd6ff/tempus geartree|r|r lists every talent in your class tree with its position and your points, four to a line. Pasting it for a few characters lets Gear Advisor split the tree into its three tabs by position and read a build from where the points are." },

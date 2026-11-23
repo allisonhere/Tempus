@@ -116,8 +116,6 @@ local sawLoss
 for _, g in ipairs(both) do if g.amount < 0 then sawLoss = true end end
 assert(sawLoss, 'withLosses lists stats that drop, including ones the new item lacks')
 -- bar sizing and colours
-assert(M.BarWidth(10, 10, 80) == 80 and M.BarWidth(5, 10, 80) == 40 and M.BarWidth(1, 100, 80) == 3, 'bar width scales, never a sliver')
-assert(M.BarWidth(0, 10, 80) == 0 and M.BarWidth(5, 0, 80) == 0 and M.BarWidth(nil, 10, 80) == 0, 'no gain, no bar')
 assert(M.BarColor('Agility', 'ITEM_MOD_AGILITY_SHORT') ~= M.BarColor('Stamina', 'ITEM_MOD_STAMINA_SHORT') and M.BarColor('Agi') ~= M.BarColor('Sta') and M.BarColor('Whatever')[1], 'known and unknown stats both coloured')
 assert(gains[1].old and gains[1].new == gains[1].old + gains[1].amount, 'gains carry the worn and new values')
 assert(all[1].label == 'Armor' and all[2].label == 'Stamina' and all[3].label == 'Strength' and all[4].label == 'Critical Strike Rating'
@@ -350,7 +348,7 @@ assert(anyBoth, 'every row carries current and new values')
 assert(#cmp >= #M.StatGains('new', 'old', 8, true), 'unchanged stats are added, never removed')
 Seed({ [4] = 5 * G }); AuctionHouseFrame = nil; g_auctionHouseFilters = nil
 local info2 = M.DetailInfo((M:FindUpgrades())[1])
-assert(type(info2.all) == 'table' and #info2.all >= #info2.stats, 'detail info has the comparison table rows')
+assert(type(info2.all) == 'table' and info2.confidenceLabel and info2.confidenceReasons ~= nil, 'detail info has the comparison table rows and the confidence')
 -- max price: setting and the box in the window
 Seed({ [1] = 10 * G, [2] = 1 * G, [4] = 5 * G, [6] = 2 * G })
 T.db.market.upgradeMaxGold = 3
@@ -520,14 +518,9 @@ M:PrintPlan()
 assert(table.concat(printed, '\n'):find('plan for 4'), table.concat(printed, '\n'))
 T.db.market.planGold = 0
 
--- The hover tooltip carries the full detail: tags, why, what comes off, confidence.
-GetShapeshiftForm = function() return 3 end
-C_Item.GetItemStats = function(l) return ({ nw = { ITEM_MOD_AGILITY_SHORT = 12, ITEM_MOD_STAMINA_SHORT = 2 }, od = { ITEM_MOD_STAMINA_SHORT = 6 } })[l] end
-UnitClass = function() return 'Druid', 'DRUID' end
-local tipInfo = M.DetailInfo
-M.DetailInfo = function(e) return { why = '|cff7CFF8A+9.0|r as Cat: +12 Agility', note = 'Also takes off your shield', confidence = 'Confidence: Medium (weights are estimates)' } end
-local tip = M.TooltipLines({ tags = { 'Biggest upgrade', 'Best value' } })
-assert(tip[1] == 'Biggest upgrade, Best value' and tip[2] == '+9.0 as Cat: +12 Agility' and tip[3] == 'Also takes off your shield' and tip[4]:find('Medium'), table.concat(tip, ' | '))
-assert(#M.TooltipLines({}) == 3, 'no tags: three lines')
-M.DetailInfo = tipInfo
-GetShapeshiftForm, C_Item.GetItemStats = nil, nil
+
+-- The detail pane's facts: parts text names each stat with its score share, unscored stats are listed.
+local parts = { { key = 'ITEM_MOD_AGILITY_SHORT', change = 12, value = 12.0 }, { key = 'ITEM_MOD_STAMINA_SHORT', change = -4, value = -1.4 } }
+local text = M.PartsText(parts, { 'ITEM_MOD_WEIRD' })
+assert(text:find('Agility %\+12 %(%\+12.0%)') and text:find('Stamina %-4 %(%-1.4%)') and text:find('Not scored: ITEM_MOD_WEIRD'), text)
+assert(M.PartsText({}, {}) == 'No scored stat changes.')

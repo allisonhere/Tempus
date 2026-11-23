@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Gear Advisor window, redesigned and flat.** The gradients are gone from the list (the hover wash, the gain badge and the value meter are plain colours now) and the hover tooltip is gone: everything is in the window. The list has column headings and shows each listing's **Score** for your build next to its item levels gained and its price. The detail pane is now a clean set of rows: Score (and which build it was scored as), Item level, Price and age, what it Replaces (and what else comes off), Trust (the confidence and its reasons) and Why (each stat with the score it adds, and any stat that moved with no weight). The stat table gained a **Score** column, so you can see what each stat adds, and the vertical chart is gone.
+
 ## 2.17.0
 
 ### Added

@@ -497,14 +497,19 @@ function M.UsefulScore(newLink, oldLink, class, weights, ranged)
     return total, parts, unscored
 end
 
--- "Confidence: Medium (weights are estimates)" for an item, or nil when there is nothing to say.
-function M.ConfidenceText(newLink, oldLink, class, ranged, age)
+-- The confidence label ("Medium", "Low", "Item level only") and its reasons for an item.
+function M.ConfidenceParts(newLink, oldLink, class, ranged, age)
     local db = T.db.market or {}
     local w, _, why = M.RoleWeights(class)
     local legacy = db.upgradeSort == "LEGACY"
     local total, _, unscored = M.UsefulScore(newLink, oldLink, class, w, ranged)
-    local label, reasons = T.GearAdvisor.Confidence.Of({ hasStats = total ~= nil, legacy = legacy, roleWhy = why,
+    return T.GearAdvisor.Confidence.Of({ hasStats = total ~= nil, legacy = legacy, roleWhy = why,
         unscored = unscored and #unscored or 0, age = age, staleDays = Num(db.staleDays) and db.staleDays or 3 })
+end
+
+-- "Confidence: Medium (weights are estimates)" for an item.
+function M.ConfidenceText(newLink, oldLink, class, ranged, age)
+    local label, reasons = M.ConfidenceParts(newLink, oldLink, class, ranged, age)
     return ("Confidence: %s (%s)"):format(label, table.concat(reasons, ", "))
 end
 
@@ -557,13 +562,6 @@ local BAR_DEFAULT = { 0.45, 0.78, 0.78 }
 
 -- Colour by stat: pass the item-stat key when known (so full names still map), else the short label.
 function M.BarColor(label, key) return BAR_COLORS[SHORT[key or ""] or label] or BAR_DEFAULT end
-
--- Fill width for one stat: its share of the biggest gain of that stat in the list, never a bare
--- sliver, so small upgrades still show a bar.
-function M.BarWidth(amount, max, width)
-    if not (Num(amount) and Num(max)) or max <= 0 or amount <= 0 then return 0 end
-    return math.max(3, math.floor(width * math.min(1, amount / max) + 0.5))
-end
 
 local function AmountText(a) return a == math.floor(a) and ("%d"):format(a) or ("%.1f"):format(a) end
 
@@ -628,51 +626,61 @@ local function QualityColor(q)
 end
 M.QualityColor = QualityColor
 
--- Green that deepens with the size of the gain, for the ilvl badge.
-local function GainColor(gain)
-    local t = math.min(1, math.max(0, (Num(gain) and gain or 0) / 30))
-    return 0.25 + 0.07 * t, 0.62 + 0.30 * t, 0.58 - 0.20 * t
-end
-
 -- The window has its own palette (auction-house gold), independent of the Tempus accent colour.
 local GOLD = { 1, 0.80, 0.32 }
 local function Paint(tex, c, a) tex:SetVertexColor(c[1], c[2], c[3], a or 1) return tex end
 
--- Heat map for the value meters: cold red for a weak deal through yellow to green for the best.
-local function HeatColor(t)
-    t = math.max(0, math.min(1, Num(t) and t or 0))
-    if t < 0.5 then
-        local u = t / 0.5
-        return 0.95 + 0.05 * u, 0.25 + 0.55 * u, 0.25 + 0.07 * u
-    end
-    local u = (t - 0.5) / 0.5
-    return 1 - 0.68 * u, 0.80 + 0.12 * u, 0.32 + 0.16 * u
-end
-M.HeatColor = HeatColor
 
-local DETAIL_STATS = 7
-local COL_W, BAR_COL = math.floor((DETAIL_W - 20) / DETAIL_STATS), 28
-local TABLE_Y, TABLE_ROW, TABLE_ROWS = 118, 16, 8      -- current / buy comparison table
-local CHART_TOP, CHART_H = 292, 150
-local CHART_MID, HALF = CHART_TOP + CHART_H / 2, 58     -- centre line; tallest bar either way
+local TABLE_ROW, TABLE_ROWS = 16, 11                  -- stat table rows
+local FACT_X = 84                                       -- value column of the facts block
+local GROUP_LABEL = {}
 local GROUP_LABEL = {}
 for _, g in ipairs(GROUPS) do GROUP_LABEL[g[1]] = g[2] end
+
+-- "Agility +12 (+12.0), Stamina -4 (-1.4)" for the stats that moved the score, and the ones that moved
+-- with no weight to score them.
+function M.PartsText(parts, unscored)
+    local bits = {}
+    for i = 1, math.min(5, #parts) do
+        local p = parts[i]
+        bits[#bits + 1] = ("%s %s%s (%+.1f)"):format(StatLabel(p.key) or p.key, p.change > 0 and "+" or "-",
+            (math.abs(p.change) == math.floor(math.abs(p.change)) and ("%d"):format(math.abs(p.change)) or ("%.1f"):format(math.abs(p.change))), p.value)
+    end
+    local text = #bits > 0 and table.concat(bits, ", ") or "No scored stat changes."
+    if unscored and #unscored > 0 then
+        local names = {}
+        for i = 1, math.min(3, #unscored) do names[#names + 1] = StatLabel(unscored[i]) or unscored[i] end
+        text = text .. "  Not scored: " .. table.concat(names, ", ") .. (#unscored > 3 and ", ..." or "") .. "."
+    end
+    return text
+end
 
 -- Everything the detail pane shows for one listed item.
 function M.DetailInfo(e)
     local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
     local name, link, _, _, _, _, _, _, _, icon = getInfo(e.id)
     local worn = WornLink(e.loc)
+    local newLink = link or ("item:" .. e.id)
+    local _, class = UnitClass("player")
+    local w, roleLabel, roleWhy = M.RoleWeights(class)
+    local total, parts, unscored = M.UsefulScore(newLink, worn, class, w, RANGED[e.loc])
+    local byKey = {}
+    for _, part in ipairs(parts or {}) do byKey[part.key] = part.value end
+    local rows = M.StatGains(newLink, worn, TABLE_ROWS, true, true)
+    for _, g in ipairs(rows) do g.score = byKey[g.key] end
+    local label, reasons = M.ConfidenceParts(newLink, worn, class, RANGED[e.loc], e.age)
     return { name = name, link = link, icon = icon, slot = GROUP_LABEL[GROUP_OF[e.loc]] or "", level = e.level,
-        worn = e.worn, wornLink = worn, gain = e.gain, price = e.price, age = e.age,
-        perGold = e.score, note = e.note, confidence = M.ConfidenceText(link or ("item:" .. e.id), worn, select(2, UnitClass("player")), RANGED[e.loc], e.age), why = M.WhyText(link or ("item:" .. e.id), worn, select(2, UnitClass("player")), RANGED[e.loc]), stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
-        all = M.StatGains(link or ("item:" .. e.id), worn, TABLE_ROWS, true, true) }
+        worn = e.worn, wornLink = worn, gain = e.gain, price = e.price, age = e.age, perGold = e.score, note = e.note,
+        tags = e.tags, score = total, role = roleLabel,
+        roleWhy = roleWhy, parts = total and M.PartsText(parts, unscored) or nil, confidenceLabel = label,
+        confidenceReasons = reasons and table.concat(reasons, "; ") or "", all = rows }
 end
 
 function M.BuildDetail(p, scroll)
     local d = CreateFrame("Frame", nil, p)
     d:SetPoint("TOPLEFT", scroll, "TOPRIGHT", 8, 0)
     d:SetSize(DETAIL_W - 18, VISIBLE * ROW_H)
+    local W = DETAIL_W - 20
     d.icon = d:CreateTexture(nil, "ARTWORK")
     d.icon:SetSize(36, 36)
     d.icon:SetPoint("TOPLEFT", 0, 0)
@@ -683,65 +691,62 @@ function M.BuildDetail(p, scroll)
     d.glow:SetPoint("BOTTOMRIGHT", d.icon, 2, -2)
     d.name = S.Text(d, 13, S.C.text)
     d.name:SetPoint("TOPLEFT", d.icon, "TOPRIGHT", 8, -2)
-    d.name:SetWidth(DETAIL_W - 70)
+    d.name:SetWidth(W - 44)
     d.name:SetWordWrap(false)
     d.slot = S.Text(d, 11, S.C.muted)
     d.slot:SetPoint("TOPLEFT", d.name, "BOTTOMLEFT", 0, -3)
-    d.line = {}
-    for i = 1, 4 do
-        d.line[i] = S.Text(d, 11, S.C.text)
-        d.line[i]:SetPoint("TOPLEFT", d.icon, "BOTTOMLEFT", 0, -10 - (i - 1) * 16)
-        d.line[i]:SetWidth(DETAIL_W - 20)
-        d.line[i]:SetWordWrap(false)
+    d.slot:SetWidth(W - 44)
+    d.slot:SetWordWrap(false)
+    -- Facts: a muted label and its value, one pair per row. Rows that can run long wrap onto a second line.
+    d.facts = {}
+    local y = 48
+    for _, f in ipairs({ { "Score", 16 }, { "Item level", 16 }, { "Price", 16 }, { "Replaces", 30 }, { "Trust", 44 }, { "Why", 44 } }) do
+        local label = S.Text(d, 11, S.C.muted)
+        label:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -y)
+        label:SetWidth(FACT_X - 6)
+        label:SetJustifyH("LEFT")
+        label:SetText(f[1])
+        local value = S.Text(d, 11, S.C.text)
+        value:SetPoint("TOPLEFT", d, "TOPLEFT", FACT_X, -y)
+        value:SetSize(W - FACT_X, f[2])
+        value:SetJustifyH("LEFT")
+        value:SetJustifyV("TOP")
+        value:SetWordWrap(f[2] > 16)
+        d.facts[f[1]] = { label = label, value = value }
+        y = y + f[2] + 4
     end
-    d.head = S.Text(d, 11, GOLD)
-    d.head:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(CHART_TOP - 16))
-    -- Side-by-side table: what you wear now against what you would buy.
-    local cols = { { 0, 130, "LEFT" }, { 132, 60, "RIGHT" }, { 196, 60, "RIGHT" }, { 260, DETAIL_W - 20 - 260, "RIGHT" } }
-    local function Cell(c, y, text, color)
+    d.rule = Paint(S.Tex(d, "ARTWORK"), GOLD, 0.5)
+    d.rule:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(y + 2))
+    d.rule:SetSize(W, 1)
+    local tableY = y + 10
+    -- Side-by-side table: what you wear against what you would buy, and what each stat adds to the score.
+    local cols = { { 0, 104, "LEFT" }, { 106, 52, "RIGHT" }, { 160, 52, "RIGHT" }, { 214, 52, "RIGHT" }, { 268, W - 268, "RIGHT" } }
+    local function Cell(c, yy, color)
         local fs = S.Text(d, 11, color or S.C.text)
-        fs:SetPoint("TOPLEFT", d, "TOPLEFT", c[1], -y)
+        fs:SetPoint("TOPLEFT", d, "TOPLEFT", c[1], -yy)
         fs:SetWidth(c[2])
         fs:SetJustifyH(c[3])
         fs:SetWordWrap(false)
-        fs:SetText(text or "")
         return fs
     end
     d.tableHead = {}
-    for k, c in ipairs(cols) do d.tableHead[k] = Cell(c, TABLE_Y, ({ "Stat", "Current", "Buy", "Change" })[k], GOLD) end
+    for k, c in ipairs(cols) do
+        d.tableHead[k] = Cell(c, tableY, GOLD)
+        d.tableHead[k]:SetText(({ "Stat", "Current", "Buy", "Change", "Score" })[k])
+    end
     d.table = {}
     for r = 1, TABLE_ROWS do
         local row = {}
-        for k, c in ipairs(cols) do row[k] = Cell(c, TABLE_Y + 6 + r * TABLE_ROW) end
+        for k, c in ipairs(cols) do row[k] = Cell(c, tableY + 4 + r * TABLE_ROW) end
         d.table[r] = row
     end
-    -- Vertical chart: gains rise above a centre line, losses hang below it, one column per stat.
-    d.axis = d:CreateTexture(nil, "ARTWORK")
-    d.axis:SetSize(DETAIL_W - 20, 1)
-    d.axis:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -CHART_MID)
-    d.axis:SetColorTexture(1, 1, 1, 0.25)
-    d.stats = {}
-    for i = 1, DETAIL_STATS do
-        local s, cx = {}, (i - 0.5) * COL_W
-        s.back = d:CreateTexture(nil, "BACKGROUND")
-        s.back:SetSize(COL_W - 4, CHART_H)
-        s.back:SetPoint("TOPLEFT", d, "TOPLEFT", (i - 1) * COL_W + 2, -CHART_TOP)
-        s.back:SetColorTexture(1, 1, 1, 0.04)
-        s.bar = d:CreateTexture(nil, "ARTWORK")
-        s.bar:SetWidth(BAR_COL)
-        s.up = { "BOTTOM", d, "TOPLEFT", cx, -CHART_MID }
-        s.down = { "TOP", d, "TOPLEFT", cx, -CHART_MID }
-        s.val = S.Text(d, 10, S.C.text, "OUTLINE")
-        s.label = S.Text(d, 10, S.C.muted)
-        s.label:SetPoint("TOP", d, "TOPLEFT", cx, -(CHART_TOP + CHART_H + 3))
-        s.label:SetWidth(COL_W)
-        s.label:SetJustifyH("CENTER")
-        s.label:SetWordWrap(true)
-        d.stats[i] = s
-    end
+    d.foot = S.Text(d, 10, S.C.muted)
+    d.foot:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 0, 0)
+    d.foot:SetWidth(W)
+    d.foot:SetWordWrap(true)
     d.hint = S.Text(d, 11, S.C.muted)
     d.hint:SetPoint("TOPLEFT", 0, 0)
-    d.hint:SetWidth(DETAIL_W - 24)
+    d.hint:SetWidth(W)
     d.hint:SetText("Hover an item to see exactly what changes.")
     return d
 end
@@ -751,48 +756,41 @@ local function AgeText(age)
     return age == 1 and "seen 1 day ago" or ("seen %d days ago"):format(age)
 end
 
--- The detail for one listing as plain tooltip lines: why it scored what it did, the verdict tags,
--- what else comes off, and how far to trust it. Nothing here is cut off by the pane's width.
-function M.TooltipLines(e)
-    local i = M.DetailInfo(e)
-    local lines = {}
-    local function strip(text) return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
-    if e.tags and #e.tags > 0 then lines[#lines + 1] = table.concat(e.tags, ", ") end
-    if i.why then lines[#lines + 1] = strip(i.why) end
-    if i.note then lines[#lines + 1] = i.note end
-    if i.confidence then lines[#lines + 1] = i.confidence end
-    return lines
-end
-
 function M:ShowDetail(e)
     local p, d = self.upgradePanel, self.upgradePanel and self.upgradePanel.detail
     if not d then return end
     self.detailEntry = e
-    if not e then
-        d.hint:Show(); d.icon:Hide(); d.glow:Hide(); d.name:SetText(""); d.slot:SetText(""); d.head:SetText("")
-        for _, l in ipairs(d.line) do l:SetText("") end
-        for _, s in ipairs(d.stats) do s.label:SetText(""); s.val:SetText(""); s.back:Hide(); s.bar:Hide() end
-        d.axis:Hide()
+    local function Clear()
+        d.hint:Show(); d.icon:Hide(); d.glow:Hide(); d.name:SetText(""); d.slot:SetText(""); d.rule:Hide(); d.foot:SetText("")
+        for _, f in pairs(d.facts) do f.label:Hide(); f.value:SetText("") end
         for _, h in ipairs(d.tableHead) do h:SetText("") end
         for _, row in ipairs(d.table) do for _, c in ipairs(row) do c:SetText("") end end
-        return
     end
+    if not e then Clear() return end
     local i = M.DetailInfo(e)
     d.hint:Hide()
     d.icon:Show()
+    d.rule:Show()
     d.glow:SetVertexColor(QualityColor(e.quality))
     d.glow:Show()
     d.icon:SetTexture(i.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
     d.name:SetText(i.link or i.name or ("item:" .. e.id))
-    d.slot:SetText(i.slot .. ((e.tags and #e.tags > 0) and ("  |cffFFD651" .. table.concat(e.tags, ", ") .. "|r") or ""))
-    d.line[1]:SetText(("Item level |cffffffff%d|r  |cff66F27F+%d|r  (you wear %s)"):format(i.level or 0, i.gain or 0,
+    d.slot:SetText(i.slot .. ((i.tags and #i.tags > 0) and ("   |cffFFD651" .. table.concat(i.tags, "  ·  ") .. "|r") or ""))
+    for _, f in pairs(d.facts) do f.label:Show() end
+    local F = d.facts
+    local muted = "|cff8A93A0"
+    F.Score.value:SetText(i.score
+        and (("|cff7CFF8A%+.1f|r as %s%s"):format(i.score, i.role or "your class",
+            i.roleWhy and (" " .. muted .. "(" .. (i.roleWhy == "chosen" and "your choice" or i.roleWhy == "form" and "from your form"
+                or i.roleWhy == "talents" and "from your talents" or i.roleWhy == "last form" and "from your last form" or "assumed") .. ")|r") or ""))
+        or (muted .. "no stats from the game; ranked by item level|r"))
+    F["Item level"].value:SetText(("|cffffffff%d|r  |cff66F27F+%d|r  %s(you wear %s)|r"):format(i.level or 0, i.gain or 0, muted,
         i.worn and i.worn > 0 and tostring(i.worn) or "nothing"))
-    d.line[2]:SetText("Replaces: " .. (i.wornLink or "empty slot") .. (i.note and ("  |cffE8A060" .. i.note .. "|r") or ""))
-    local conf = i.confidence and i.confidence:match("^Confidence: ([^%(]+)")
-    d.line[3]:SetText("Price: " .. MoneyText(i.price) .. "  |cff8A93A0(" .. AgeText(i.age) .. ")|r"
-        .. (conf and ("   |cff8A93A0Confidence: " .. conf:gsub("%s+$", "") .. "|r") or ""))
-    d.line[4]:SetText(i.why or (i.perGold and ("Value: %.1f item levels per gold"):format(i.perGold) or ""))
-    for k, h in ipairs(d.tableHead) do h:SetText(({ "Stat", "Current", "Buy", "Change" })[k]) end
+    F.Price.value:SetText(MoneyText(i.price) .. "  " .. muted .. AgeText(i.age) .. "|r")
+    F.Replaces.value:SetText((i.wornLink or "empty slot") .. (i.note and ("\n|cffE8A060" .. i.note .. "|r") or ""))
+    F.Trust.value:SetText(("|cffffffff%s|r\n%s%s|r"):format(i.confidenceLabel or "", muted, i.confidenceReasons or ""))
+    F.Why.value:SetText(i.parts or (i.perGold and ("%.1f item levels per gold"):format(i.perGold) or ""))
+    for k, h in ipairs(d.tableHead) do h:SetText(({ "Stat", "Current", "Buy", "Change", "Score" })[k]) end
     for r, row in ipairs(d.table) do
         local g = i.all[r]
         if g then
@@ -800,51 +798,21 @@ function M:ShowDetail(e)
             row[1]:SetText(g.label); row[1]:SetTextColor(c[1], c[2], c[3])
             row[2]:SetText(AmountText(g.old))
             row[3]:SetText(AmountText(g.new))
-            row[3]:SetTextColor(g.amount > 0 and 0.48 or g.amount < 0 and 1 or S.C.text[1], g.amount > 0 and 1 or g.amount < 0 and 0.42 or S.C.text[2], g.amount > 0 and 0.54 or g.amount < 0 and 0.42 or S.C.text[3])
             row[4]:SetText(g.amount > 0 and ("|cff7CFF8A+" .. AmountText(g.amount) .. "|r")
                 or g.amount < 0 and ("|cffFF6B6B-" .. AmountText(-g.amount) .. "|r") or "|cff888888=|r")
+            row[5]:SetText(g.score and (g.score >= 0 and ("|cffFFD651+%.1f|r"):format(g.score) or ("|cffFF6B6B%.1f|r"):format(g.score)) or "|cff888888-|r")
         else
             for _, cell in ipairs(row) do cell:SetText("") end
         end
     end
-    d.head:SetText(#i.stats > 0 and "Stat changes: up = gain, down = loss" or "No stat changes known yet")
-    d.axis:Show()
-    for k, s in ipairs(d.stats) do
-        local g = i.stats[k]
-        if g then
-            -- Heights are the change as a share of the larger of old and new, so a +1 and a +30
-            -- of different stats can be compared by eye; the printed figure is the real amount.
-            local lost = g.amount < 0
-            local h = M.BarWidth(math.abs(g.amount), math.max(g.old, g.new), HALF)
-            local c = lost and { 0.9, 0.28, 0.28 } or M.BarColor(g.label, g.key)
-            s.back:Show()
-            s.bar:ClearAllPoints()
-            s.bar:SetPoint(unpack(lost and s.down or s.up))
-            s.bar:SetHeight(h)
-            s.bar:SetColorTexture(1, 1, 1, 1)
-            -- Brighter at the tip, deeper at the centre line.
-            local lo, hi = 0.55, 1
-            if lost then
-                S.SetGradient(s.bar, "VERTICAL", c[1] * hi, c[2] * hi, c[3] * hi, 0.95, c[1] * lo, c[2] * lo, c[3] * lo, 0.95)
-            else
-                S.SetGradient(s.bar, "VERTICAL", c[1] * lo, c[2] * lo, c[3] * lo, 0.95, c[1] * hi, c[2] * hi, c[3] * hi, 0.95)
-            end
-            s.bar:Show()
-            s.val:ClearAllPoints()
-            s.val:SetPoint(lost and "TOP" or "BOTTOM", s.bar, lost and "BOTTOM" or "TOP", 0, lost and -2 or 2)
-            s.val:SetText((lost and "|cffFF6B6B-" or "|cff7CFF8A+") .. AmountText(math.abs(g.amount)) .. "|r")
-            s.label:SetText(g.label)
-        else
-            s.label:SetText(""); s.val:SetText(""); s.back:Hide(); s.bar:Hide()
-        end
-    end
+    d.foot:SetText(i.score and "Score weights are community estimates, not measured from the game." or "")
 end
 
 function M:BuildUpgradePanel()
     if self.upgradePanel then return self.upgradePanel end
     -- A free-standing window (not a child of the auction house) so it works anywhere: prices are saved.
     local p = CreateFrame("Frame", "TempusUpgradePanel", UIParent)
-    p:SetSize(WIDTH + DETAIL_W, 60 + VISIBLE * ROW_H)
+    p:SetSize(WIDTH + DETAIL_W, 78 + VISIBLE * ROW_H)
     p:SetFrameStrata("HIGH")
     p:SetClampedToScreen(true)
     p:SetMovable(true)
@@ -902,7 +870,14 @@ function M:BuildUpgradePanel()
     p.foot = S.Text(p, 11, S.C.muted)
     p.foot:SetPoint("BOTTOMLEFT", 12, 10)
     local scroll = CreateFrame("ScrollFrame", nil, p)
-    scroll:SetPoint("TOPLEFT", 10, -34)
+    -- Column headings, aligned with the right-hand columns of the rows below.
+    for _, c in ipairs({ { "Item", "LEFT", 34 }, { "Score", "RIGHT", 10 + WIDTH - 20 - 162 }, { "Gain", "RIGHT", 10 + WIDTH - 20 - 104 },
+        { "Price", "RIGHT", 10 + WIDTH - 20 - 4 } }) do
+        local h = S.Text(p, 10, S.C.muted)
+        h:SetPoint(c[2], p, "TOPLEFT", c[3], -42)
+        h:SetText(c[1])
+    end
+    scroll:SetPoint("TOPLEFT", 10, -52)
     scroll:SetSize(WIDTH - 20, VISIBLE * ROW_H)
     scroll:EnableMouseWheel(true)
     local content = CreateFrame("Frame", nil, scroll)
@@ -948,16 +923,19 @@ function M:BuildUpgradePanel()
         r.icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
         r.name = S.Text(r, 12, S.C.text)
         r.name:SetPoint("LEFT", r.icon, "RIGHT", 6, 0)
-        r.name:SetWidth(230)
+        r.name:SetWidth(172)
         r.name:SetJustifyH("LEFT")
-        r.pill = S.Tex(r, "BACKGROUND", nil, 2)
-        r.pill:SetSize(58, 16)
-        r.gain = S.Text(r, 11, { 0.4, 0.95, 0.5 }, "OUTLINE")
-        r.gain:SetPoint("LEFT", r.name, "RIGHT", 6, 0)
-        r.gain:SetWidth(56)
-        r.gain:SetJustifyH("CENTER")
-        r.pill:SetPoint("CENTER", r.gain, "CENTER", 0, 0)
-        r.meter = Paint(S.Tex(r, "ARTWORK"), GOLD, 0.8)
+        r.name:SetWordWrap(false)
+        -- Columns from the right: price, item levels gained, score.
+        r.gain = S.Text(r, 11, { 0.45, 0.95, 0.55 })
+        r.gain:SetPoint("RIGHT", -104, 0)
+        r.gain:SetWidth(54)
+        r.gain:SetJustifyH("RIGHT")
+        r.score = S.Text(r, 12, { 1, 0.82, 0.25 })
+        r.score:SetPoint("RIGHT", -162, 0)
+        r.score:SetWidth(56)
+        r.score:SetJustifyH("RIGHT")
+        r.meter = Paint(S.Tex(r, "ARTWORK"), GOLD, 0.45)       -- one flat bar: this listing's score against the best in its slot
         r.meter:SetPoint("BOTTOMLEFT", 30, 1)
         r.meter:SetHeight(2)
         r.meter:Hide()
@@ -970,22 +948,8 @@ function M:BuildUpgradePanel()
             b.hl:Show()
             M:ShowDetail(b.entry)
             for _, other in ipairs(p.rows) do other.sel:SetShown(other == b) end
-            if GameTooltip and GameTooltip.SetOwner then
-                GameTooltip:SetOwner(b, "ANCHOR_LEFT")
-                if b.link and GameTooltip.SetHyperlink then pcall(GameTooltip.SetHyperlink, GameTooltip, b.link) end
-                local ok, lines = pcall(M.TooltipLines, b.entry)
-                if ok then
-                    GameTooltip:AddLine(" ")
-                    GameTooltip:AddLine("Gear Advisor", GOLD[1], GOLD[2], GOLD[3])
-                    for _, line in ipairs(lines) do GameTooltip:AddLine(line, 0.85, 0.87, 0.9, true) end
-                end
-                GameTooltip:Show()
-            end
         end)
-        r:SetScript("OnLeave", function(b)
-            b.hl:Hide()
-            if GameTooltip and GameTooltip.Hide then GameTooltip:Hide() end
-        end)
+        r:SetScript("OnLeave", function(b) b.hl:Hide() end)
         r:SetScript("OnClick", function(b)
             if b.link and IsModifiedClick and IsModifiedClick("CHATLINK") and ChatEdit_InsertLink then
                 ChatEdit_InsertLink(b.link)
@@ -994,14 +958,13 @@ function M:BuildUpgradePanel()
         r:Hide()
         p.rows[i] = r
     end
-    -- Gradients: a warm gold band, gold hover sweep, deep slot-header bands.
+    -- Flat colours only: a quiet gold wash on hover, deep slot-header bands.
     do
-        local a = GOLD
         p.band:Hide()      -- no tint behind the title
         for _, r in ipairs(p.rows) do
-            S.SetGradient(r.hl, "HORIZONTAL", a[1], a[2], a[3], 0.26, a[1], a[2], a[3], 0)
+            r.hl:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.12)
             r.hbg:SetColorTexture(0.18, 0.2, 0.4, 0.45)
-            r.meter:SetColorTexture(1, 1, 1, 1)
+            r.meter:SetColorTexture(GOLD[1], GOLD[2], GOLD[3], 0.45)
         end
     end
     -- Item data arrives asynchronously; refresh the open panel as it lands.
@@ -1073,8 +1036,8 @@ function M:RefreshUpgrades()
         local e = layout[i]
         if e and e.header then
             r.itemID, r.link, r.entry = nil, nil, nil
-            r.icon:Hide(); r.gain:SetText(""); r.price:SetText("")
-            r.glow:Hide(); r.pill:Hide(); r.meter:Hide(); r.sel:Hide(); r.hl:Hide(); r.stripe:Hide()
+            r.icon:Hide(); r.gain:SetText(""); r.score:SetText(""); r.price:SetText("")
+            r.glow:Hide(); r.meter:Hide(); r.sel:Hide(); r.hl:Hide(); r.stripe:Hide()
             r.hbg:Show(); r.hline:Show()
             r.name:SetText(e.header)
             r.name:SetTextColor(GOLD[1], GOLD[2], GOLD[3])
@@ -1087,21 +1050,9 @@ function M:RefreshUpgrades()
             r.icon:Show()
             r.glow:SetVertexColor(QualityColor(e.quality))
             r.glow:Show()
-            r.pill:Show()
-            r.pill:SetColorTexture(1, 1, 1, 1)
-            do
-                local gr, gg, gb = GainColor(e.gain)
-                r.pill:SetVertexColor(gr, gg, gb, 0.32)
-                r.gain:SetTextColor(math.min(1, gr + 0.25), math.min(1, gg + 0.1), math.min(1, gb + 0.25))
-            end
             local top = maxRank[GROUP_OF[e.loc]]
             if top and top > 0 and Num(e.rank) then
-                local t = e.rank / top
-                r.meter:SetWidth(math.max(2, (WIDTH - 20 - 36) * t))
-                -- Heat map: the bar runs from red up to the colour its deal quality reaches.
-                local r1, g1, b1 = HeatColor(0)
-                local r2, g2, b2 = HeatColor(t)
-                S.SetGradient(r.meter, "HORIZONTAL", r1, g1, b1, 0.95, r2, g2, b2, 0.95)
+                r.meter:SetWidth(math.max(2, (WIDTH - 20 - 36) * (e.rank / top)))
                 r.meter:Show()
             else
                 r.meter:Hide()
@@ -1114,6 +1065,7 @@ function M:RefreshUpgrades()
             r.icon:SetTexture(icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
             r.name:SetText(link or name or ("item:" .. e.id))
             r.gain:SetText("+" .. e.gain .. " ilvl")
+            r.score:SetText(Num(e.useful) and ("%+.1f"):format(e.useful) or "")
             local stale = e.age and e.age >= (T.db.market.staleDays or 3)
             r.price:SetText(MoneyText(e.price) .. (stale and " |cff8A93A0(old)|r" or ""))
             r:Show()

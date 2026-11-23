@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Added
-- **Cooldown timeline.** Cooldowns > Style can now be a timeline instead of a row of icons. Each spell on cooldown sits along a scale (5, 15, 30 seconds, 1 minute and on) and slides toward the left edge, where it is ready. Icons that would overlap take a second lane. You choose the length, the far end of the scale, and whether ready spells stay parked at the start. The row of icons is still the default.
+- **Cooldown timeline.** Cooldowns > Style can now be a vertical timeline instead of a row of icons. Each spell on cooldown falls down a scale (5, 15, 30 seconds, 1 minute and on) toward a ready line, over a themed glass background with a rail, time labels and lines at each mark. The background and the icons fade out as they near the ready line, and you can set how much, the background opacity and style, the length, the far end of the scale, which side the labels sit on, and whether it falls down or rises up. The row of icons is still the default.
 
 ## 2.14.0
 

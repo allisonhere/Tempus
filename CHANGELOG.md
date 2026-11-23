@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.19.0
 
 ### Added
 - **Gear Advisor reads Warlock talents.** With **Score gear as** on Automatic, a Warlock's build comes from the tab holding most of their points (Affliction, Demonology or Destruction) once they have a clear lead, from level 10. A split build is not guessed.

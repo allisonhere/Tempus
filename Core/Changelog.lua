@@ -1,7 +1,7 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
-    { version = "Unreleased", sections = {
+    { version = "2.19.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffGear Advisor reads Warlock talents.|r With |cffffffffScore gear as|r on Automatic, a Warlock's build comes from the tab holding most of their points (Affliction, Demonology or Destruction) once they have a clear lead, from level 10. A split build is not guessed." },
             { 0, "|cffffffffGear Report.|r The Auction values page under Convenience is now called |cffffffffGear Report|r, and its first item is a |cffffffffShare my gear data|r button. It first shows a notice saying what the report holds (your class and level, your talent points and tree, and the stat names on your gear with a few item names as examples; no account, e-mail or password details) and that nothing is sent unless you press Whisper or send the mail yourself. Then it opens the report: copy it, press Whisper, or press |cffffffffMail it later|r to queue it as a few short mails that Tempus offers to send the next time you open a mailbox, filling in the Send Mail tab for you to press Send. The name box starts with the right character for your faction (mail and whispers do not cross factions). It is for helping improve Gear Advisor. |cff9fd6ff/tempus gearreport|r shows the same notice. The auction value settings and Gear Advisor settings stay on the same page, below the button." },

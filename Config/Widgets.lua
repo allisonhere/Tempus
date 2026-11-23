@@ -590,6 +590,7 @@ function Page:Add(widget, height, full)
     widget:SetParent(self.frame)
     widget:ClearAllPoints()
     local entryY = self.y
+    if self.rightOnly and not full then self.col = 1 end       -- see Page:Beside
     if full then
         self:Newline()
         entryY = self.y
@@ -618,6 +619,22 @@ function Page:Add(widget, height, full)
             section = self.searchSection, y = entryY, widget = widget}
     end
     return widget
+end
+
+-- A tall widget (a live preview) in the left column, with the controls built by fn() stacked in
+-- the right column beside it. The page continues below whichever is taller.
+function Page:Beside(widget, height, fn)
+    self:Newline()
+    local top = self.y
+    widget:SetParent(self.frame)
+    widget:ClearAllPoints()
+    widget:SetPoint("TOPLEFT", self.frame, "TOPLEFT", MARGIN, top)
+    self.widgets[#self.widgets + 1] = widget
+    self.rightOnly = true
+    fn()
+    self:Newline()
+    self.rightOnly = nil
+    self.y = math.min(self.y, top - height - 12)
 end
 
 function Page:Section(title, desc)

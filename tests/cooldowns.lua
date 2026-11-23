@@ -19,3 +19,14 @@ assert(wanted[#wanted].slot == 13, "trinkets come last")
 CD.db.trinkets = false
 for _, e in ipairs(CD:Wanted()) do assert(e.spell, "no trinkets when switched off") end
 print("PASS: cooldown tracker lists known spells in order, then trinkets, and honours the trinket switch")
+
+-- Timeline scale: equal steps between marks, clipped at the far end.
+local m = CD.Marks(60)
+assert(table.concat(m, ",") == "0,5,15,30,60", table.concat(m, ","))
+assert(table.concat(CD.Marks(45), ",") == "0,5,15,30,45", "range between marks adds its own end")
+local function near(a, b) return math.abs(a - b) < 1e-9 end
+assert(CD.TimeFraction(0, m) == 0 and CD.TimeFraction(-3, m) == 0, "ready sits at the start")
+assert(near(CD.TimeFraction(5, m), 0.25) and near(CD.TimeFraction(30, m), 0.75), "marks fall on equal steps")
+assert(near(CD.TimeFraction(10, m), 0.375), "between marks is linear")
+assert(CD.TimeFraction(60, m) == 1 and CD.TimeFraction(500, m) == 1, "past the end clips")
+print("PASS: timeline scale maps remaining time to equal steps and clips at the far end")

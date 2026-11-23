@@ -524,3 +524,28 @@ local parts = { { key = 'ITEM_MOD_AGILITY_SHORT', change = 12, value = 12.0 }, {
 local text = M.PartsText(parts, { 'ITEM_MOD_WEIRD' })
 assert(text:find('Agility %\+12 %(%\+12.0%)') and text:find('Stamina %-4 %(%-1.4%)') and text:find('Not scored: ITEM_MOD_WEIRD'), text)
 assert(M.PartsText({}, {}) == 'No scored stat changes.')
+
+-- The Item text tab: tooltip lines are read with their colours, empty ones skipped, and long ones are cut with a count.
+local function fs(text, r, g, b) return { GetText = function() return text end, GetTextColor = function() return r, g, b end } end
+local fake = { TipTextLeft1 = fs('Helm of Testing', 1, 1, 1), TipTextRight1 = fs(nil), TipTextLeft2 = fs('Binds when equipped', 1, 1, 1),
+    TipTextRight2 = fs(nil), TipTextLeft3 = fs(''), TipTextRight3 = fs(''), TipTextLeft4 = fs('Head', 1, 1, 1), TipTextRight4 = fs('Plate', 0.8, 0.8, 0.8),
+    TipTextLeft5 = fs('Equip: Restores 5 mana per 5 sec.', 0, 1, 0), TipTextRight5 = fs(nil) }
+local tl = M.ReadTip('Tip', 5, function(k) return fake[k] end)
+assert(#tl == 4 and tl[1][1] == 'Helm of Testing' and tl[3][1] == 'Head' and tl[3][2] == 'Plate' and tl[4][4] == 1 and tl[4][3] == 0, 'empty lines skipped, text and colour kept')
+local function block()
+    local b = { head = { SetText = function(self, t) self.text = t end }, rows = {} }
+    for i = 1, 12 do
+        b.rows[i] = { left = { SetText = function(self, t) self.text = t end, SetTextColor = function() end },
+            right = { SetText = function(self, t) self.text = t end, SetTextColor = function() end } }
+    end
+    return b
+end
+local b1 = block()
+M.FillTip(b1, 'Buying', tl)
+assert(b1.head.text == 'Buying' and b1.rows[1].left.text == 'Binds when equipped' and b1.rows[2].right.text == 'Plate' and b1.rows[4].left.text == '', 'the name line is the heading, so it is skipped')
+local long = {}
+for i = 1, 20 do long[i] = { 'line ' .. i, '', 1, 1, 1 } end
+local b2 = block()
+M.FillTip(b2, 'Buying', long)
+assert(b2.rows[11].left.text == 'line 12' and b2.rows[12].left.text:find('more lines'), 'long tooltips end in a count: ' .. tostring(b2.rows[12].left.text))
+assert(#M.TipLines(nil) == 0 and #M.TipLines(42) == 0, 'no link, no lines')

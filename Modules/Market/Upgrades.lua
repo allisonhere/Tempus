@@ -631,7 +631,7 @@ local GOLD = { 1, 0.80, 0.32 }
 local function Paint(tex, c, a) tex:SetVertexColor(c[1], c[2], c[3], a or 1) return tex end
 
 
-local TABLE_ROW, TABLE_ROWS = 16, 11                  -- stat table rows
+local TABLE_ROW, TABLE_ROWS = 16, 10                  -- stat table rows
 local FACT_X = 84                                       -- value column of the facts block
 local GROUP_LABEL = {}
 local GROUP_LABEL = {}
@@ -676,11 +676,81 @@ function M.DetailInfo(e)
         confidenceReasons = reasons and table.concat(reasons, "; ") or "", all = rows }
 end
 
+-- The text of an item's own tooltip, read from a hidden tooltip, so the window can show everything the
+-- game shows for it (binding, armor, stats, requirements, Equip and Use effects) without opening one.
+local TIP_NAME, TIP_MAX = "TempusGearAdvisorScan", 12
+
+-- Lines of a tooltip as { left, right, r, g, b }; empty lines are skipped. `get(name)` gives a global
+-- by name (the game's TooltipNameTextLeft1 ... fontstrings), so tests can feed a fake one.
+function M.ReadTip(name, count, get)
+    local out = {}
+    for i = 1, count do
+        local left, right = get(name .. "TextLeft" .. i), get(name .. "TextRight" .. i)
+        local l = left and left.GetText and left:GetText() or nil
+        local r = right and right.GetText and right:GetText() or nil
+        if (l and l ~= "") or (r and r ~= "") then
+            local cr, cg, cb = 0.85, 0.87, 0.9
+            if left and left.GetTextColor then
+                local a, b, c = left:GetTextColor()
+                if Num(a) and Num(b) and Num(c) then cr, cg, cb = a, b, c end
+            end
+            out[#out + 1] = { l or "", r or "", cr, cg, cb }
+        end
+    end
+    return out
+end
+
+-- The tooltip lines for an item link or "item:ID" (nil, with no lines, when the game cannot say yet).
+function M.TipLines(link)
+    if type(link) ~= "string" or not CreateFrame then return {} end
+    local tip = M.scanTip
+    if not tip then
+        local ok, t = pcall(CreateFrame, "GameTooltip", TIP_NAME, UIParent, "GameTooltipTemplate")
+        if not (ok and t) then return {} end
+        tip = t
+        M.scanTip = tip
+    end
+    pcall(tip.SetOwner, tip, UIParent, "ANCHOR_NONE")
+    pcall(tip.ClearLines, tip)
+    if not pcall(tip.SetHyperlink, tip, link) then return {} end
+    local n = Call(tip.NumLines, tip)
+    if not Num(n) then return {} end
+    local lines = M.ReadTip(TIP_NAME, n, function(key) return _G[key] end)
+    pcall(tip.Hide, tip)
+    return lines
+end
+
+-- Fill one block of the Item text tab: a heading and up to TIP_MAX lines (the item's name is the heading,
+-- so the first line is skipped); more lines than fit end in a count.
+function M.FillTip(block, heading, lines)
+    block.head:SetText(heading)
+    local first = 2
+    local room = TIP_MAX
+    local more = math.max(0, (#lines - first + 1) - room)
+    for i = 1, TIP_MAX do
+        local row, line = block.rows[i], lines[first + i - 1]
+        if more > 0 and i == TIP_MAX then
+            row.left:SetText(("(%d more lines)"):format(more + 1)); row.left:SetTextColor(0.55, 0.58, 0.63); row.right:SetText("")
+        elseif line then
+            row.left:SetText(line[1]); row.left:SetTextColor(line[3], line[4], line[5])
+            row.right:SetText(line[2]); row.right:SetTextColor(line[3], line[4], line[5])
+        else
+            row.left:SetText(""); row.right:SetText("")
+        end
+    end
+end
+
 function M.BuildDetail(p, scroll)
     local d = CreateFrame("Frame", nil, p)
     d:SetPoint("TOPLEFT", scroll, "TOPRIGHT", 8, 0)
     d:SetSize(DETAIL_W - 18, VISIBLE * ROW_H)
     local W = DETAIL_W - 20
+    -- Two views of the same listing: Compare (facts and the stat table) and Item text (the tooltips).
+    local cmp = CreateFrame("Frame", nil, d)
+    cmp:SetAllPoints(d)
+    local txt = CreateFrame("Frame", nil, d)
+    txt:SetAllPoints(d)
+    d.cmp, d.txt = cmp, txt
     d.icon = d:CreateTexture(nil, "ARTWORK")
     d.icon:SetSize(36, 36)
     d.icon:SetPoint("TOPLEFT", 0, 0)
@@ -701,12 +771,12 @@ function M.BuildDetail(p, scroll)
     d.facts = {}
     local y = 48
     for _, f in ipairs({ { "Score", 16 }, { "Item level", 16 }, { "Price", 16 }, { "Replaces", 30 }, { "Trust", 44 }, { "Why", 44 } }) do
-        local label = S.Text(d, 11, S.C.muted)
+        local label = S.Text(cmp, 11, S.C.muted)
         label:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -y)
         label:SetWidth(FACT_X - 6)
         label:SetJustifyH("LEFT")
         label:SetText(f[1])
-        local value = S.Text(d, 11, S.C.text)
+        local value = S.Text(cmp, 11, S.C.text)
         value:SetPoint("TOPLEFT", d, "TOPLEFT", FACT_X, -y)
         value:SetSize(W - FACT_X, f[2])
         value:SetJustifyH("LEFT")
@@ -715,14 +785,14 @@ function M.BuildDetail(p, scroll)
         d.facts[f[1]] = { label = label, value = value }
         y = y + f[2] + 4
     end
-    d.rule = Paint(S.Tex(d, "ARTWORK"), GOLD, 0.5)
+    d.rule = Paint(S.Tex(cmp, "ARTWORK"), GOLD, 0.5)
     d.rule:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -(y + 2))
     d.rule:SetSize(W, 1)
     local tableY = y + 10
     -- Side-by-side table: what you wear against what you would buy, and what each stat adds to the score.
     local cols = { { 0, 104, "LEFT" }, { 106, 52, "RIGHT" }, { 160, 52, "RIGHT" }, { 214, 52, "RIGHT" }, { 268, W - 268, "RIGHT" } }
     local function Cell(c, yy, color)
-        local fs = S.Text(d, 11, color or S.C.text)
+        local fs = S.Text(cmp, 11, color or S.C.text)
         fs:SetPoint("TOPLEFT", d, "TOPLEFT", c[1], -yy)
         fs:SetWidth(c[2])
         fs:SetJustifyH(c[3])
@@ -740,10 +810,55 @@ function M.BuildDetail(p, scroll)
         for k, c in ipairs(cols) do row[k] = Cell(c, tableY + 4 + r * TABLE_ROW) end
         d.table[r] = row
     end
-    d.foot = S.Text(d, 10, S.C.muted)
-    d.foot:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", 0, 0)
-    d.foot:SetWidth(W)
-    d.foot:SetWordWrap(true)
+    -- Item text: the listing's tooltip above the tooltip of what you wear, as the game writes them.
+    local function Block(top)
+        local block = { rows = {} }
+        block.head = S.Text(txt, 11, GOLD)
+        block.head:SetPoint("TOPLEFT", txt, "TOPLEFT", 0, -top)
+        block.head:SetWidth(W)
+        block.head:SetWordWrap(false)
+        for i = 1, TIP_MAX do
+            local row = {}
+            row.left = S.Text(txt, 10, S.C.text)
+            row.left:SetPoint("TOPLEFT", txt, "TOPLEFT", 0, -(top + 4 + i * 13))
+            row.left:SetWidth(W - 96)
+            row.left:SetJustifyH("LEFT")
+            row.left:SetWordWrap(false)
+            row.right = S.Text(txt, 10, S.C.text)
+            row.right:SetPoint("TOPRIGHT", txt, "TOPLEFT", W, -(top + 4 + i * 13))
+            row.right:SetWidth(90)
+            row.right:SetJustifyH("RIGHT")
+            row.right:SetWordWrap(false)
+            block.rows[i] = row
+        end
+        return block
+    end
+    d.buy, d.wear = Block(46), Block(46 + 4 + (TIP_MAX + 1) * 13 + 10)
+    d.note = S.Text(txt, 10, S.C.muted)
+    d.note:SetPoint("TOPLEFT", txt, "TOPLEFT", 0, -(46 + 4 + (TIP_MAX + 1) * 13 + 10 + 4 + (TIP_MAX + 1) * 13 + 2))
+    d.note:SetWidth(W)
+    d.note:SetText("Equip and Use effects are shown, but not scored.")
+    -- Tabs along the bottom edge.
+    d.tabs = {}
+    local function Tab(key, label, x)
+        local b = CreateFrame("Button", nil, d)
+        b:SetSize(90, 18)
+        b:SetPoint("BOTTOMLEFT", d, "BOTTOMLEFT", x, 0)
+        b.text = S.Text(b, 11, S.C.muted)
+        b.text:SetPoint("LEFT", 0, 0)
+        b.text:SetText(label)
+        b.line = Paint(S.Tex(b, "ARTWORK"), GOLD, 1)
+        b.line:SetPoint("BOTTOMLEFT", 0, 0)
+        b.line:SetPoint("BOTTOMRIGHT", -14, 0)
+        b.line:SetHeight(1)
+        b:SetScript("OnClick", function()
+            if T.db.market then T.db.market.detailTab = key end
+            M:ShowDetail(M.detailEntry)
+        end)
+        d.tabs[key] = b
+    end
+    Tab("COMPARE", "Compare", 0)
+    Tab("TEXT", "Item text", 90)
     d.hint = S.Text(d, 11, S.C.muted)
     d.hint:SetPoint("TOPLEFT", 0, 0)
     d.hint:SetWidth(W)
@@ -761,7 +876,9 @@ function M:ShowDetail(e)
     if not d then return end
     self.detailEntry = e
     local function Clear()
-        d.hint:Show(); d.icon:Hide(); d.glow:Hide(); d.name:SetText(""); d.slot:SetText(""); d.rule:Hide(); d.foot:SetText("")
+        d.hint:Show(); d.icon:Hide(); d.glow:Hide(); d.name:SetText(""); d.slot:SetText(""); d.rule:Hide()
+        d.cmp:Hide(); d.txt:Hide()
+        for _, b in pairs(d.tabs) do b:Hide() end
         for _, f in pairs(d.facts) do f.label:Hide(); f.value:SetText("") end
         for _, h in ipairs(d.tableHead) do h:SetText("") end
         for _, row in ipairs(d.table) do for _, c in ipairs(row) do c:SetText("") end end
@@ -771,6 +888,18 @@ function M:ShowDetail(e)
     d.hint:Hide()
     d.icon:Show()
     d.rule:Show()
+    local tab = T.db.market and T.db.market.detailTab == "TEXT" and "TEXT" or "COMPARE"
+    d.cmp:SetShown(tab == "COMPARE")
+    d.txt:SetShown(tab == "TEXT")
+    for key, b in pairs(d.tabs) do
+        b:Show()
+        b.text:SetTextColor(key == tab and GOLD[1] or S.C.muted[1], key == tab and GOLD[2] or S.C.muted[2], key == tab and GOLD[3] or S.C.muted[3])
+        b.line:SetShown(key == tab)
+    end
+    if tab == "TEXT" then
+        M.FillTip(d.buy, "Buying  " .. (i.link or i.name or ""), M.TipLines(i.link or ("item:" .. e.id)))
+        M.FillTip(d.wear, "Wearing  " .. (i.wornLink or "nothing in that slot"), i.wornLink and M.TipLines(i.wornLink) or {})
+    end
     d.glow:SetVertexColor(QualityColor(e.quality))
     d.glow:Show()
     d.icon:SetTexture(i.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
@@ -805,7 +934,6 @@ function M:ShowDetail(e)
             for _, cell in ipairs(row) do cell:SetText("") end
         end
     end
-    d.foot:SetText(i.score and "Score weights are community estimates, not measured from the game." or "")
 end
 
 function M:BuildUpgradePanel()

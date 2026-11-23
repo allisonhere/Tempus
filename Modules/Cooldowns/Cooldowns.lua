@@ -348,6 +348,19 @@ function CD:Place()
     PlaceIcons(f, db, g, order)
 end
 
+-- Corner grip: the box the cursor asks for sets the icon size (from width in the timeline,
+-- from height in the row) and, in the timeline, the length of the scale.
+function CD.ResizeFromBox(db, w, h)
+    local clamp = function(v, lo, hi) return math.max(lo, math.min(hi, math.floor(v + 0.5))) end
+    if db.mode == "timeline" then
+        local labelW = db.showLabels and LABEL_W or 0
+        db.size = clamp((w - labelW - 14) / 2, 20, 64)
+        db.length = clamp(h - db.size, 160, 600)
+    else
+        db.size = clamp(h, 20, 64)
+    end
+end
+
 function CD:Refresh()
     local db, f = CD.db, CD.frame
     if not (db and f) then return end
@@ -464,6 +477,12 @@ T:NewModule("cooldowns", {
             cfg = function() return CD.db end,
             corner = function() return CD.db.point[1] end,
             enabled = function() return CD.db.enabled end,
+            onResize = function(w, h)
+                local size, length = CD.db.size, CD.db.length
+                CD.ResizeFromBox(CD.db, w, h)
+                if size ~= CD.db.size or length ~= CD.db.length then CD:Refresh() end
+            end,
+            onMoved = function() if T.Options and T.Options.Refresh then T.Options:Refresh() end end,
         })
         local ev = CreateFrame("Frame")
         ev:RegisterEvent("SPELL_UPDATE_COOLDOWN")

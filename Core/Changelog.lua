@@ -1,7 +1,7 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
-    { version = "Unreleased", sections = {
+    { version = "2.20.0", sections = {
         { title = "Changed", items = {
             { 0, "|cffffffffGear Report is one button.|r |cffffffffShare my gear data|r now shows the notice about what the report holds, and if you continue, Tempus sends a short report in the background as a few whispers to the report character for your faction (|cff9fd6ffDaily Reports|r for Horde, |cff9fd6ffDaily Reporter|r for Alliance), with nothing else to open or fill in. If that character is offline, it checks again every 30 minutes while you are logged in (and after each login) for a day. Chat shows the whispers as they go and one Tempus line when it is done; nothing is hidden or filtered. The report holds your race, class, level, faction, shapeshift form, talent points, each equipped item's level and stats, and the stat names seen; it leaves out your character name and realm, though whoever receives a whisper sees who sent it." },
         } },

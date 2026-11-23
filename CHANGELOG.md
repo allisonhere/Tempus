@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.20.0
 
 ### Changed
 - **Gear Report is one button.** **Share my gear data** now shows the notice about what the report holds, and if you continue, Tempus sends a short report in the background as a few whispers to the report character for your faction (`Daily Reports` for Horde, `Daily Reporter` for Alliance), with nothing else to open or fill in. If that character is offline, it checks again every 30 minutes while you are logged in (and after each login) for a day. Chat shows the whispers as they go and one Tempus line when it is done; nothing is hidden or filtered. The report holds your race, class, level, faction, shapeshift form, talent points, each equipped item's level and stats, and the stat names seen; it leaves out your character name and realm, though whoever receives a whisper sees who sent it.

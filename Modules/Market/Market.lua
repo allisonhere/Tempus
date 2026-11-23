@@ -369,7 +369,7 @@ function M:QueueReportMail(to, text)
     to = tostring(to or ""):gsub("^%s+", ""):gsub("%s+$", "")
     local parts = M.MailParts(text)
     if to == "" or #parts == 0 or not T.db.market then return false end
-    T.db.market.mailQueue = { to = to, parts = parts, total = #parts, at = time() }
+    T.db.market.mailQueue = { to = to, parts = parts, total = #parts, at = time(), v = 2 }
     T:Print("queued %d mail%s to %s. Tempus will ask when you open a mailbox.", #parts, #parts == 1 and "" or "s", to)
     return true
 end
@@ -406,6 +406,7 @@ function M:FillMail()
 end
 
 function M:OfferQueuedMail()
+    self:DropOldMailQueue()
     local q = T.db and T.db.market and T.db.market.mailQueue
     if not (q and q.parts and q.parts[1]) then return end
     if M.FixReportTo then q.to = M.FixReportTo(q.to) end
@@ -461,7 +462,15 @@ function M:SendReport()
     return self:QueueWhisper(to, M.CompactReport(""))
 end
 
+-- A mail queued by an older build (the report window's Mail it later, now only reachable from a developer
+-- command) is dropped, so a forgotten queue can never prompt at a mailbox.
+function M:DropOldMailQueue()
+    local q = T.db and T.db.market and T.db.market.mailQueue
+    if q and q.v ~= 2 then T.db.market.mailQueue = false end
+end
+
 function M:ResumeWhisper()
+    self:DropOldMailQueue()
     local q = T.db and T.db.market and T.db.market.whisperQueue
     if q and C_Timer and C_Timer.After then C_Timer.After(10, function() M:PumpWhisper() end) end
 end

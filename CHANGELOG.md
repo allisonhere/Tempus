@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **No more mailbox prompt from an old report.** A report queued as mail by an earlier build kept asking at every mailbox, with no way to clear it now that the report window is gone. Old queued mail is dropped when you log in and is never offered.
+
 ## 2.20.0
 
 ### Changed

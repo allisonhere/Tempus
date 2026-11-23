@@ -199,3 +199,15 @@ local before = #whispers
 M:PumpWhisper()
 assert(T.db.market.whisperQueue == false and #whispers == before, 'a day later it gives up without sending')
 SendChatMessage = nil
+
+-- A mail queued by an older build is dropped, never offered at a mailbox.
+T.db.market.mailQueue = { to = 'Daily Reporter', parts = { 'old report' }, total = 1, at = time() }
+confirmed = nil; M:OfferQueuedMail()
+assert(confirmed == nil and T.db.market.mailQueue == false, 'an old queue (no version) is dropped without a prompt')
+T.db.market.mailQueue = { to = 'x', parts = { 'p' }, total = 1, at = time() }
+M:ResumeWhisper()
+assert(T.db.market.mailQueue == false, 'dropped at login too')
+assert(M:QueueReportMail('Friend', 'a report'))
+confirmed = nil; M:OfferQueuedMail()
+assert(confirmed, 'a queue made by this build is still offered')
+T.db.market.mailQueue = false

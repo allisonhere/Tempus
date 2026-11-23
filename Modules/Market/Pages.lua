@@ -1,6 +1,8 @@
 local _, T = ...
-T:RegisterPage("convenience", {key = "market", label = "Auction values", order = 4.1, build = function(p)
+T:RegisterPage("convenience", {key = "market", label = "Gear Report", order = 4.1, build = function(p)
     local cfg = function() return T.db.market end
+    p:Section("Gear Report", "Help improve Gear Advisor by sending the author a short report from your character: your class and level, your talent points and tree, and the stat names on your gear. Nothing is sent by itself. A notice explains what the report holds before you see it, and you copy it, whisper it or queue it as mail to the character for your faction.")
+    p:Add(T.UI.W.Button("Share my gear data", function() T:StartGearReport() end, "Shows what the report contains, then opens it. Nothing is sent unless you press Whisper or send the mail yourself.", 200))
     p:Section("Auction values", "Shows the lowest buyout from Tempus's own auction house scan on item tooltips, including stack estimates in Tempus bags. Prices are shared by all your characters on the realm. Listing prices are estimates, not completed sales.")
     p:Check(cfg, "tooltips", "Show auction estimates on item tooltips")
     p:Slider(cfg, "staleDays", "Mark prices stale after", 1, 14, 1, function(v) return v .. " days" end)

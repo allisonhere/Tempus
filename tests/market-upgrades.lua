@@ -20,6 +20,7 @@ assert(loadfile('Modules/GearAdvisor/Weights.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Scoring.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Owned.lua'))('Tempus', T)
 assert(loadfile('Modules/GearAdvisor/Verdicts.lua'))('Tempus', T)
+assert(loadfile('Modules/GearAdvisor/Budget.lua'))('Tempus', T)
 assert(loadfile('Modules/Market/Upgrades.lua'))('Tempus', T)
 local M = T.Market
 local G = 10000
@@ -478,3 +479,20 @@ local keptList, _, _, _, _, keptCount = M:FindUpgrades()
 assert(#keptList == 1 and keptCount == 0, 'a weaker carried helm does not hide it')
 C_Container, NUM_BAG_SLOTS = nil, nil
 C_Item.GetItemInfoInstant, C_Item.GetItemInfo, C_Item.GetDetailedItemLevelInfo = prevInstant, prevInfo, prevDetailed
+
+-- /tempus gearplan: the plan prints, stays within the gold, and says nothing is bought.
+local printed = {}
+T.Print = function(_, fmt, ...) printed[#printed + 1] = fmt:format(...) end
+UnitClass = function() return 'Warrior', 'WARRIOR' end
+worn = { [1] = 50, [16] = 40, [18] = 25, [11] = 50 }
+GetInventoryItemID = nil
+Seed({ [1] = 10 * G, [2] = 1 * G, [4] = 5 * G, [6] = 2 * G, [11] = 3 * G })
+local plan = M:BuildPlan(8 * G)
+assert(#plan.picks >= 1 and plan.cost <= 8 * G, 'plan within the budget')
+M:PrintPlan(8)
+local text = table.concat(printed, '\n')
+assert(text:find('Gear Advisor plan') and text:find('nothing is bought') and text:find('Total'), text)
+printed = {}
+Seed({})
+M:PrintPlan(8)
+assert(table.concat(printed, '\n'):find('nothing in the last scan'), 'no listings: say so')

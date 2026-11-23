@@ -1105,6 +1105,46 @@ function M:RefreshUpgrades()
         .. (worse > 0 and (("  %d left out: worse stats for your build."):format(worse)) or "")) or "")
 end
 
+-- The best set of purchases for a budget (copper), from the listings the window shows. Returns the
+-- plan { picks, cost, worth } and how many listings are still waiting on item data.
+function M:BuildPlan(budget)
+    local list, pending = self:FindUpgrades()
+    local cands, groups = {}, {}
+    for _, g in ipairs(GROUPS) do groups[#groups + 1] = g[1] end
+    for _, e in ipairs(list) do
+        if Num(e.worth) then
+            cands[#cands + 1] = { id = e.id, group = GROUP_OF[e.loc], price = e.price, worth = e.worth, entry = e }
+        end
+    end
+    return T.GearAdvisor.Budget.Plan(cands, budget, groups), pending
+end
+
+-- /tempus gearplan [gold]: print the plan. No amount means all the gold you carry.
+function M:PrintPlan(gold)
+    local store = self.Store()
+    if not Num(store.scanned) then T:Print("scan the auction house first.") return end
+    local budget = Num(gold) and gold * 10000 or Call(GetMoney) or 0
+    local plan, pending = self:BuildPlan(budget)
+    if #plan.picks == 0 then
+        T:Print("nothing in the last scan is worth buying for %s.", M.MoneyText(budget))
+        return
+    end
+    T:Print("Gear Advisor plan for %s (nothing is bought for you):", M.MoneyText(budget))
+    local perGroup = {}
+    for _, c in ipairs(plan.picks) do
+        perGroup[c.group] = (perGroup[c.group] or 0) + 1
+        local name, link = (C_Item and C_Item.GetItemInfo or GetItemInfo)(c.id)
+        T:Print("  %s: %s  %s  (+%.1f)", GROUP_LABEL[c.group] or c.group, link or name or ("item:" .. c.id), M.MoneyText(c.price), c.worth)
+    end
+    T:Print("Total %s for about +%.1f. Gains are added item by item, so items that share stats can overlap.", M.MoneyText(plan.cost), plan.worth)
+    for group, n in pairs(perGroup) do
+        if n > 1 then
+            T:Print("The second %s is measured against the same slot as the first, so its gain is a rough guess.", (GROUP_LABEL[group] or group):lower())
+        end
+    end
+    if pending > 0 then T:Print("%d listings are still loading item data; run it again in a moment.", pending) end
+end
+
 function M:HideUpgrades()
     if self.upgradePanel then self.upgradePanel:Hide() end
 end

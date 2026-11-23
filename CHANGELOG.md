@@ -13,6 +13,8 @@
 
 - **Gear Advisor verdict tags.** The detail pane marks the Biggest upgrade, the Best value, the Best you can afford (when it differs from the biggest) and a Small upgrade (the cheapest listing that is still a real gain). The footer also says how many listings were left out for worse stats for your build.
 
+- **`/tempus gearplan [gold]`** lists the best set of gear to buy for that much gold (no amount means all the gold you carry), picked from your last auction scan. It looks for the best whole set, not just the best single item: two cheaper pieces can beat one dear one. It keeps to one item per slot (two for rings and trinkets), never mixes a two-hander with a second weapon or a shield, and never buys anything. Gains are added item by item, so items that share stats can overlap, and the second ring or trinket is a rough guess.
+
 ### Fixed
 - **Gear Advisor and one-hand weapons.** A class that cannot dual wield (a Druid, say) is now compared with its main hand, not the empty off hand that made every one-hander look like a huge upgrade. Characters that dual wield still see the off hand.
 - **Two-handers and shields.** A two-hand weapon now says when it also takes off your shield or off hand, and a shield or off-hand item says when it takes off your two-hander.

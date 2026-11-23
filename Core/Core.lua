@@ -785,6 +785,7 @@ local HELP = {
     { "test", "show sample buffs and frames while you set things up" },
     { "install", "run the first-time setup again" },
     { "shop <item> <amount>", "add to your shopping list (also: shop remove <item>, shop clear)" },
+    { "gearplan [gold]", "list the best set of gear to buy for that much gold, from your last auction scan" },
     { "gear", "open Gear Advisor, the best gear deals from your last auction scan (works anywhere; also /tempus upgrades)" },
     { "swing", "repeat the last fight's swing summary" },
     { "copychat", "open the chat log to read and copy chat (also: selectchat)" },
@@ -831,6 +832,10 @@ SlashCmdList.TEMPUS = function(msg)
     elseif msg == "gearprobe" then
         if T.Market and T.Market.GearProbe then for _, line in ipairs(T.Market.GearProbe()) do T:Print("%s", line) end
         else T:Print("the Auction values module is not loaded.") end
+    elseif msg == "gearplan" then
+        if T.Market and T.Market.PrintPlan and T:ModuleEnabled("market") then
+            T.Market:PrintPlan(tonumber((fullMsg or ""):match("[Gg][Ee][Aa][Rr][Pp][Ll][Aa][Nn]%s+([%d%.]+)")))
+        else T:Print("turn on the Auction values module to use the gear plan.") end
     elseif msg == "gearstats" then
         if T.Market and T.Market.GearStats then for _, line in ipairs(T.Market.GearStats()) do T:Print("%s", line) end
         else T:Print("the Auction values module is not loaded.") end

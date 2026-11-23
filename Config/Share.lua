@@ -78,6 +78,18 @@ local function Create()
         win.status:SetText(("Whispering %d lines to %s..."):format(#lines, target))
     end
 
+    win.mail = FlatButton(win, "Mail it later", 100, 26, function() win:DoMail() end)
+    win.mail:SetPoint("BOTTOMRIGHT", -236, 16)
+    win.mail:Hide()
+    function win:DoMail()
+        local target = (win.name:GetText() or ""):gsub("^%s+", ""):gsub("%s+$", "")
+        if target == "" then win.status:SetText("Type the name to mail it to.") return end
+        if T.Market and T.Market.QueueReportMail and T.Market:QueueReportMail(target, win.edit:GetText()) then
+            T.db.market.reportTo = target
+            win.status:SetText("Queued. Tempus will ask the next time you open a mailbox.")
+        end
+    end
+
     win.action = FlatButton(win, "Import", 100, 26, function() win:DoImport() end)
     win.action:SetPoint("BOTTOMRIGHT", -126, 16)
     win.action:SetActive(true)
@@ -99,14 +111,14 @@ function T:ShowShare(mode)
     if not win then Create() end
     win.mode = mode
     win.status:SetText("")
-    win.whisper:Hide()
+    win.whisper:Hide(); win.mail:Hide()
     if mode == "gearreport" then
         win.title:SetText("Gear data report")
-        win.hint:SetText("Type your build on the second line, then copy this text (Ctrl+C) or whisper it to someone. It holds your class, level, talent points and the stat names on your gear.")
+        win.hint:SetText("Type your build on the second line, then copy this text (Ctrl+C), whisper it to someone, or queue it as mail that Tempus offers to send when you next open a mailbox. It holds your class, level, talent points and the stat names on your gear.")
         win.edit:SetText(T.Market and T.Market.Report and T.Market.Report() or "")
         win.nameLabel:SetText("Whisper to"); win.nameLabel:Show()
         win.name:SetText((T.db.market and T.db.market.reportTo) or ""); win.name:Show()
-        win.action:Hide(); win.whisper:Show()
+        win.action:Hide(); win.whisper:Show(); win.mail:Show()
         win:Show()
         win.edit:SetFocus()
         win.edit:HighlightText()

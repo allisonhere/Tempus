@@ -128,3 +128,31 @@ local light = M.ProgressState('100%', 1, 126, { 1, 0.9, 0.3 })
 assert(light.fillWidth == 126 and light.reverse[1] < 0.1, 'light accent: dark number over the fill')
 assert(M.ProgressState('x', -3, 100, nil).fillWidth == 0 and M.ProgressState('x', 7, 100, nil).fillWidth == 100, 'fraction is clamped')
 assert(M.ProgressState('x', nil, 100, nil).fillWidth == 0 and M.ProgressState('x', 0 / 0, 100, nil).fillWidth == 0, 'no fraction, empty bar')
+
+-- Mailing the report: cut into mail-sized parts, queued, offered at a mailbox, one part per send.
+local long = {}
+for i = 1, 40 do long[#long + 1] = 'line number ' .. i .. ' with some words to fill the space' end
+local mparts = M.MailParts(table.concat(long, '\n'), 450)
+assert(#mparts >= 4, #mparts)
+for _, part in ipairs(mparts) do assert(#part <= 450 and not part:find('|', 1, true)) end
+assert(#M.MailParts('') == 0 and M.MailParts('a|b')[1] == 'a/b' and #M.MailParts(string.rep('x', 1000), 450) == 3, 'long lines are cut too')
+T.db.market = T.db.market or {}
+local confirmed, sent = nil, {}
+T.Confirm = function(_, text, accept) confirmed = { text = text, accept = accept } end
+local function box() return { SetText = function(self, t) self.text = t end } end
+SendMailNameEditBox, SendMailSubjectEditBox, SendMailBodyEditBox = box(), box(), box()
+assert(not M:QueueReportMail('', 'text') and not M:QueueReportMail('Friend', ''), 'needs a name and text')
+assert(M:QueueReportMail(' Allie ', table.concat(long, '\n')) and T.db.market.mailQueue.to == 'Allie' and T.db.market.mailQueue.total == #mparts)
+M:OfferQueuedMail()
+assert(confirmed and confirmed.text:find('Allie') and SendMailNameEditBox.text == nil, 'asks first, fills nothing yet')
+confirmed.accept()
+assert(SendMailNameEditBox.text == 'Allie' and SendMailSubjectEditBox.text == ('Tempus gear data (1/%d)'):format(#mparts) and SendMailBodyEditBox.text == mparts[1], 'part one filled in')
+C_Timer = { After = function(_, fn) fn() end }
+M:MailSent()
+assert(SendMailSubjectEditBox.text == ('Tempus gear data (2/%d)'):format(#mparts) and SendMailBodyEditBox.text == mparts[2], 'the next part follows a send')
+for _ = 3, #mparts do M:MailSent() end
+M:MailSent()
+assert(T.db.market.mailQueue == false, 'finished: queue cleared')
+confirmed = nil; M:OfferQueuedMail(); assert(confirmed == nil, 'nothing queued, nothing asked')
+M:MailSent()
+SendMailNameEditBox, SendMailSubjectEditBox, SendMailBodyEditBox = nil, nil, nil

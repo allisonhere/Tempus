@@ -1,7 +1,7 @@
 -- Tempus scans the auction house itself (C_AuctionHouse.ReplicateItems) and keeps the lowest
 -- buyout per item for each realm, account-wide. No other addon is involved.
 local _, T = ...
-local M = { defaults = { tooltips = true, staleDays = 3, autoScan = false, upgradeMinGain = 3, upgradeSort = "VALUE", planGold = 0, reportTo = "", gearRole = "AUTO", gearRoleLast = false, upgradeAffordable = false, upgradeMaxGold = 0, upgradeUseAHFilters = true, upgradePos = false } }
+local M = { defaults = { tooltips = true, staleDays = 3, autoScan = false, upgradeMinGain = 3, upgradeSort = "VALUE", planGold = 0, reportTo = "", mailQueue = false, gearRole = "AUTO", gearRoleLast = false, upgradeAffordable = false, upgradeMaxGold = 0, upgradeUseAHFilters = true, upgradePos = false } }
 T.Market = M
 
 local SCAN_COOLDOWN = 15 * 60       -- the client only serves a full replicate about every 15 minutes
@@ -305,6 +305,8 @@ function M:EnsureFrame()
     local f = CreateFrame("Frame")
     f:RegisterEvent("AUCTION_HOUSE_SHOW")
     f:RegisterEvent("AUCTION_HOUSE_CLOSED")
+    f:RegisterEvent("MAIL_SHOW")
+    f:RegisterEvent("MAIL_SEND_SUCCESS")
     f:SetScript("OnEvent", function(_, event)
         if event == "AUCTION_HOUSE_SHOW" then
             M.ahOpen = true
@@ -315,6 +317,10 @@ function M:EnsureFrame()
         elseif event == "AUCTION_HOUSE_CLOSED" then
             M.ahOpen = false
             if M.scanning then M:Fail("the auction house was closed.") end
+        elseif event == "MAIL_SHOW" then
+            M:OfferQueuedMail()
+        elseif event == "MAIL_SEND_SUCCESS" then
+            M:MailSent()
         elseif event == "REPLICATE_ITEM_LIST_UPDATE" and M.scanning and not M.processing then
             M.processing = true
             M.frame:UnregisterEvent("REPLICATE_ITEM_LIST_UPDATE")
@@ -330,3 +336,71 @@ T:NewModule("market", {
     defaults = M.defaults,
     OnEnable = function() M:EnsureFrame(); M:HookTooltips() end,
 })
+
+-- Mailing the gear data report ---------------------------------------------------------------------
+-- The report is queued, and the next time you open a mailbox Tempus asks whether to send it. It only fills
+-- in the Send Mail tab (recipient, subject, text); you press Send yourself, once per part.
+
+-- Text cut into mail-sized parts at line breaks (a mail holds about 500 characters).
+function M.MailParts(text, max)
+    max = max or 450
+    local parts, cur = {}, ""
+    for line in tostring(text or ""):gmatch("[^\n]+") do
+        line = line:gsub("|", "/")
+        while #line > max do
+            if cur ~= "" then parts[#parts + 1] = cur; cur = "" end
+            parts[#parts + 1] = line:sub(1, max)
+            line = line:sub(max + 1)
+        end
+        if #cur + #line + 1 > max and cur ~= "" then parts[#parts + 1] = cur; cur = "" end
+        cur = cur == "" and line or (cur .. "\n" .. line)
+    end
+    if cur ~= "" then parts[#parts + 1] = cur end
+    return parts
+end
+
+function M:QueueReportMail(to, text)
+    to = tostring(to or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local parts = M.MailParts(text)
+    if to == "" or #parts == 0 or not T.db.market then return false end
+    T.db.market.mailQueue = { to = to, parts = parts, total = #parts }
+    T:Print("queued %d mail%s to %s. Tempus will ask when you open a mailbox.", #parts, #parts == 1 and "" or "s", to)
+    return true
+end
+
+function M:FillMail()
+    local q = T.db.market and T.db.market.mailQueue
+    if not (q and q.parts and q.parts[1]) then return false end
+    if MailFrameTab_OnClick then pcall(MailFrameTab_OnClick, nil, 2) end
+    if not (SendMailNameEditBox and SendMailSubjectEditBox and SendMailBodyEditBox) then
+        T:Print("the Send Mail tab is not available.")
+        return false
+    end
+    SendMailNameEditBox:SetText(q.to)
+    SendMailSubjectEditBox:SetText(("Tempus gear data (%d/%d)"):format(q.total - #q.parts + 1, q.total))
+    SendMailBodyEditBox:SetText(q.parts[1])
+    q.filled = true
+    T:Print("gear data filled in for %s. Press Send.", q.to)
+    return true
+end
+
+function M:OfferQueuedMail()
+    local q = T.db and T.db.market and T.db.market.mailQueue
+    if not (q and q.parts and q.parts[1]) then return end
+    T:Confirm(("Mail your gear data to %s? It is %d short mail%s; you press Send for each."):format(q.to, #q.parts, #q.parts == 1 and "" or "s"),
+        function() M:FillMail() end, "Fill in the mail")
+end
+
+-- After a send, move to the next part, or finish.
+function M:MailSent()
+    local q = T.db and T.db.market and T.db.market.mailQueue
+    if not (q and q.parts and q.filled) then return end
+    table.remove(q.parts, 1)
+    q.filled = nil
+    if #q.parts == 0 then
+        T.db.market.mailQueue = false
+        T:Print("gear data mailed to %s. Thank you!", q.to)
+    elseif C_Timer and C_Timer.After then
+        C_Timer.After(0.6, function() M:FillMail() end)
+    end
+end

@@ -16,7 +16,7 @@ CD.defaults = {
     showReady = false,          -- timeline: keep spells that are ready parked at the ready line
     fall = "DOWN",              -- DOWN: ready line at the bottom | UP: ready line at the top
     labelSide = "LEFT",         -- which side the time labels and the rail sit on
-    bgStyle = "GLASS",          -- GLASS | SOLID | MINIMAL (rail and marks only)
+    bgStyle = "GLASS",          -- GLASS | SOLID | MINIMAL (rail and marks only) | NONE
     bgOpacity = 0.7,            -- how strong the scale's background is
     fadeBg = 0.8,               -- how far the background fades out toward the ready line
     fadeIcons = 0.5,            -- how far icons fade as they near ready
@@ -264,6 +264,7 @@ local function HideTrack(f)
 end
 
 local function LayoutTrack(f, db, g, marks)
+    if db.bgStyle == "NONE" then HideTrack(f) return end      -- icons only, nothing behind them
     local tr = f.track
     if not tr then tr = { marks = {} }; f.track = tr end
     local bg = db.bgOpacity

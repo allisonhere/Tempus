@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **The Tempus scan button is a progress bar.** While the auction house scan runs, the button fills from the left with your accent colour as it goes. The percentage stays on top, and its colour reverses where the fill is under it (white on a dark accent, dark on a light one) so it reads on both sides.
+
 ## 2.17.0
 
 ### Added

@@ -120,3 +120,11 @@ auctions = { { 'a', 1, 1, 1, 1, 1, 1, 0, 0, 100, 0, 0, 0, 0, 0, 0, 901 } }
 assert(M:StartScan()); ah.OnEvent(ah, 'REPLICATE_ITEM_LIST_UPDATE')
 assert(not M:Quote(nil, 123) and M:Quote(nil, 901), 'prices older than 30 days are dropped')
 print('ok')
+
+-- The scan button fills with the accent colour; the number stays and reverses over the fill.
+local st = M.ProgressState('40%', 0.4, 126, { 0.2, 0.6, 1 })
+assert(st.fillWidth == 50 and st.text == '40%' and st.reverse[1] == 1 and st.reverse[3] == 1, 'dark accent: white number over the fill')
+local light = M.ProgressState('100%', 1, 126, { 1, 0.9, 0.3 })
+assert(light.fillWidth == 126 and light.reverse[1] < 0.1, 'light accent: dark number over the fill')
+assert(M.ProgressState('x', -3, 100, nil).fillWidth == 0 and M.ProgressState('x', 7, 100, nil).fillWidth == 100, 'fraction is clamped')
+assert(M.ProgressState('x', nil, 100, nil).fillWidth == 0 and M.ProgressState('x', 0 / 0, 100, nil).fillWidth == 0, 'no fraction, empty bar')

@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Changed", items = {
+            { 0, "|cffffffffThe Tempus scan button is a progress bar.|r While the auction house scan runs, the button fills from the left with your accent colour as it goes. The percentage stays on top, and its colour reverses where the fill is under it (white on a dark accent, dark on a light one) so it reads on both sides." },
+        } },
+    } },
     { version = "2.17.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffff|cff9fd6ff/tempus geartree|r|r lists every talent in your class tree with its position and your points, four to a line. Pasting it for a few characters lets Gear Advisor split the tree into its three tabs by position and read a build from where the points are." },

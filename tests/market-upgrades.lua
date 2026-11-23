@@ -446,5 +446,6 @@ assert(why and why:find('Cat') and why:find('from your form') and why:find('%+12
 T.db.market.gearRole = 'BEAR'
 assert(M.WhyText('nw', 'od', 'DRUID'):find('Bear') and M.WhyText('nw', 'od', 'DRUID'):find('your choice'))
 T.db.market.gearRole = 'AUTO'
-assert(M.WhyText('nw', 'od', 'WARRIOR'):find('your class'), 'classes without roles say so')
+assert(M.WhyText('nw', 'od', 'WARRIOR'):find('Arms') and M.WhyText('nw', 'od', 'WARRIOR'):find('assumed'), 'other classes say the role is a guess')
+assert(M.WhyText('nw', 'od', 'NOPE') == nil, 'a class with no weights has nothing to say')
 GetShapeshiftForm, C_Item.GetItemStats = nil, nil

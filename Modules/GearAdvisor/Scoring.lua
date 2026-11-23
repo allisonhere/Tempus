@@ -8,23 +8,34 @@ GA.Scoring = S
 
 S.MAX_LEVEL = 60                 -- leveling weights below this, endgame weights from it
 
-S.ROLES = { DRUID = { { "AUTO", "Automatic (from my form)" }, { "CAT", "Cat" }, { "BEAR", "Bear" },
-    { "RESTO", "Restoration" }, { "BALANCE", "Balance" } } }
+-- The roles a class can be scored as, for a settings dropdown: { { code, label }, ... }, led by
+-- Automatic. nil for classes with no weights.
+function S.RoleList(class)
+    local set = GA.Weights and GA.Weights[class]
+    if not (set and set._order) then return nil end
+    local list = { { "AUTO", class == "DRUID" and "Automatic (from my form)" or "Automatic (assumed)" } }
+    for _, code in ipairs(set._order) do list[#list + 1] = { code, set[code].label } end
+    return list
+end
 
 -- Shapeshift form numbers that tell the druid's role. 3 = Cat was read from a Forever client; Bear = 1
 -- follows the classic order and has not been read yet.
 local DRUID_FORM = { [3] = "CAT", [1] = "BEAR" }
 
 -- The role to score with. `chosen` is the setting (AUTO or a role code), `form` the current shapeshift
--- form, `last` the last role seen from a form. Returns role, why it was picked.
+-- form, `last` the last role seen from a form. Returns role, why it was picked ("chosen", "form",
+-- "last form" or "default": a guess the screen must call an assumption).
 function S.Role(class, chosen, form, last)
-    local roles = S.ROLES[class]
-    if not roles then return nil end
-    if chosen and chosen ~= "AUTO" then return chosen, "chosen" end
-    local fromForm = DRUID_FORM[form]
-    if fromForm then return fromForm, "form" end
-    if last then return last, "last form" end
-    return "CAT", "default"
+    local set = GA.Weights and GA.Weights[class]
+    if not (set and set._order) then return nil end
+    if chosen and chosen ~= "AUTO" and set[chosen] then return chosen, "chosen" end
+    if class == "DRUID" then
+        local fromForm = DRUID_FORM[form]
+        if fromForm then return fromForm, "form" end
+        if last and set[last] then return last, "last form" end
+        return "CAT", "default"
+    end
+    return set._order[1], "default"
 end
 
 -- The weights table for a class and role at this level, with where it comes from.
@@ -64,4 +75,15 @@ function S.Delta(new, old, weights, isNumber)
     end)
     table.sort(unscored)
     return total, parts, unscored
+end
+
+-- The weights to use for one item: a ranged weapon's DPS counts at the ranged weight.
+function S.ForItem(weights, ranged)
+    if ranged and weights.DPS_RANGED then
+        local copy = {}
+        for k, v in pairs(weights) do copy[k] = v end
+        copy.ITEM_MOD_DAMAGE_PER_SECOND_SHORT = weights.DPS_RANGED
+        return copy
+    end
+    return weights
 end

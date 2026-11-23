@@ -353,7 +353,7 @@ function M:FindUpgrades()
                     else
                         -- What the stats are worth to your class; nil when the client gives none.
                         if wornLinks[loc] == nil then wornLinks[loc] = WornLink(loc) or false end
-                        local useful = (M.UsefulScore("item:" .. id, wornLinks[loc] or nil, class, roleWeights))
+                        local useful = (M.UsefulScore("item:" .. id, wornLinks[loc] or nil, class, roleWeights, RANGED[loc]))
                         if not (useful and useful <= 0) then
                             local gold = math.max(row.p / 10000, 0.01)
                             local age = Num(row.t) and math.max(0, math.floor((now - row.t) / 86400)) or nil
@@ -435,9 +435,10 @@ end
 -- How much better the stats get for this class when `newLink` replaces `oldLink` (negative when
 -- they get worse). nil when the client gives no stats for either, so callers fall back to item level.
 -- `weights` is the role's table when the caller already has it. Second result: the parts, biggest first.
-function M.UsefulScore(newLink, oldLink, class, weights)
+function M.UsefulScore(newLink, oldLink, class, weights, ranged)
     local w = weights or WEIGHTS[class]
     if not w then return nil end
+    w = T.GearAdvisor.Scoring.ForItem(w, ranged)
     local new, old = StatsOf(newLink), StatsOf(oldLink)
     if next(new) == nil and next(old) == nil then return nil end
     local total, parts = T.GearAdvisor.Scoring.Delta(new, old, w, Num)
@@ -445,9 +446,9 @@ function M.UsefulScore(newLink, oldLink, class, weights)
 end
 
 -- One line saying why an item is worth what it is: the role and the stats that moved the score.
-function M.WhyText(newLink, oldLink, class)
+function M.WhyText(newLink, oldLink, class, ranged)
     local w, label, why = M.RoleWeights(class)
-    local total, parts = M.UsefulScore(newLink, oldLink, class, w)
+    local total, parts = M.UsefulScore(newLink, oldLink, class, w, ranged)
     if not total then return nil end
     local bits = {}
     for i = 1, math.min(4, #parts) do
@@ -455,7 +456,7 @@ function M.WhyText(newLink, oldLink, class)
         bits[#bits + 1] = ("%s%s %s"):format(p.change > 0 and "+" or "-", (math.abs(p.change) == math.floor(math.abs(p.change)) and ("%d"):format(math.abs(p.change)) or ("%.1f"):format(math.abs(p.change))),
             StatLabel(p.key) or p.key)
     end
-    local head = label and (("%s (%s)"):format(label, why == "chosen" and "your choice" or why == "form" and "from your form" or "assumed")) or "your class"
+    local head = label and (("%s (%s)"):format(label, why == "chosen" and "your choice" or why == "form" and "from your form" or why == "last form" and "from your last form" or "assumed, pick one in settings")) or "your class"
     return ("|cff7CFF8A%+.1f|r as %s: %s  |cff8A93A0(estimate)|r"):format(total, head, #bits > 0 and table.concat(bits, ", ") or "no scored stat changes")
 end
 
@@ -601,7 +602,7 @@ function M.DetailInfo(e)
     local worn = WornLink(e.loc)
     return { name = name, link = link, icon = icon, slot = GROUP_LABEL[GROUP_OF[e.loc]] or "", level = e.level,
         worn = e.worn, wornLink = worn, gain = e.gain, price = e.price, age = e.age,
-        perGold = e.score, note = e.note, why = M.WhyText(link or ("item:" .. e.id), worn, select(2, UnitClass("player"))), stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
+        perGold = e.score, note = e.note, why = M.WhyText(link or ("item:" .. e.id), worn, select(2, UnitClass("player")), RANGED[e.loc]), stats = M.StatGains(link or ("item:" .. e.id), worn, DETAIL_STATS, true),
         all = M.StatGains(link or ("item:" .. e.id), worn, TABLE_ROWS, true, true) }
 end
 

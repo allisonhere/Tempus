@@ -11,9 +11,9 @@ T:RegisterPage("convenience", {key = "market", label = "Auction values", order =
     p:Add(T.UI.W.Button("Open Gear Advisor", function() T.Market:ToggleUpgrades() end, "Opens the list from your last scan. It works anywhere; you do not need the auction house open. Drag it to move it. Also /tempus gear.", 200))
     p:Dropdown(cfg, "upgradeSort", "Rank upgrades by", { { "VALUE", "Best value (stats for the price)" }, { "BIGGEST", "Biggest upgrade" }, { "CHEAPEST", "Cheapest first" } })
     local _, class = UnitClass("player")
-    local roles = T.GearAdvisor and T.GearAdvisor.Scoring and T.GearAdvisor.Scoring.ROLES[class]
+    local roles = T.GearAdvisor and T.GearAdvisor.Scoring and T.GearAdvisor.Scoring.RoleList(class)
     if roles then
-        p:Dropdown(cfg, "gearRole", "Score gear as", roles, "Which job to judge gear for. Automatic follows your shapeshift form (Cat Form scores as Cat) and remembers the last one. The weights are community estimates from GearQuest Forever, shown as estimates.")
+        p:Dropdown(cfg, "gearRole", "Score gear as", roles, "Which build to judge gear for. For a Druid, Automatic follows your shapeshift form (Cat Form scores as Cat) and remembers the last one; for other classes it is a guess, so pick yours. The weights are community estimates from GearQuest Forever, shown as estimates.")
     end
     p:Slider(cfg, "upgradeMinGain", "Minimum item level gain", 1, 30, 1, function(v) return "+" .. v end)
     p:Slider(cfg, "upgradeMaxGold", "Maximum price (gold, 0 = no limit)", 0, 1000, 5, function(v) return v == 0 and "No limit" or (v .. "g") end, "Hides upgrades that cost more than this per item. You can also type a price in the Gear Advisor window.")

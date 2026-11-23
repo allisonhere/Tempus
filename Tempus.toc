@@ -77,6 +77,7 @@ Modules\CombatPulse\Pages.lua
 
 Modules\Market\Market.lua
 Modules\Market\Upgrades.lua
+Modules\Market\Probe.lua
 Modules\Market\Pages.lua
 Modules\StatTips\StatTips.lua
 Modules\StatTips\Pages.lua

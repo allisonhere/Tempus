@@ -787,29 +787,12 @@ function M.BuildDetail(p, scroll)
     d.glow:SetPoint("BOTTOMRIGHT", d.icon, 2, -2)
     d.name = S.Text(d, 13, S.C.text)
     d.name:SetPoint("TOPLEFT", d.icon, "TOPRIGHT", 8, -2)
-    d.name:SetWidth(W - 104)
+    d.name:SetWidth(W - 44)
     d.name:SetWordWrap(false)
     d.slot = S.Text(d, 11, S.C.muted)
     d.slot:SetPoint("TOPLEFT", d.name, "BOTTOMLEFT", 0, -3)
     d.slot:SetWidth(W - 44)
     d.slot:SetWordWrap(false)
-    -- Find: search for this item in the auction house window (does not buy anything).
-    d.find = CreateFrame("Button", nil, d)
-    d.find:SetSize(56, 20)
-    d.find:SetPoint("TOPRIGHT", d, "TOPRIGHT", -2, -2)
-    d.find.bg = S.Tex(d.find, "BACKGROUND", { GOLD[1], GOLD[2], GOLD[3], 0.16 })
-    d.find.bg:SetAllPoints()
-    d.find.text = S.Text(d.find, 11, GOLD)
-    d.find.text:SetPoint("CENTER")
-    d.find.text:SetText("Find")
-    d.find:SetScript("OnClick", function()
-        local e = M.detailEntry
-        if not e then return end
-        local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
-        local name = getInfo and getInfo(e.id)
-        M:FindAtAuctionHouse(name)
-    end)
-    d.find:Hide()
     -- Everything below the header scrolls: the worn item's tooltip, the listing's tooltip, then the math.
     local sc = CreateFrame("ScrollFrame", nil, d)
     sc:SetPoint("TOPLEFT", d, "TOPLEFT", 0, -46)
@@ -828,6 +811,10 @@ function M.BuildDetail(p, scroll)
         b.head = S.Text(c, 11, GOLD)
         b.head:SetWidth(W)
         b.head:SetWordWrap(false)
+        b.extra = S.Text(c, 10, S.C.muted)
+        b.extra:SetWidth(W)
+        b.extra:SetJustifyH("LEFT")
+        b.extra:SetWordWrap(true)
         b.body = S.Text(c, 10, S.C.text)
         b.body:SetWidth(W)
         b.body:SetJustifyH("LEFT")
@@ -836,6 +823,21 @@ function M.BuildDetail(p, scroll)
         return b
     end
     d.wear, d.buy = Block(), Block()
+    d.buy.head:SetWidth(W - 62)
+    -- Find sits on the Buying heading: it runs the auction house's own search for this item (buys nothing).
+    d.find = CreateFrame("Button", nil, c)
+    d.find:SetSize(56, 16)
+    d.find.bg = S.Tex(d.find, "BACKGROUND", { GOLD[1], GOLD[2], GOLD[3], 0.16 })
+    d.find.bg:SetAllPoints()
+    d.find.text = S.Text(d.find, 11, GOLD)
+    d.find.text:SetPoint("CENTER")
+    d.find.text:SetText("Find")
+    d.find:SetScript("OnClick", function()
+        local e = M.detailEntry
+        if not e then return end
+        local getInfo = (C_Item and C_Item.GetItemInfo) or GetItemInfo
+        M:FindAtAuctionHouse(getInfo and getInfo(e.id))
+    end)
     -- The math: a muted label and its value per row, then the stat table.
     d.mathHead = S.Text(c, 11, GOLD)
     d.mathHead:SetWidth(W)
@@ -843,7 +845,7 @@ function M.BuildDetail(p, scroll)
     d.rule = Paint(S.Tex(c, "ARTWORK"), GOLD, 0.5)
     d.rule:SetSize(W, 1)
     d.facts = {}
-    for _, name in ipairs({ "Score", "Item level", "Price", "Replaces", "Trust", "Why" }) do
+    for _, name in ipairs({ "Score", "Trust", "Why" }) do
         local label = S.Text(c, 11, S.C.muted)
         label:SetWidth(FACT_X - 6)
         label:SetJustifyH("LEFT")
@@ -892,13 +894,13 @@ function M:ShowDetail(e)
     self.detailEntry = e
     if not e then
         d.hint:Show(); d.icon:Hide(); d.glow:Hide(); d.name:SetText(""); d.slot:SetText("")
-        d.scroll:Hide(); d.find:Hide()
+        d.scroll:Hide()
         return
     end
     local i = M.DetailInfo(e)
     d.hint:Hide()
     d.icon:Show()
-    d.scroll:Show(); d.find:Show()
+    d.scroll:Show()
     d.glow:SetVertexColor(QualityColor(e.quality))
     d.glow:Show()
     d.icon:SetTexture(i.icon or (C_Item and C_Item.GetItemIconByID and C_Item.GetItemIconByID(e.id)) or 134400)
@@ -915,13 +917,20 @@ function M:ShowDetail(e)
         local h = fs.GetStringHeight and fs:GetStringHeight()
         return math.max(minimum or 12, Num(h) and h or 0)
     end
-    -- 1. What you wear, then 2. what you would buy, each as the game's tooltip squeezed into a few lines.
+    -- 1. What you wear, then 2. what you would buy (with its price), each as the game's tooltip squeezed
+    -- into a few lines.
     d.wear.head:SetText("Wearing  " .. (i.wornLink or muted .. "nothing in that slot|r"))
+    d.wear.extra:SetText(("Item level %s%s"):format(i.worn and i.worn > 0 and tostring(i.worn) or "none",
+        i.note and ("   |cffE8A060" .. i.note .. "|r") or ""))
     d.wear.body:SetText(i.wornLink and M.CompactTip(M.TipLines(i.wornLink)) or "")
     d.buy.head:SetText("Buying  " .. (i.link or i.name or ""))
+    d.buy.extra:SetText(("%s   %s%s|r   Item level |cffffffff%d|r |cff66F27F+%d|r"):format(MoneyText(i.price), muted, AgeText(i.age), i.level or 0, i.gain or 0))
     d.buy.body:SetText(M.CompactTip(M.TipLines(i.link or ("item:" .. e.id))))
     for _, block in ipairs({ d.wear, d.buy }) do
-        Place(block.head, 0, y); y = y + 16
+        Place(block.head, 0, y)
+        if block == d.buy then d.find:ClearAllPoints(); d.find:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, -y) end
+        y = y + 16
+        Place(block.extra, 0, y); y = y + Height(block.extra, 12) + 2
         Place(block.body, 0, y); y = y + Height(block.body, 12) + 10
     end
     -- 3. The math.
@@ -933,13 +942,9 @@ function M:ShowDetail(e)
             i.roleWhy and (" " .. muted .. "(" .. (i.roleWhy == "chosen" and "your choice" or i.roleWhy == "form" and "from your form"
                 or i.roleWhy == "talents" and "from your talents" or i.roleWhy == "last form" and "from your last form" or "assumed") .. ")|r") or ""))
         or (muted .. "no stats from the game; ranked by item level|r"))
-    F["Item level"].value:SetText(("|cffffffff%d|r  |cff66F27F+%d|r  %s(you wear %s)|r"):format(i.level or 0, i.gain or 0, muted,
-        i.worn and i.worn > 0 and tostring(i.worn) or "nothing"))
-    F.Price.value:SetText(MoneyText(i.price) .. "  " .. muted .. AgeText(i.age) .. "|r")
-    F.Replaces.value:SetText((i.wornLink or "empty slot") .. (i.note and ("\n|cffE8A060" .. i.note .. "|r") or ""))
     F.Trust.value:SetText(("|cffffffff%s|r\n%s%s|r"):format(i.confidenceLabel or "", muted, i.confidenceReasons or ""))
     F.Why.value:SetText(i.parts or (i.perGold and ("%.1f item levels per gold"):format(i.perGold) or ""))
-    for _, name in ipairs({ "Score", "Item level", "Price", "Replaces", "Trust", "Why" }) do
+    for _, name in ipairs({ "Score", "Trust", "Why" }) do
         local f = F[name]
         Place(f.label, 0, y); Place(f.value, FACT_X, y)
         y = y + Height(f.value, 14) + 4

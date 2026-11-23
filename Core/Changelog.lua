@@ -3,7 +3,7 @@ local _, T = ...
 T.changelog = {
     { version = "Unreleased", sections = {
         { title = "Added", items = {
-            { 0, "|cffffffffA Find button in the Gear Advisor detail pane.|r It opens a search for the selected item in the auction house window (the same search the auction house's own search bar runs), so you see the real listings and buy with Blizzard's own Buy button. It needs the auction house open, spends nothing and buys nothing." },
+            { 0, "|cffffffffA Find button on the Buying section of the Gear Advisor detail pane.|r It opens a search for the selected item in the auction house window (the same search the auction house's own search bar runs), so you see the real listings and buy with Blizzard's own Buy button. It sits on the |cffffffffBuying|r heading, with the listing's price, age and item level listed under it, and the same for the item you wear (its item level and what else would come off). It needs the auction house open, spends nothing and buys nothing." },
         } },
     } },
     { version = "2.18.0", sections = {

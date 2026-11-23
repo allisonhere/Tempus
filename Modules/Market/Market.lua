@@ -363,12 +363,27 @@ function M:QueueReportMail(to, text)
     to = tostring(to or ""):gsub("^%s+", ""):gsub("%s+$", "")
     local parts = M.MailParts(text)
     if to == "" or #parts == 0 or not T.db.market then return false end
-    T.db.market.mailQueue = { to = to, parts = parts, total = #parts }
+    T.db.market.mailQueue = { to = to, parts = parts, total = #parts, at = time() }
     T:Print("queued %d mail%s to %s. Tempus will ask when you open a mailbox.", #parts, #parts == 1 and "" or "s", to)
     return true
 end
 
+-- A mail sent by hand with the report's subject counts as sent too (so a queue never outlives its mails).
+local function HookSend()
+    if M.sendHooked or not hooksecurefunc then return end
+    local function onSend(_, subject)
+        local q = T.db and T.db.market and T.db.market.mailQueue
+        if q and type(subject) == "string" and subject:find("^Tempus gear data") then q.filled = true end
+    end
+    if C_Mail and C_Mail.SendMail and pcall(hooksecurefunc, C_Mail, "SendMail", function(to, subject) onSend(to, subject) end) then
+        M.sendHooked = true
+    elseif SendMail and pcall(hooksecurefunc, "SendMail", function(to, subject) onSend(to, subject) end) then
+        M.sendHooked = true
+    end
+end
+
 function M:FillMail()
+    HookSend()
     local q = T.db.market and T.db.market.mailQueue
     if not (q and q.parts and q.parts[1]) then return false end
     if MailFrameTab_OnClick then pcall(MailFrameTab_OnClick, nil, 2) end
@@ -388,8 +403,19 @@ function M:OfferQueuedMail()
     local q = T.db and T.db.market and T.db.market.mailQueue
     if not (q and q.parts and q.parts[1]) then return end
     if M.FixReportTo then q.to = M.FixReportTo(q.to) end
+    -- Offered only while a report is queued. Two refusals, or two weeks, and the queue is dropped so it never nags.
+    if q.at and time() - q.at > 14 * 86400 then
+        T.db.market.mailQueue = false
+        return
+    end
     T:Confirm(("Mail your gear data to %s? It is %d short mail%s; you press Send for each."):format(q.to, #q.parts, #q.parts == 1 and "" or "s"),
-        function() M:FillMail() end, "Fill in the mail")
+        function() M:FillMail() end, "Fill in the mail", function()
+            q.declined = (q.declined or 0) + 1
+            if q.declined >= 2 then
+                T.db.market.mailQueue = false
+                T:Print("gear data mail dropped. Press Mail it later on the Gear Report page to queue it again.")
+            end
+        end)
 end
 
 -- After a send, move to the next part, or finish.

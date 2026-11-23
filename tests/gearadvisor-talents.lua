@@ -74,8 +74,26 @@ print("PASS: geartree lists talent nodes with positions")
 T.Market.GearSig = function() return { "DRUID 22, 5 points: Ferocity x5" } end
 T.Market.GearTree = function() return { "tree line" } end
 T.Market.GearStats = function() return { "|cffaabbcc2 items read|r" } end
+UnitClass = function() return "Druid", "DRUID" end
+UnitRace = function() return "Human", "Human" end
+UnitLevel = function() return 22 end
+GetShapeshiftForm = function() return 3 end
+UnitFactionGroup = function() return "Alliance" end
+T.Market.GearProbe = function() return { "class DRUID, level 22" } end
+GetInventoryItemLink = function(_, slot) if slot == 16 then return "mace" end end
+C_Item = { GetItemStats = function() return { ITEM_MOD_AGILITY_SHORT = 12, ITEM_MOD_DAMAGE_PER_SECOND_SHORT = 9.5 } end,
+    GetItemInfo = function() return "Battering Hammer" end, GetItemInfoInstant = function() return 3198, "Weapon", "Maces", "INVTYPE_2HWEAPON", 1, 2, 5 end,
+    GetDetailedItemLevelInfo = function() return 23 end }
+C_Container = { GetContainerNumSlots = function(b) return b == 0 and 1 or 0 end, GetContainerItemLink = function() return "robe" end }
+NUM_BAG_SLOTS = 0
+T.db = { market = { gearRole = "AUTO", upgradeSort = "VALUE" } }
 local rep = T.Market.Report()
-assert(rep == "Tempus gear data\nBuild: (type your build here, for example Destruction)\nDRUID 22, 5 points: Ferocity x5\ntree line\n2 items read", rep)
+for _, want in ipairs({ "Tempus gear data", "Build: (type your build here", "Human DRUID | level 22 | Alliance | form 3", "-- client calls and character stats", "class DRUID, level 22",
+    "-- talent points", "DRUID 22, 5 points: Ferocity x5", "-- equipped gear", "slot16 Battering Hammer (23) INVTYPE_2HWEAPON: AGILITY=12 DAMAGE_PER_SECOND=9.5",
+    "-- carried gear", "bag Battering Hammer", "-- stat names seen", "2 items read", "-- talent tree", "tree line" }) do
+    assert(rep:find(want, 1, true), "report is missing: " .. want)
+end
+assert(not rep:find("|c", 1, true), "colour codes are stripped")
 local parts = T.Market.SplitForChat("one\n\n  two|cffaabbcc  \n" .. string.rep("word ", 100), 50)
 assert(parts[1] == "one" and parts[2] == "two/cffaabbcc", parts[2])
 for _, line in ipairs(parts) do assert(#line <= 50 and not line:find("|", 1, true), line) end

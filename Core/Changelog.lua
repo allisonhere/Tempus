@@ -1,6 +1,12 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Changed", items = {
+            { 0, "|cffffffffA fuller gear data report.|r Besides the talent points and tree, the report now holds the Tempus version, your race, class, level, faction and shapeshift form, what the game offers for specs, talents and stats, your character stats, every equipped item and every weapon or armor in your bags with all of its stats, the stat names seen, and how Gear Advisor scored you. It leaves out your character name and realm. It is longer, so it goes out as more mails." },
+            { 0, "|cffffffffThe mailbox prompt only appears while a report is queued.|r If you refuse it twice, or the queue is two weeks old, the queue is dropped so it never nags. A mail you send by hand with the report's subject counts as sent too." },
+        } },
+    } },
     { version = "2.19.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffGear Advisor reads Warlock talents.|r With |cffffffffScore gear as|r on Automatic, a Warlock's build comes from the tab holding most of their points (Affliction, Demonology or Destruction) once they have a clear lead, from level 10. A split build is not guessed." },

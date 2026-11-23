@@ -156,3 +156,17 @@ assert(T.db.market.mailQueue == false, 'finished: queue cleared')
 confirmed = nil; M:OfferQueuedMail(); assert(confirmed == nil, 'nothing queued, nothing asked')
 M:MailSent()
 SendMailNameEditBox, SendMailSubjectEditBox, SendMailBodyEditBox = nil, nil, nil
+
+-- The mailbox prompt: only while a report is queued, and it stops nagging after two refusals or two weeks.
+T.Confirm = function(_, text, accept, label, decline) confirmed = { text = text, accept = accept, decline = decline } end
+T.db.market.mailQueue = false
+confirmed = nil; M:OfferQueuedMail(); assert(confirmed == nil, 'empty queue: no prompt')
+assert(M:QueueReportMail('Allie', 'some report text'))
+confirmed = nil; M:OfferQueuedMail(); assert(confirmed, 'queued: prompt')
+confirmed.decline(); assert(T.db.market.mailQueue, 'one refusal keeps the queue')
+confirmed = nil; M:OfferQueuedMail(); confirmed.decline()
+assert(T.db.market.mailQueue == false, 'two refusals drop the queue')
+assert(M:QueueReportMail('Allie', 'some report text'))
+T.db.market.mailQueue.at = time() - 15 * 86400
+confirmed = nil; M:OfferQueuedMail()
+assert(confirmed == nil and T.db.market.mailQueue == false, 'a queue older than two weeks is dropped without asking')

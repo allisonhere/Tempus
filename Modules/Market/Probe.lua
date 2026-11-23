@@ -265,13 +265,74 @@ function M.GearTree()
     return out
 end
 
--- A single text with everything gathered for improving Gear Advisor: the build (typed by the player), the
--- talent points, the talent tree and the stat names on carried gear.
+-- One equipped or carried item as a line: its name, level, type and every stat the game lists for it.
+local function ItemLine(prefix, link)
+    local getStats = C_Item and C_Item.GetItemStats
+    local name = link
+    local okI, nm = pcall((C_Item and C_Item.GetItemInfo) or GetItemInfo or error, link)
+    if okI and type(nm) == "string" then name = nm end
+    local info = { pcall((C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant or error, link) }
+    local loc = info[1] and info[5] or "?"
+    local ilvl = select(2, pcall((C_Item and C_Item.GetDetailedItemLevelInfo) or error, link))
+    local bits = {}
+    if type(getStats) == "function" then
+        local ok, stats = pcall(getStats, link)
+        if ok and type(stats) == "table" then
+            local keys = {}
+            for k in pairs(stats) do keys[#keys + 1] = tostring(k) end
+            table.sort(keys)
+            for _, k in ipairs(keys) do bits[#bits + 1] = (k:gsub("^ITEM_MOD_", ""):gsub("_SHORT$", "")) .. "=" .. tostring(stats[k]) end
+        end
+    end
+    return ("%s %s (%s) %s: %s"):format(prefix, tostring(name), type(ilvl) == "number" and tostring(ilvl) or "?", tostring(loc), #bits > 0 and table.concat(bits, " ") or "no stats")
+end
+
+-- Everything gathered for improving Gear Advisor, as one text: the build (typed by the player), what the
+-- client offers (specs, talents, stats, ratings), the talent points and tree, every equipped and carried
+-- item with its stats, the stat names seen, and Gear Advisor's own state. No character name, account or realm.
 function M.Report()
     local lines = { "Tempus gear data", "Build: (type your build here, for example Destruction)" }
-    for _, part in ipairs({ M.GearSig, M.GearTree, M.GearStats }) do
-        for _, line in ipairs(part()) do lines[#lines + 1] = (tostring(line):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+    local function strip(line) return (tostring(line):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+    local function add(list) for _, line in ipairs(list) do lines[#lines + 1] = strip(line) end end
+    local okV, version = pcall((C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata or error, "Tempus", "Version")
+    local _, class = UnitClass("player")
+    local race = select(2, UnitRace("player"))
+    local db = T.db and T.db.market or {}
+    lines[#lines + 1] = ("Tempus %s | %s %s | level %s | %s | form %s"):format(okV and tostring(version) or "?", tostring(race), tostring(class),
+        tostring(UnitLevel("player")), tostring(UnitFactionGroup and UnitFactionGroup("player")), tostring(GetShapeshiftForm and GetShapeshiftForm() or "?"))
+    local w, label, why = M.RoleWeights and M.RoleWeights(class)
+    lines[#lines + 1] = ("Gear Advisor: setting %s, scored as %s (%s), sort %s"):format(tostring(db.gearRole), tostring(label or "none"), tostring(why or "-"), tostring(db.upgradeSort))
+    lines[#lines + 1] = "-- client calls and character stats"
+    add(M.GearProbe())
+    lines[#lines + 1] = "-- talent points"
+    add(M.GearSig())
+    lines[#lines + 1] = "-- equipped gear"
+    for slot = 1, 19 do
+        local ok, link = pcall(GetInventoryItemLink, "player", slot)
+        if ok and type(link) == "string" then lines[#lines + 1] = strip(ItemLine("slot" .. slot, link)) end
     end
+    lines[#lines + 1] = "-- carried gear"
+    local C = C_Container
+    local shown = 0
+    for bag = 0, (NUM_BAG_SLOTS or 4) do
+        local okN, n = pcall(C and C.GetContainerNumSlots or GetContainerNumSlots, bag)
+        if okN and type(n) == "number" then
+            for slot = 1, n do
+                local ok, link = pcall(C and C.GetContainerItemLink or GetContainerItemLink, bag, slot)
+                if ok and type(link) == "string" and shown < 40 then
+                    local ci = { pcall((C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant or error, link) }
+                    if ci[1] and (ci[7] == 2 or ci[7] == 4) then
+                        shown = shown + 1
+                        lines[#lines + 1] = strip(ItemLine("bag", link))
+                    end
+                end
+            end
+        end
+    end
+    lines[#lines + 1] = "-- stat names seen"
+    add(M.GearStats())
+    lines[#lines + 1] = "-- talent tree"
+    add(M.GearTree())
     return table.concat(lines, "\n")
 end
 

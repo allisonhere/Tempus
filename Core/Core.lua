@@ -266,11 +266,12 @@ end
 
 -- A yes/no dialog before anything that throws settings away. Falls back to running at once
 -- where the game's popups are unavailable (tests).
-function T:Confirm(text, accept, acceptLabel)
+function T:Confirm(text, accept, acceptLabel, decline)
     if not (StaticPopupDialogs and StaticPopup_Show) then return accept() end
     StaticPopupDialogs.TEMPUS_CONFIRM = {
         text = text, button1 = acceptLabel or "Yes", button2 = "Cancel",
         OnAccept = function() accept() end,
+        OnCancel = decline and function() decline() end or nil,
         timeout = 0, whileDead = true, hideOnEscape = true, preferredIndex = 3,
     }
     StaticPopup_Show("TEMPUS_CONFIRM")

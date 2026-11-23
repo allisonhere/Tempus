@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **A fuller gear data report.** Besides the talent points and tree, the report now holds the Tempus version, your race, class, level, faction and shapeshift form, what the game offers for specs, talents and stats, your character stats, every equipped item and every weapon or armor in your bags with all of its stats, the stat names seen, and how Gear Advisor scored you. It leaves out your character name and realm. It is longer, so it goes out as more mails.
+- **The mailbox prompt only appears while a report is queued.** If you refuse it twice, or the queue is two weeks old, the queue is dropped so it never nags. A mail you send by hand with the report's subject counts as sent too.
+
 ## 2.19.0
 
 ### Added

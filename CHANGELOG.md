@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **Gear Advisor shows its detail on hover.** Hovering a listing now opens a tooltip beside the window with the item, the verdict tags, why it scored what it did, what else would come off and how far to trust it. The long "why" line in the side pane was wider than the pane and got cut off; the tooltip is not.
+
 ## 2.16.0
 
 ### Added

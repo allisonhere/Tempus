@@ -751,6 +751,19 @@ local function AgeText(age)
     return age == 1 and "seen 1 day ago" or ("seen %d days ago"):format(age)
 end
 
+-- The detail for one listing as plain tooltip lines: why it scored what it did, the verdict tags,
+-- what else comes off, and how far to trust it. Nothing here is cut off by the pane's width.
+function M.TooltipLines(e)
+    local i = M.DetailInfo(e)
+    local lines = {}
+    local function strip(text) return (text:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
+    if e.tags and #e.tags > 0 then lines[#lines + 1] = table.concat(e.tags, ", ") end
+    if i.why then lines[#lines + 1] = strip(i.why) end
+    if i.note then lines[#lines + 1] = i.note end
+    if i.confidence then lines[#lines + 1] = i.confidence end
+    return lines
+end
+
 function M:ShowDetail(e)
     local p, d = self.upgradePanel, self.upgradePanel and self.upgradePanel.detail
     if not d then return end
@@ -957,8 +970,22 @@ function M:BuildUpgradePanel()
             b.hl:Show()
             M:ShowDetail(b.entry)
             for _, other in ipairs(p.rows) do other.sel:SetShown(other == b) end
+            if GameTooltip and GameTooltip.SetOwner then
+                GameTooltip:SetOwner(b, "ANCHOR_LEFT")
+                if b.link and GameTooltip.SetHyperlink then pcall(GameTooltip.SetHyperlink, GameTooltip, b.link) end
+                local ok, lines = pcall(M.TooltipLines, b.entry)
+                if ok then
+                    GameTooltip:AddLine(" ")
+                    GameTooltip:AddLine("Gear Advisor", GOLD[1], GOLD[2], GOLD[3])
+                    for _, line in ipairs(lines) do GameTooltip:AddLine(line, 0.85, 0.87, 0.9, true) end
+                end
+                GameTooltip:Show()
+            end
         end)
-        r:SetScript("OnLeave", function(b) b.hl:Hide() end)
+        r:SetScript("OnLeave", function(b)
+            b.hl:Hide()
+            if GameTooltip and GameTooltip.Hide then GameTooltip:Hide() end
+        end)
         r:SetScript("OnClick", function(b)
             if b.link and IsModifiedClick and IsModifiedClick("CHATLINK") and ChatEdit_InsertLink then
                 ChatEdit_InsertLink(b.link)

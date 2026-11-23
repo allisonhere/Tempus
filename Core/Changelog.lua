@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Changed", items = {
+            { 0, "|cffffffffGear Advisor shows its detail on hover.|r Hovering a listing now opens a tooltip beside the window with the item, the verdict tags, why it scored what it did, what else would come off and how far to trust it. The long \"why\" line in the side pane was wider than the pane and got cut off; the tooltip is not." },
+        } },
+    } },
     { version = "2.16.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffGear Advisor ranks by your stats.|r The list weighs how much the stats your class cares about improve against the price (item levels when the game gives no stats), drops gear with worse stats for your class, and has a |cffffffffRank upgrades by|r setting: best value, biggest upgrade or cheapest. The window has a new gold look with value meters." },

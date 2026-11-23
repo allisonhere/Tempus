@@ -519,3 +519,15 @@ Seed({ [1] = 10 * G, [2] = 1 * G, [4] = 5 * G, [6] = 2 * G, [11] = 3 * G })
 M:PrintPlan()
 assert(table.concat(printed, '\n'):find('plan for 4'), table.concat(printed, '\n'))
 T.db.market.planGold = 0
+
+-- The hover tooltip carries the full detail: tags, why, what comes off, confidence.
+GetShapeshiftForm = function() return 3 end
+C_Item.GetItemStats = function(l) return ({ nw = { ITEM_MOD_AGILITY_SHORT = 12, ITEM_MOD_STAMINA_SHORT = 2 }, od = { ITEM_MOD_STAMINA_SHORT = 6 } })[l] end
+UnitClass = function() return 'Druid', 'DRUID' end
+local tipInfo = M.DetailInfo
+M.DetailInfo = function(e) return { why = '|cff7CFF8A+9.0|r as Cat: +12 Agility', note = 'Also takes off your shield', confidence = 'Confidence: Medium (weights are estimates)' } end
+local tip = M.TooltipLines({ tags = { 'Biggest upgrade', 'Best value' } })
+assert(tip[1] == 'Biggest upgrade, Best value' and tip[2] == '+9.0 as Cat: +12 Agility' and tip[3] == 'Also takes off your shield' and tip[4]:find('Medium'), table.concat(tip, ' | '))
+assert(#M.TooltipLines({}) == 3, 'no tags: three lines')
+M.DetailInfo = tipInfo
+GetShapeshiftForm, C_Item.GetItemStats = nil, nil

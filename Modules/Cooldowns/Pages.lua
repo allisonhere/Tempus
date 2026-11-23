@@ -93,5 +93,7 @@ T:RegisterPage("combat", { key = "targetdebuffs", label = "Target debuffs", orde
     p:Check(cfg, "showTicks", "Show lines at each mark")
     p:Check(cfg, "accentRail", "Colour the rail with the accent")
     p:Dropdown(cfg, "labelSide", "Labels and rail on", { { "LEFT", "Left" }, { "RIGHT", "Right" } })
+    p:Section("Your debuffs and their length", "The surest way to get a debuff on the timeline: list it with how many seconds it lasts, for example Moonfire 12 or Corruption 18. Casting it then starts its timer, in or out of combat. A spell ID works too (8921 12).")
+    p:Add(W.List("debuffs", "Debuff and seconds, e.g. Rake 9", true), 236, true)
     p:Section("In combat", "The game hides debuffs from addons during a fight, so Tempus cannot read them then. It times your casts instead, using how long each debuff lasted the last time it could read it out of combat (Rake, Rip and Rupture have built-in lengths). Apply each of your other debuffs once out of combat, on a dummy or a mob, and Tempus learns it. /tempus tddebug shows what it has learned.")
 end })

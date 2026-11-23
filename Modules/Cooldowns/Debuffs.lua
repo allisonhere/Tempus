@@ -79,6 +79,24 @@ local function Seed(name)
     end
 end
 
+-- Debuffs the player listed with their length, "Moonfire 12" or "8921=12" (name or spell ID).
+function DT.Listed()
+    local out = {}
+    for _, text in pairs(T.db.lists.debuffs or {}) do
+        local what, secs = tostring(text):match("^(.-)[%s=:,]+(%d+%.?%d*)%s*s?$")
+        secs = tonumber(secs)
+        if what and what ~= "" and secs and secs > 0 then
+            local id = tonumber(what)
+            if id and C_Spell and C_Spell.GetSpellInfo then
+                local ok, info = pcall(C_Spell.GetSpellInfo, id)
+                what = ok and type(info) == "table" and info.name or what
+            end
+            out[what:lower()] = secs
+        end
+    end
+    return out
+end
+
 -- Your cast landed: if it is a debuff we know the length of (learned, or the seeds above),
 -- start its timer on the target. This works in combat, when auras cannot be read.
 function DT:OnCast(spellID)
@@ -92,7 +110,7 @@ function DT:OnCast(spellID)
     if type(name) ~= "string" or not Plain(name) then return end
     if not Plain(icon) then icon = nil end
     local known = DT.db.learned[name]
-    local dur = known and known.dur or Seed(name)
+    local dur = DT.Listed()[name:lower()] or (known and known.dur) or Seed(name)
     if dur then
         DT.Remember(DT.timers, guid, name, GetTime() + dur, dur, known and known.icon or icon)
         DT:Update(true)

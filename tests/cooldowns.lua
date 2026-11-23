@@ -65,3 +65,9 @@ assert(#live == 2 and live[1].name == "Rake" and live[2].name == "Rip", "soonest
 assert(timers.g1.Old == nil, "expired timer removed")
 assert(#DT.Live(timers, "g2", 100) == 1 and #DT.Live(timers, nil, 100) == 0, "per target")
 print("PASS: target debuff timers are per target, sorted by expiry, and expire")
+
+T.db.lists.debuffs = { a = "Moonfire 12", b = "8921=15", c = "bogus", d = "Rend: 15s" }
+C_Spell.GetSpellInfo = function(x) if x == 8921 then return { name = "Sunfire" } end return ({ Pummel = { spellID = 6552 }, ["Zzz Fake"] = { spellID = 11 } })[x] end
+local listed = DT.Listed()
+assert(listed.moonfire == 12 and listed.sunfire == 15 and listed.rend == 15 and not listed.bogus, "listed debuff lengths")
+print("PASS: listed debuff lengths accept names, spell IDs and a trailing s")

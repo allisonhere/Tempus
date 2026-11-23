@@ -84,9 +84,9 @@ print("PASS: gear report text and whisper split")
 
 -- The report goes to the character on the sender's faction.
 UnitFactionGroup = function() return "Horde" end
-assert(T.Market.DefaultReportTo() == "Dailyreports")
+assert(T.Market.DefaultReportTo() == "Daily Reports")
 UnitFactionGroup = function() return "Alliance" end
-assert(T.Market.DefaultReportTo() == "Dailyreporter")
+assert(T.Market.DefaultReportTo() == "Daily Reporter")
 UnitFactionGroup = function() return "Neutral" end
 assert(T.Market.DefaultReportTo() == "", "no default for a faction without one")
 UnitFactionGroup = nil

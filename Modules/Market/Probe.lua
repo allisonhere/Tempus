@@ -294,7 +294,7 @@ end
 
 -- Who receives the gear data report: one character per faction, since mail and whispers do not cross
 -- factions. The player can still type another name.
-M.REPORT_TO = { Horde = "Dailyreports", Alliance = "Dailyreporter" }
+M.REPORT_TO = { Horde = "Daily Reports", Alliance = "Daily Reporter" }
 
 function M.DefaultReportTo()
     local faction = UnitFactionGroup and UnitFactionGroup("player")

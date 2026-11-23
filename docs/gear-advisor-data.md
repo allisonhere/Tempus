@@ -32,6 +32,19 @@ Talents unlock at level 10, so use characters at level 10 or higher.
    then `tools/check.sh`. With markers in place, Automatic scoring can use the talents (after the shapeshift
    form, before a guess).
 
+## 3. The talent tree: `/tempus geartree`
+
+Prints every node of the class tree: `Name rank/max @x,y`, four to a line. Paste it for a character (any level
+10 or higher) into `tools/gearadvisor/trees/<class>.txt`. The x positions split the one tree into its three
+tabs, and the tab holding most of a character's points names the build (Feral tab versus Restoration tab). The
+Cat or Bear choice inside Feral still comes from the shapeshift form.
+
+## References that may be read but not copied
+
+- `nobody174/wow-forever` (Road to Forever addon): LICENSE says All Rights Reserved, no copying. Read for ideas
+  only (its list of game stat key names was a good set of candidates, which Gear Advisor's stat map now covers).
+- `turlockmike/pawn-forever` (MIT) is where the weights come from; keep its attribution.
+
 ## Confirmed in game
 
 - `GetShapeshiftForm()`: Cat = 3 and Bear = 1 (level 22 Druid: attack power 177 and 130 match the classic cat and bear formulas).

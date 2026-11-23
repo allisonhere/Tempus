@@ -1,8 +1,12 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
-    { version = "Unreleased", sections = {
+    { version = "2.17.0", sections = {
+        { title = "Added", items = {
+            { 0, "|cffffffff|cff9fd6ff/tempus geartree|r|r lists every talent in your class tree with its position and your points, four to a line. Pasting it for a few characters lets Gear Advisor split the tree into its three tabs by position and read a build from where the points are." },
+        } },
         { title = "Changed", items = {
+            { 0, "|cffffffffGear Advisor scores split stats.|r Crit, hit and haste weights now cover the melee, ranged and spell versions of the stat, mana regeneration covers both of its keys, and healing done and damage done are scored with their own weights, so a stat the game splits into variants is not left unscored." },
             { 0, "|cffffffffGear Advisor shows its detail on hover.|r Hovering a listing now opens a tooltip beside the window with the item, the verdict tags, why it scored what it did, what else would come off and how far to trust it. The long \"why\" line in the side pane was wider than the pane and got cut off; the tooltip is not." },
         } },
     } },

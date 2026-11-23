@@ -39,11 +39,11 @@ mkdir "$TEMP_DIR/samples"
 cat > "$TEMP_DIR/samples/a.txt" <<'SAMPLE'
 Tempus: 3 items read, 3 stat names
 Tempus: ITEM_MOD_AGILITY_SHORT: 3 items, 2 to 12, e.g. Name head
-Tempus: NO WEIGHT  ITEM_MOD_SPELL_HEALING_DONE_SHORT: 1 items, 33, e.g. Robe
+Tempus: NO WEIGHT  ITEM_MOD_WEIRD_THING_SHORT: 1 items, 33, e.g. Robe
 |cffaabbccTempus:|r ITEM_MOD_SPELL_POWER_SHORT: 2 items, 5 to 9, e.g. Staff
 SAMPLE
 report="$(python3 tools/gen_gearadvisor.py stats --input "$TEMP_DIR/samples")"
-grep -q "ITEM_MOD_SPELL_HEALING_DONE_SHORT.*NO WEIGHT" <<<"$report" || { echo "stats: unknown key not flagged" >&2; echo "$report" >&2; exit 1; }
+grep -q "ITEM_MOD_WEIRD_THING_SHORT.*NO WEIGHT" <<<"$report" || { echo "stats: unknown key not flagged" >&2; echo "$report" >&2; exit 1; }
 grep -q "ITEM_MOD_AGILITY_SHORT.*Agility (seen)" <<<"$report" || { echo "stats: mapped key not reported" >&2; exit 1; }
 grep -q "ITEM_MOD_BLOCK_RATING_SHORT" <<<"$report" || { echo "stats: unseen assumed keys not listed" >&2; exit 1; }
 echo "ok    tools/gen_gearadvisor.py stats"

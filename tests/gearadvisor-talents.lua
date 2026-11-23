@@ -57,3 +57,15 @@ assert(sig == "DRUID 22, 7 points: Feral Swiftness x2, Ferocity x5", sig)
 C_ClassTalents.GetActiveConfigID = function() return nil end
 assert(T.Market.GearSig()[1]:find("no talent data"))
 print("PASS: talent detection (level gate, clear lead, data-driven, role order, gearsig)")
+
+-- /tempus geartree lists every node with its position and points.
+C_ClassTalents.GetActiveConfigID = function() return 7 end
+nodes = { [1] = { currentRank = 5, maxRanks = 5, posX = 100, posY = 50, entryIDs = { 11 } },
+    [2] = { currentRank = 0, maxRanks = 3, posX = 900, posY = 50, entryIDs = { 12 } },
+    [3] = { currentRank = 2, maxRanks = 2, posX = 500, posY = 150, entryIDs = { 13 } } }
+local tree = T.Market.GearTree()
+assert(tree[1]:find("DRUID tree 55, 3 talents"), tree[1])
+assert(tree[2] == "Ferocity 5/5 @100,50; Unspent 0/3 @900,50; Feral Swiftness 2/2 @500,150", tree[2])
+C_ClassTalents.GetActiveConfigID = function() return nil end
+assert(T.Market.GearTree()[1]:find("no talent tree"))
+print("PASS: geartree lists talent nodes with positions")

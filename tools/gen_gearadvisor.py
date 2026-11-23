@@ -62,14 +62,16 @@ def convert(weights, smap):
     out = {}
     for stat, v in weights.items():
         if stat in smap["stats"]:
-            out[smap["stats"][stat]["key"]] = v
+            for key in smap["stats"][stat]["keys"]:
+                out[key] = v
         elif stat in smap["ratings"]:
             r = smap["ratings"][stat]
-            out[r["key"]] = round(v / r["per"], 4)
-    sp = smap["spell_power"]
-    best = max(weights.get(s, 0) for s in sp["from"])
-    if best:
-        out[sp["key"]] = best
+            for key in r["keys"]:
+                out[key] = round(v / r["per"], 4)
+    for key, source in smap["spell_power"]["keys"].items():
+        value = max(weights.get("Healing", 0), weights.get("SpellDamage", 0)) if source == "max" else weights.get(source, 0)
+        if value:
+            out[key] = value
     return {k: v for k, v in out.items() if v > 0}
 
 
@@ -185,8 +187,12 @@ def parse_stats(text):
 
 def stats_report(sample_dir=None, map_path=None):
     smap = json.loads((map_path or DATA / "statmap.json").read_text(encoding="utf-8"))
-    mapped = {v["key"]: (name, v["status"]) for name, v in {**smap["stats"], **smap["ratings"]}.items()}
-    mapped[smap["spell_power"]["key"]] = ("Healing/SpellDamage", smap["spell_power"]["status"])
+    mapped = {}
+    for name, v in {**smap["stats"], **smap["ratings"]}.items():
+        for key in v["keys"]:
+            mapped[key] = (name, v["status"])
+    for key, source in smap["spell_power"]["keys"].items():
+        mapped[key] = (source if source != "max" else "Healing/SpellDamage", smap["spell_power"]["status"])
     seen = {}
     files = sorted((sample_dir or DATA / "stats-samples").glob("*.txt"))
     for f in files:

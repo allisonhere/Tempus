@@ -222,3 +222,45 @@ function M.GearSig()
     for _, name in ipairs(names) do parts[#parts + 1] = ("%s x%d"):format(name, display[name]) end
     return { ("%s %s, %d points: %s"):format(tostring(class), tostring(level), total or 0, #parts > 0 and table.concat(parts, ", ") or "none yet (talents unlock at level 10)") }
 end
+
+-- /tempus geartree: every talent in the class tree with its position and your points, four to a line,
+-- so the tree can be split into its three tabs by position and a build read from where the points are.
+function M.GearTree()
+    local CT, CTr = C_ClassTalents, C_Traits
+    if not (CT and CT.GetActiveConfigID and CTr and CTr.GetConfigInfo and CTr.GetTreeNodes and CTr.GetNodeInfo) then
+        return { "the trait calls are missing on this client" }
+    end
+    local ok, cfg = pcall(CT.GetActiveConfigID)
+    local tree
+    if ok and cfg then
+        local okI, info = pcall(CTr.GetConfigInfo, cfg)
+        tree = okI and type(info) == "table" and type(info.treeIDs) == "table" and info.treeIDs[1]
+    end
+    if not tree then return { "no talent tree for this character" } end
+    local okN, nodes = pcall(CTr.GetTreeNodes, tree)
+    if not (okN and type(nodes) == "table") then return { "no talent nodes" } end
+    local _, class = UnitClass("player")
+    local entries = {}
+    for _, id in ipairs(nodes) do
+        local okNode, ni = pcall(CTr.GetNodeInfo, cfg, id)
+        if okNode and type(ni) == "table" then
+            local entry = ni.activeEntry and ni.activeEntry.entryID or (ni.entryIDs and ni.entryIDs[1])
+            local name = "node" .. tostring(id)
+            local okE, ei = pcall(CTr.GetEntryInfo, cfg, entry or 0)
+            if okE and type(ei) == "table" and ei.definitionID then
+                local okD, di = pcall(CTr.GetDefinitionInfo, ei.definitionID)
+                if okD and type(di) == "table" and di.spellID and C_Spell and C_Spell.GetSpellName then
+                    local okS, n = pcall(C_Spell.GetSpellName, di.spellID)
+                    if okS and type(n) == "string" then name = n end
+                end
+            end
+            entries[#entries + 1] = ("%s %d/%s @%s,%s"):format(name, tonumber(ni.currentRank) or 0, tostring(ni.maxRanks or "?"),
+                tostring(ni.posX or "?"), tostring(ni.posY or "?"))
+        end
+    end
+    local out = { ("%s tree %s, %d talents (name rank/max @x,y):"):format(tostring(class), tostring(tree), #entries) }
+    for i = 1, #entries, 4 do
+        out[#out + 1] = table.concat(entries, "; ", i, math.min(i + 3, #entries))
+    end
+    return out
+end

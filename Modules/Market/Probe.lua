@@ -291,3 +291,12 @@ function M.SplitForChat(text, max)
     end
     return out
 end
+
+-- Who receives the gear data report: one character per faction, since mail and whispers do not cross
+-- factions. The player can still type another name.
+M.REPORT_TO = { Horde = "Dailyreports", Alliance = "Dailyreporter" }
+
+function M.DefaultReportTo()
+    local faction = UnitFactionGroup and UnitFactionGroup("player")
+    return M.REPORT_TO[faction] or ""
+end

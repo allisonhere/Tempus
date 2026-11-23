@@ -81,3 +81,14 @@ assert(parts[1] == "one" and parts[2] == "two/cffaabbcc", parts[2])
 for _, line in ipairs(parts) do assert(#line <= 50 and not line:find("|", 1, true), line) end
 assert(#parts >= 4 and #T.Market.SplitForChat(nil) == 0)
 print("PASS: gear report text and whisper split")
+
+-- The report goes to the character on the sender's faction.
+UnitFactionGroup = function() return "Horde" end
+assert(T.Market.DefaultReportTo() == "Dailyreports")
+UnitFactionGroup = function() return "Alliance" end
+assert(T.Market.DefaultReportTo() == "Dailyreporter")
+UnitFactionGroup = function() return "Neutral" end
+assert(T.Market.DefaultReportTo() == "", "no default for a faction without one")
+UnitFactionGroup = nil
+assert(T.Market.DefaultReportTo() == "")
+print("PASS: the report recipient follows the sender's faction")

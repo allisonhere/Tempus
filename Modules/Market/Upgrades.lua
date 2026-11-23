@@ -292,7 +292,7 @@ function M.FilterSummary(filters)
 end
 
 -- Gear in your bags you could wear now, as { group, level, link } for GearAdvisor.Owned.
-local function CarriedGear(class, level, instant, getInfo, detailed)
+local function CarriedGear(class, level, instant, getInfo, detailed, scoreOf)
     local items = {}
     local C = C_Container
     local numSlots = (C and C.GetContainerNumSlots) or GetContainerNumSlots
@@ -311,7 +311,7 @@ local function CarriedGear(class, level, instant, getInfo, detailed)
                         local _, _, _, _, minLevel = Call(getInfo, link)
                         local ilvl = Call(detailed, link)
                         if Num(ilvl) and M.CanUse(class, level, classID, subClassID, loc, minLevel) then
-                            items[#items + 1] = { group = group, level = ilvl, link = link }
+                            items[#items + 1] = { group = group, level = ilvl, link = link, score = scoreOf and scoreOf(link, loc) or nil }
                         end
                     end
                 end
@@ -348,7 +348,13 @@ function M:FindUpgrades()
     Dual = CanDual()
     local held = HeldTypes()
     local roleWeights = M.RoleWeights(class)
-    local carried = T.GearAdvisor.Owned.Best(CarriedGear(class, level, instant, getInfo, detailed))
+    local function wornLinkFor(loc)
+        if wornLinks[loc] == nil then wornLinks[loc] = WornLink(loc) or false end
+        return wornLinks[loc] or nil
+    end
+    local carried = T.GearAdvisor.Owned.Best(CarriedGear(class, level, instant, getInfo, detailed, function(link, loc)
+        return (M.UsefulScore(link, wornLinkFor(loc), class, roleWeights, RANGED[loc]))
+    end))
     local beaten = 0
     local uniqueOf = C and C.GetItemUniquenessByID
     local wornIds = {}
@@ -379,7 +385,11 @@ function M:FindUpgrades()
                         end
                     end
                     local unique = uniqueOf and Call(uniqueOf, id)
-                    if T.GearAdvisor.Owned.Beats(carried, GROUP_OF[loc], ilvl) then
+                    local listingScore
+                    if carried[GROUP_OF[loc]] then
+                        listingScore = (M.UsefulScore("item:" .. id, wornLinkFor(loc), class, roleWeights, RANGED[loc]))
+                    end
+                    if T.GearAdvisor.Owned.Beats(carried, GROUP_OF[loc], ilvl, listingScore) then
                         beaten = beaten + 1
                     elseif not M.PassesFilters(filters, quality, minLevel, row.c, row.s, loc)
                         or R.UniqueConflict(id, unique == true, wornIds[loc]) then

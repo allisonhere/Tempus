@@ -828,6 +828,9 @@ SlashCmdList.TEMPUS = function(msg)
     elseif msg == "tickdebug" then
         if T.Ticker and T.Ticker.Debug then for _, line in ipairs(T.Ticker.Debug()) do T:Print("%s", line) end
         else T:Print("the Resource ticker module is not loaded.") end
+    elseif msg == "gearprobe" then
+        if T.Market and T.Market.GearProbe then for _, line in ipairs(T.Market.GearProbe()) do T:Print("%s", line) end
+        else T:Print("the Auction values module is not loaded.") end
     elseif msg == "cddebug" then
         if T.Cooldowns and T.Cooldowns.Debug then for _, line in ipairs(T.Cooldowns.Debug()) do T:Print("%s", line) end
         else T:Print("the Cooldowns module is not loaded.") end

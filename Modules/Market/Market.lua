@@ -125,8 +125,73 @@ local function AHOpen()
     return M.ahOpen or (AuctionHouseFrame and AuctionHouseFrame.IsShown and AuctionHouseFrame:IsShown())
 end
 
-function M:SetProgress(text)
-    if self.button then self.button:SetText(text or "Tempus scan") end
+-- Scan progress on the button: it fills with the accent colour as the scan goes, the number stays on top,
+-- and the number's colour reverses where the fill is under it (like a bar with its label inside).
+local INSET = 2
+
+-- Pure: what to draw for a progress text and a 0..1 fraction on a button `inner` pixels wide, with the
+-- accent colour `accent`. fillWidth is whole pixels; the reverse colour is dark on a light accent and
+-- white on a dark one so the number reads on the fill.
+function M.ProgressState(text, fraction, inner, accent)
+    local f = (type(fraction) == "number" and fraction == fraction) and math.max(0, math.min(1, fraction)) or 0
+    local c = type(accent) == "table" and accent or { 0.4, 0.7, 1 }
+    local lum = 0.299 * c[1] + 0.587 * c[2] + 0.114 * c[3]
+    local rr, rg, rb = 1, 1, 1
+    if lum > 0.55 then rr, rg, rb = 0.04, 0.05, 0.07 end
+    return { text = text, fillWidth = math.floor(f * inner + 0.5), reverse = { rr, rg, rb }, accent = c }
+end
+
+local function BuildProgress(b)
+    local S = T.Style
+    if b.progress then return b.progress end
+    if not (S and S.Text and S.Tex and CreateFrame) then return nil end
+    local level = b.GetFrameLevel and b:GetFrameLevel() or 1
+    local pr = {}
+    pr.fillFrame = CreateFrame("Frame", nil, b)
+    pr.fillFrame:SetPoint("TOPLEFT", b, "TOPLEFT", INSET, -INSET)
+    pr.fillFrame:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", -INSET, INSET)
+    if pr.fillFrame.SetFrameLevel then pr.fillFrame:SetFrameLevel(level + 1) end
+    pr.fill = S.Tex(pr.fillFrame, "ARTWORK")
+    pr.fill:SetPoint("TOPLEFT", pr.fillFrame, "TOPLEFT", 0, 0)
+    pr.fill:SetPoint("BOTTOMLEFT", pr.fillFrame, "BOTTOMLEFT", 0, 0)
+    if S.Accent then S.Accent(pr.fill, 0.95) end
+    pr.textFrame = CreateFrame("Frame", nil, b)
+    pr.textFrame:SetAllPoints(b)
+    if pr.textFrame.SetFrameLevel then pr.textFrame:SetFrameLevel(level + 2) end
+    pr.base = S.Text(pr.textFrame, 11, S.C and S.C.text or { 1, 1, 1 })
+    pr.base:SetPoint("CENTER", b, "CENTER", 0, 0)
+    -- The same number again in the reverse colour, shown only over the filled part.
+    pr.clip = CreateFrame("Frame", nil, b)
+    pr.clip:SetPoint("TOPLEFT", b, "TOPLEFT", INSET, -INSET)
+    pr.clip:SetPoint("BOTTOMLEFT", b, "BOTTOMLEFT", INSET, INSET)
+    if pr.clip.SetFrameLevel then pr.clip:SetFrameLevel(level + 3) end
+    if pr.clip.SetClipsChildren then pr.clip:SetClipsChildren(true) end
+    pr.inverse = S.Text(pr.clip, 11, { 1, 1, 1 })
+    pr.inverse:SetPoint("CENTER", b, "CENTER", 0, 0)
+    b.progress = pr
+    return pr
+end
+
+function M:SetProgress(text, fraction)
+    local b = self.button
+    if not b then return end
+    local pr = text and BuildProgress(b) or b.progress
+    if not text or not pr then
+        if pr then pr.fillFrame:Hide(); pr.textFrame:Hide(); pr.clip:Hide() end
+        b:SetText(text or "Tempus scan")
+        return
+    end
+    local width = b.GetWidth and b:GetWidth()
+    local state = M.ProgressState(text, fraction, (type(width) == "number" and width or 130) - 2 * INSET, T.accent)
+    b:SetText("")
+    pr.fillFrame:Show(); pr.textFrame:Show()
+    pr.fill:SetWidth(math.max(state.fillWidth, 1))
+    pr.fill:SetShown(state.fillWidth > 0)
+    pr.clip:SetWidth(math.max(state.fillWidth, 1))
+    pr.clip:SetShown(state.fillWidth > 0)
+    pr.base:SetText(state.text)
+    pr.inverse:SetText(state.text)
+    pr.inverse:SetTextColor(state.reverse[1], state.reverse[2], state.reverse[3])
 end
 
 function M:Reset()
@@ -169,7 +234,7 @@ function M:StartScan(auto)
     local ok = pcall(api.ReplicateItems)
     if not ok then return self:Fail("the client refused the request.") or false end
     Say("Scanning the auction house...")
-    self:SetProgress("Requesting...")
+    self:SetProgress("Requesting...", 0)
     if C_Timer and C_Timer.After then
         C_Timer.After(TIMEOUT, function()
             if M.scanning and not M.processing and M.token == token then M:Fail("no answer from the server. Try again shortly.") end
@@ -197,7 +262,7 @@ function M:Process()
         end
         index = last + 1
         if index < total then
-            M:SetProgress(("%d%%"):format(math.floor(index / total * 100)))
+            M:SetProgress(("%d%%"):format(math.floor(index / total * 100)), index / total)
             C_Timer.After(0, step)
         else
             M:Commit(best, auctions)

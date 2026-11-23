@@ -15,7 +15,7 @@ DT.defaults = {
     mode = "timeline",
     size = 30, length = 260, range = 30,
     fall = "DOWN", labelSide = "LEFT", bgStyle = "GLASS",
-    bgOpacity = 0.7, fadeBg = 0.8, fadeIcons = 0.5,
+    bgOpacity = 0.7, fadeBg = 0.8, fadeIcons = 0.5, fadeStart = 0.5,
     showLabels = true, showTicks = true, accentRail = true,
     fallMode = "OWN", lanes = 3, showNumbers = true,
     learned = {},               -- debuff name -> { dur, icon }, kept so a first cast in combat is timed

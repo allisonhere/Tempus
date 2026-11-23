@@ -21,6 +21,7 @@ CD.defaults = {
     fadeBg = 0.8,               -- how far the background fades out toward the ready line
     fadeIcons = 0.5,            -- how far icons fade as they near ready
     showLabels = true, showTicks = true, accentRail = true,
+    fadeStart = 0.5,            -- timeline: how far from the ready line the fade begins (share of the fall)
     showNumbers = true,         -- timeline: the game's countdown number on each icon
     fallMode = "OWN",           -- OWN: every icon starts at the top and lands as its own time ends | SCALE: one shared time scale
     lanes = 3,                  -- icons that start together sit side by side in this many columns
@@ -53,8 +54,8 @@ end
 
 -- Opacity multiplier at `pos` (0 ready, 1 far end): full outside the fade zone, easing down to
 -- 1 - strength at the ready line.
-function CD.FadeAlpha(pos, strength)
-    local t = math.min(math.max(pos, 0) / FADE_ZONE, 1)
+function CD.FadeAlpha(pos, strength, zone)
+    local t = math.min(math.max(pos, 0) / math.max(zone or FADE_ZONE, 0.05), 1)
     return 1 - strength * (1 - t)
 end
 
@@ -208,7 +209,8 @@ local function Geometry(db)
     local panelW = size * lanes + (lanes - 1) * 2 + 12
     local left = db.labelSide ~= "RIGHT"
     local x0 = left and labelW or 0
-    local g = { size = size, len = len, panelW = panelW, x0 = x0, labelW = labelW, left = left, down = db.fall ~= "UP", lanes = lanes }
+    local g = { size = size, len = len, panelW = panelW, x0 = x0, labelW = labelW, left = left, down = db.fall ~= "UP", lanes = lanes,
+        zone = math.min(1, math.max(0.05, db.fadeStart or FADE_ZONE)) }
     g.w, g.h = labelW + panelW, len + size
     g.c1 = left and (x0 + 6 + size / 2) or (x0 + panelW - 6 - size / 2)
     g.step = left and (size + 2) or -(size + 2)
@@ -229,7 +231,7 @@ end
 local function Strip(f, tr, name, g, x, w, rgb, aFar, aNear)
     local st = tr[name]
     if not st then st = { far = f:CreateTexture(nil, "BACKGROUND"), near = f:CreateTexture(nil, "BACKGROUND") }; tr[name] = st end
-    local nz = g.len * FADE_ZONE
+    local nz = g.len * g.zone
     for _, t in pairs(st) do t:SetTexture(S.WHITE) end
     PlaceStrip(f, st.far, g, x, w, nz, g.len + EDGE)
     st.far:SetVertexColor(rgb[1], rgb[2], rgb[3], aFar)
@@ -284,7 +286,7 @@ local function LayoutTrack(f, db, g, marks)
         end
         local pos = CD.TimeFraction(m, marks)
         local s = g.len * pos
-        local fa = CD.FadeAlpha(pos, fade)
+        local fa = CD.FadeAlpha(pos, fade, g.zone)
         mk.tick:SetTexture(S.WHITE)
         mk.tick:SetVertexColor(1, 1, 1, bg * 0.22 * fa)
         mk.tick:ClearAllPoints()
@@ -327,7 +329,7 @@ local function PlaceIcons(f, db, g, order)
         local x = g.c1 + (lane - 1) * g.step
         if g.down then b:SetPoint("CENTER", f, "BOTTOMLEFT", x, g.size / 2 + s)
         else b:SetPoint("CENTER", f, "TOPLEFT", x, -(g.size / 2 + s)) end
-        b:SetAlpha(CD.FadeAlpha(b.pos, db.fadeIcons))
+        b:SetAlpha(CD.FadeAlpha(b.pos, db.fadeIcons, g.zone))
     end
 end
 
@@ -494,6 +496,22 @@ function CD.CreateDemo(width, height, getdb)
         view:SetSize(g.w, g.h)
         view:Show()
         LayoutTrack(view, db, g, CD.Marks(db.range))
+        -- A dashed line where the fade begins, so the slider can be judged by eye.
+        local m = box.fadeMark
+        if not m then
+            m = { line = view:CreateTexture(nil, "OVERLAY"), text = S.Text(view, 10, S.C.muted) }
+            S.Accent(m.line, 0.9)
+            box.fadeMark = m
+        end
+        m.line:SetTexture(S.WHITE)
+        m.line:ClearAllPoints()
+        local s = g.size / 2 + g.len * g.zone
+        if g.down then m.line:SetPoint("BOTTOMLEFT", view, "BOTTOMLEFT", g.x0, s) else m.line:SetPoint("TOPLEFT", view, "TOPLEFT", g.x0, -s) end
+        m.line:SetSize(g.panelW, 1)
+        m.text:ClearAllPoints()
+        m.text:SetPoint("LEFT", m.line, "RIGHT", 4, 0)
+        m.text:SetText("fade starts")
+        m.line:Show(); m.text:Show()
         box.g = g
     end
     box:Refresh()

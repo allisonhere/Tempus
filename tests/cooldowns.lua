@@ -83,3 +83,7 @@ assert(near(CD.Position(own, CD.Marks(60), 5, 5), 1) and near(CD.Position(own, C
 assert(near(CD.Position(own, CD.Marks(60), 15, 30), 0.5) and CD.Position(own, CD.Marks(60), 0, 30) == 0, "own speed, long")
 assert(near(CD.Position({ fallMode = "SCALE" }, CD.Marks(60), 5, 5), 0.25), "shared scale")
 print("PASS: icons fall from the top at their own speed, or by the shared scale")
+
+assert(CD.FadeAlpha(0.3, 1, 0.3) == 1 and near(CD.FadeAlpha(0.15, 1, 0.3), 0.5), "a shorter fade zone starts later")
+assert(near(CD.FadeAlpha(0.5, 1, 1), 0.5), "a full-length zone fades the whole fall")
+print("PASS: the fade start is adjustable")

@@ -147,6 +147,21 @@ function DT.Debug()
     for _, e in ipairs(DT.Live(DT.timers, TargetGUID(), now)) do
         Add("  %s: %.1fs of %ds", e.name, e.exp - now, e.dur)
     end
+    Add("  api: C_UnitAuras.GetAuraDataByIndex=%s UnitAura=%s, in combat=%s, icons=%d shown, list=%d",
+        tostring(C_UnitAuras and type(C_UnitAuras.GetAuraDataByIndex)), tostring(type(UnitAura)),
+        tostring(UnitAffectingCombat and UnitAffectingCombat("player")), (function() local c = 0 for _, b in ipairs(DT.icons) do if b:IsShown() then c = c + 1 end end return c end)(),
+        DT.list and #DT.list or -1)
+    if C_UnitAuras and C_UnitAuras.GetAuraDataByIndex then
+        for _, filter in ipairs({ "HARMFUL|PLAYER", "HARMFUL" }) do
+            for i = 1, 6 do
+                local ok, a = pcall(C_UnitAuras.GetAuraDataByIndex, "target", i, filter)
+                if not ok then Add("  %s #%d: error %s", filter, i, tostring(a)) break end
+                if type(a) ~= "table" then break end
+                local function D(v) return ("%s%s"):format(type(v), T.issecret and T.issecret(v) and " SECRET" or "") end
+                Add("  %s #%d: name=%s duration=%s expires=%s icon=%s", filter, i, D(a.name), D(a.duration), D(a.expirationTime), D(a.icon))
+            end
+        end
+    end
     local n = 0
     for name, v in pairs(db.learned) do n = n + 1; Add("  learned %s: %ds", name, v.dur) end
     if n == 0 then Add("  nothing learned yet: apply each debuff once out of combat so its length can be read.") end

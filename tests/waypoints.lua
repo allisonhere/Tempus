@@ -70,8 +70,8 @@ Way.arrow.scripts.OnHide = function() end
 Way.arrow.close.scripts.OnClick()
 assert(not Way.db.target and not Way.arrow.shown, "close clears destination and hides locked compass")
 near(Way.CompassOffset(0), 0)
-near(Way.CompassOffset(math.pi / 2), 110)
-near(Way.CompassOffset(-math.pi / 2), -110)
+near(Way.CompassOffset(math.pi / 2), 85)
+near(Way.CompassOffset(-math.pi / 2), -85)
 UI.db.locked = false
 Way:Update()
 assert(Way.arrow.shown, "unlocked compass remains available for positioning")

@@ -1,7 +1,7 @@
 -- Flight timer: a bar while you ride a flight path. The first time you fly a route it counts up; Tempus
 -- remembers how long the flight took (averaging later trips), so the next time it counts down the time left.
 local _, T = ...
-local FT = { defaults = { enabled = true, width = 240, height = 22, point = { "TOP", "UIParent", "TOP", 0, -190 }, times = {} } }
+local FT = { defaults = { enabled = true, width = 240, height = 22, point = { "TOP", "UIParent", "TOP", 0, -110 }, times = {} } }
 T.FlightTimer = FT
 
 local MIN_FLIGHT = 3          -- seconds; anything shorter was not a real flight
@@ -79,6 +79,12 @@ T:NewModule("flighttimer", {
     defaults = FT.defaults,
     OnEnable = function()
         FT.db = T.db.flighttimer
+        -- Raise the old default above zone announcements, preserving manually moved timers.
+        local point = FT.db.point
+        if point and point[1] == "TOP" and point[2] == "UIParent" and point[3] == "TOP"
+            and point[4] == 0 and point[5] == -190 then
+            FT.db.point = { "TOP", "UIParent", "TOP", 0, -110 }
+        end
         local S = T.Style
         local f = CreateFrame("Frame", "TempusFlightTimer", UIParent)
         f:SetSize(FT.db.width, FT.db.height)

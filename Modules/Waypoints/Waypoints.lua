@@ -34,7 +34,7 @@ end
 -- Compass tape spans 180 degrees; destinations behind you clamp to its edge.
 function W.CompassOffset(angle)
     angle = (angle + math.pi) % (2 * math.pi) - math.pi
-    return math.sin(math.max(-math.pi / 2, math.min(math.pi / 2, angle))) * 110
+    return math.sin(math.max(-math.pi / 2, math.min(math.pi / 2, angle))) * 85
 end
 
 function W:UpdateCompass(facing)
@@ -191,15 +191,19 @@ T:NewModule("waypoints", {
             W.db.point = { "TOP", "UIParent", "TOP", 0, -18 }
             W.db.compassLayout = true
         end
-        f:SetSize(280, 56)
+        f:SetSize(230, 56)
         f:SetFrameStrata("HIGH")
         T.Style.Backdrop(f, { fill = { 0.035, 0.045, 0.055, 0.96 } })
-        -- Highlights and side shading give the tape the curved face of a compass drum.
+        local tape = f:CreateTexture(nil, "ARTWORK", nil, -2)
+        tape:SetColorTexture(1, 1, 1, 1)
+        tape:SetSize(184, 31)
+        tape:SetPoint("TOP", 0, -3)
+        -- Broad shading leaves a bright centre and darkens the curved drum's sides.
         for _, side in ipairs({ "LEFT", "RIGHT" }) do
-            local shade = f:CreateTexture(nil, "ARTWORK")
+            local shade = f:CreateTexture(nil, "ARTWORK", nil, -1)
             shade:SetTexture("Interface\\Buttons\\WHITE8X8")
-            shade:SetSize(65, 31)
-            shade:SetPoint("TOP" .. side, side == "LEFT" and 4 or -25, -3)
+            shade:SetSize(80, 31)
+            shade:SetPoint("TOP" .. side, side == "LEFT" and 23 or -23, -3)
             if side == "LEFT" then
                 T.Style.SetGradient(shade, "HORIZONTAL", 0, 0, 0, 0.85, 0, 0, 0, 0)
             else
@@ -207,27 +211,27 @@ T:NewModule("waypoints", {
             end
         end
         local rim = f:CreateTexture(nil, "OVERLAY")
-        rim:SetColorTexture(1, 1, 1, 0.28)
-        rim:SetSize(230, 1)
-        rim:SetPoint("TOP", -8, -3)
+        rim:SetColorTexture(0, 0, 0, 0.4)
+        rim:SetSize(184, 1)
+        rim:SetPoint("TOP", 0, -3)
         f.ticks = {}
         local names = { [0] = "N", [8] = "NE", [16] = "E", [24] = "SE", [32] = "S", [40] = "SW", [48] = "W", [56] = "NW" }
         for i = 0, 63 do
             local tick
             if names[i] then
-                tick = T.Style.Text(f, 10, { 1, 1, 1 }, "OUTLINE")
+                tick = T.Style.Text(f, 10, { 0, 0, 0 }, "")
                 tick:SetText(names[i])
             else
                 tick = f:CreateTexture(nil, "OVERLAY")
-                tick:SetColorTexture(1, 1, 1, 1)
+                tick:SetColorTexture(0, 0, 0, 1)
                 tick:SetSize(1, i % 4 == 0 and 10 or 5)
             end
             f.ticks[i] = tick
         end
-        local center = T.Style.Text(f, 12, T.Style.C.text, "OUTLINE")
+        local center = T.Style.Text(f, 12, { 0, 0, 0 }, "")
         center:SetPoint("TOP", 0, -1)
         center:SetText("v")
-        f.marker = T.Style.Text(f, 12, T.Style.C.text, "OUTLINE")
+        f.marker = T.Style.Text(f, 12, { 0, 0, 0 }, "")
         f.marker:SetText("^")
         f.marker:Hide()
         W:UpdateCompass(0)
@@ -237,7 +241,7 @@ T:NewModule("waypoints", {
         f.tex:SetPoint("BOTTOMLEFT", 8, 5)
         f.label = T.Style.Text(f, 10, T.Style.C.text, "OUTLINE")
         f.label:SetPoint("BOTTOMLEFT", 26, 7)
-        f.label:SetWidth(156)
+        f.label:SetWidth(118)
         f.label:SetWordWrap(false)
         f.distance = T.Style.Text(f, 10, T.Style.C.text, "OUTLINE")
         f.distance:SetPoint("BOTTOMRIGHT", -8, 7)

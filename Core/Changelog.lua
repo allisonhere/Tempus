@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Fixed", items = {
+            { 0, "|cffffffffHearthstone cooldown shows again.|r On action bars and in the bag window, an item such as the Hearthstone now greys out while it is on cooldown and shows the sweep, like a spell. If the slot reports no cooldown, Tempus asks the item itself." },
+        } },
+    } },
     { version = "2.21.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffWaypoints.|r |cff9fd6ff/way x y [label]|r marks a destination in your current zone, with a compass bar at the top of the screen, direction arrow, distance in yards and pins on the minimap and world map. |cff9fd6ff/way #mapID x y [label]|r chooses a map; |cff9fd6ff/way clear|r removes the destination. |cff9fd6ff/tway|r works when another addon owns |cff9fd6ff/way|r. Click the x on the bar to clear it. Unlock the UI to move the bar." },

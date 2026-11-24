@@ -53,7 +53,7 @@ local function widget()
     end })
 end
 CreateFrame = widget
-UI.Style = { Text = widget, Backdrop = function() end, C = { text = {} } }
+UI.Style = { SetGradient = function() end, Text = widget, Backdrop = function() end, C = { text = {} } }
 UI.Movers = { ApplyPoint = function() end, Register = function() end }
 UI.Wrap = function(_, _, fn) return fn end
 UI.Print = function() end
@@ -70,8 +70,8 @@ Way.arrow.scripts.OnHide = function() end
 Way.arrow.close.scripts.OnClick()
 assert(not Way.db.target and not Way.arrow.shown, "close clears destination and hides locked compass")
 near(Way.CompassOffset(0), 0)
-near(Way.CompassOffset(math.pi / 2), 140)
-near(Way.CompassOffset(-math.pi / 2), -140)
+near(Way.CompassOffset(math.pi / 2), 110)
+near(Way.CompassOffset(-math.pi / 2), -110)
 UI.db.locked = false
 Way:Update()
 assert(Way.arrow.shown, "unlocked compass remains available for positioning")

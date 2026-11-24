@@ -3,7 +3,7 @@ local _, T = ...
 T.changelog = {
     { version = "Unreleased", sections = {
         { title = "Added", items = {
-            { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum, now without the dark box behind it), Flat tape (a dark strip with evenly spaced degrees, no box behind it), Minimal (just the marks, no panel) and Small arrow (a real arrow on screen that aims at the destination, with the name and distance under it)." },
+            { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum, now without the dark box behind it), Flat tape (a dark strip with evenly spaced degrees, no box behind it), Minimal (just the marks, no panel) and Small arrow (a real arrow on screen that aims at the destination, with the name and distance under it). Right-clicking any compass style now clears the waypoint." },
         } },
         { title = "Fixed", items = {
             { 0, "|cffffffffHearthstone cooldown shows again.|r On action bars and in the bag window, an item such as the Hearthstone now greys out while it is on cooldown and shows the sweep, like a spell. If the slot reports no cooldown, Tempus asks the item itself." },

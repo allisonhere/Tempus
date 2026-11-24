@@ -43,3 +43,53 @@ assert(FT.pending == nil, "a stale choice is dropped")
 -- nothing chosen: a ride the timer did not see does nothing
 assert(FT:Step(now, true) == nil and FT.flight == nil)
 print("PASS: flight timer learns lengths, counts up then down")
+
+-- WoW only updates visible frames. The watcher must keep running while the bar is hidden.
+local frames = {}
+local function region()
+    return setmetatable({}, { __index = function() return function() end end })
+end
+CreateFrame = function(_, name)
+    local frame = region()
+    frame.name, frame.shown, frame.scripts = name, true, {}
+    function frame:SetScript(event, callback) self.scripts[event] = callback end
+    function frame:SetShown(shown) self.shown = not not shown end
+    frames[#frames + 1] = frame
+    return frame
+end
+T.db = { locked = true, flighttimer = { enabled = true, width = 240, height = 22, times = {} } }
+T.Style = { Backdrop = function() end, Tex = region, Accent = function() end,
+    Text = region, C = { text = {} } }
+T.Movers = { ApplyPoint = function() end, Register = function() end }
+function T:Wrap(_, callback) return callback end
+local choose
+hooksecurefunc = function(name, callback)
+    assert(name == "TakeTaxiNode")
+    choose = callback
+end
+local onTaxi = false
+UnitOnTaxi = function() return onTaxi end
+local function tick()
+    for _, frame in ipairs(frames) do
+        if frame.shown and frame.scripts.OnUpdate then frame.scripts.OnUpdate(frame, 0.2) end
+    end
+end
+FT.pending, FT.flight = nil, nil
+modDef.OnEnable()
+assert(not FT.frame.shown, "locked timer starts hidden")
+FT.origin, FT.slots = "Orgrimmar", { [3] = "Crossroads" }
+now = 1000
+choose(3)
+onTaxi = true
+tick()
+assert(FT.frame.shown and FT.flight, "hidden bar detects takeoff through the visible watcher")
+now = 1065
+onTaxi = false
+tick()
+assert(not FT.frame.shown and FT.db.times["Orgrimmar > Crossroads"] == 65, "landing saves the flight and hides the bar")
+now = 1100
+choose(3)
+onTaxi = true
+tick()
+assert(FT.frame.shown and FT.flight, "watcher detects another flight after hiding the bar")
+print("PASS: hidden flight bar keeps watching for takeoff and landing")

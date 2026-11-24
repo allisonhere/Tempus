@@ -88,9 +88,39 @@ T:NewModule("flighttimer", {
         f.fill:SetPoint("TOPLEFT", f, "TOPLEFT", 1, -1)
         f.fill:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 1, 1)
         S.Accent(f.fill, 0.55)
+        f.hourglass = S.Tex(f, "OVERLAY")
+        f.hourglass:SetTexture("Interface\\AddOns\\Tempus\\media\\hourglass-animated")
+        f.hourglass.tempus = true
+        f.hourglass:SetSize(FT.db.height, FT.db.height)
+        f.hourglass:SetPoint("LEFT", 2, 0)
+        f.learning = S.Text(f, 11, S.C.text, "OUTLINE")
+        f.learning:SetPoint("BOTTOMLEFT", f, "TOPLEFT", 0, 3)
+        f.learning:SetText("Learning route")
+        f.learning:Hide()
+        -- Use the same sand-and-flip timing as the settings header.
+        local index, accumulated = 1, 0
+        f:SetScript("OnUpdate", function(_, elapsed)
+            if T.db.animate == false then
+                index, accumulated = 1, 0
+            else
+                accumulated = accumulated + elapsed
+                local changes = 0
+                local duration = (index <= 19 and 0.18) or (index == 20 and 0.76) or 0.07
+                while accumulated >= duration and changes < 4 do
+                    accumulated = accumulated - duration
+                    index = index % 30 + 1
+                    duration = (index <= 19 and 0.18) or (index == 20 and 0.76) or 0.07
+                    changes = changes + 1
+                end
+                if changes == 4 then accumulated = 0 end
+            end
+            local col, row = (index - 1) % 8, math.floor((index - 1) / 8)
+            f.hourglass:SetTexCoord(col / 8, (col + 1) / 8, row / 4, (row + 1) / 4)
+        end)
+        f.hourglass:SetTexCoord(0, 1 / 8, 0, 1 / 4)
         f.name = S.Text(f, 11, S.C.text)
-        f.name:SetPoint("LEFT", 6, 0)
-        f.name:SetWidth(FT.db.width - 70)
+        f.name:SetPoint("LEFT", FT.db.height + 4, 0)
+        f.name:SetWidth(math.max(1, FT.db.width - FT.db.height - 74))
         f.name:SetJustifyH("LEFT")
         f.name:SetWordWrap(false)
         f.time = S.Text(f, 12, S.C.text, "OUTLINE")
@@ -113,8 +143,9 @@ T:NewModule("flighttimer", {
             acc = acc + elapsed
             if acc < 0.2 then return end
             acc = 0
-            local fill, text, flight = FT:Step(GetTime(), UnitOnTaxi and UnitOnTaxi("player"))
+            local fill, text, flight, counting = FT:Step(GetTime(), UnitOnTaxi and UnitOnTaxi("player"))
             local show = FT.db.enabled and fill ~= nil
+            f.learning:SetShown(show and not counting)
             if show then
                 f.name:SetText(flight.to or "")
                 f.time:SetText(text)
@@ -128,6 +159,9 @@ T:NewModule("flighttimer", {
         FT.db = T.db.flighttimer
         if FT.frame then
             FT.frame:SetSize(FT.db.width, FT.db.height)
+            FT.frame.hourglass:SetSize(FT.db.height, FT.db.height)
+            FT.frame.name:SetPoint("LEFT", FT.db.height + 4, 0)
+            FT.frame.name:SetWidth(math.max(1, FT.db.width - FT.db.height - 74))
             T.Movers.ApplyPoint(FT.frame, FT.db)
         end
     end,

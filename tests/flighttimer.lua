@@ -47,7 +47,12 @@ print("PASS: flight timer learns lengths, counts up then down")
 -- WoW only updates visible frames. The watcher must keep running while the bar is hidden.
 local frames = {}
 local function region()
-    return setmetatable({}, { __index = function() return function() end end })
+    return setmetatable({
+        SetShown = function(self, value) self.shown = not not value end,
+        Hide = function(self) self.shown = false end,
+        SetText = function(self, value) self.text = value end,
+        SetTexCoord = function(self, ...) self.coords = { ... } end,
+    }, { __index = function() return function() end end })
 end
 CreateFrame = function(_, name)
     local frame = region()
@@ -83,13 +88,22 @@ choose(3)
 onTaxi = true
 tick()
 assert(FT.frame.shown and FT.flight, "hidden bar detects takeoff through the visible watcher")
+assert(FT.frame.learning.shown and FT.frame.learning.text == "Learning route", "first trip explains learning")
+assert(FT.frame.name.text == "Crossroads" and FT.frame.time.text == "0:00", "learning preserves destination and elapsed time")
+tick()
+assert(FT.frame.hourglass.coords[1] > 0, "visible hourglass advances through the sprite sheet")
+T.db.animate = false
+tick()
+assert(FT.frame.hourglass.coords[1] == 0 and FT.frame.hourglass.coords[3] == 0, "disabled animations keep the hourglass still")
 now = 1065
 onTaxi = false
 tick()
 assert(not FT.frame.shown and FT.db.times["Orgrimmar > Crossroads"] == 65, "landing saves the flight and hides the bar")
+assert(not FT.frame.learning.shown, "learning label hides on landing")
 now = 1100
 choose(3)
 onTaxi = true
 tick()
 assert(FT.frame.shown and FT.flight, "watcher detects another flight after hiding the bar")
+assert(not FT.frame.learning.shown and FT.frame.time.text == "1:05", "known route counts down without learning label")
 print("PASS: hidden flight bar keeps watching for takeoff and landing")

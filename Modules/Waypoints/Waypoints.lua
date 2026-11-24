@@ -39,13 +39,16 @@ end
 
 function W:UpdateCompass(facing)
     if not self.arrow.ticks then return end
-    for i = 0, 63 do
+    for i = 0, 71 do
         local tick = self.arrow.ticks[i]
-        local angle = (i * math.pi / 32 + (facing or 0) + math.pi) % (2 * math.pi) - math.pi
+        local angle = (i * math.pi / 36 + (facing or 0) + math.pi) % (2 * math.pi) - math.pi
         tick:SetShown(facing ~= nil and math.abs(angle) <= math.pi / 2)
-        tick:SetAlpha(0.15 + 0.85 * math.max(0, math.cos(angle)))
+        local curve = math.max(0, math.cos(angle))
+        tick:SetAlpha(0.25 + 0.75 * curve)
+        local scale = math.max(0.65, curve)
+        tick:SetScale(scale)
         tick:ClearAllPoints()
-        tick:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(angle), -12)
+        tick:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(angle) / scale, (-7 - 3 * (1 - curve)) / scale)
     end
 end
 
@@ -166,7 +169,7 @@ function W:Update()
         self.arrow.tex:SetRotation(angle)
         self.arrow.marker:SetShown(Number(facing))
         self.arrow.marker:ClearAllPoints()
-        self.arrow.marker:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(-angle), -29)
+        self.arrow.marker:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(-angle), -27)
         self.arrow.tex:SetShown(Number(facing) and distance > 10)
         self.arrow.distance:SetText(distance <= 10 and "Arrived" or ("%d yd"):format(distance + 0.5))
         if Minimap and Minimap:IsVisible() then
@@ -221,29 +224,57 @@ T:NewModule("waypoints", {
                 T.Style.SetGradient(shade, "HORIZONTAL", 0, 0, 0, 0, 0, 0, 0, 0.85)
             end
         end
-        local rim = f:CreateTexture(nil, "OVERLAY")
-        rim:SetColorTexture(0, 0, 0, 0.4)
-        rim:SetSize(184, 1)
-        rim:SetPoint("TOP", 0, -3)
+        -- Brushed metal bezel, dark lower lip, and a narrow reflection on the glass.
+        for _, edge in ipairs({ "TOP", "BOTTOM" }) do
+            local rim = f:CreateTexture(nil, "OVERLAY", nil, 2)
+            rim:SetTexture("Interface\\Buttons\\WHITE8X8")
+            rim:SetSize(190, 3)
+            rim:SetPoint("TOP", 0, edge == "TOP" and -1 or -34)
+            T.Style.SetGradient(rim, "VERTICAL", 0.12, 0.14, 0.16, 1, 0.68, 0.71, 0.74, 1)
+        end
+        for _, side in ipairs({ -1, 1 }) do
+            local cap = f:CreateTexture(nil, "OVERLAY", nil, 2)
+            cap:SetTexture("Interface\\Buttons\\WHITE8X8")
+            cap:SetSize(3, 32)
+            cap:SetPoint("TOP", side * 94, -3)
+            T.Style.SetGradient(cap, "HORIZONTAL", 0.18, 0.2, 0.23, 1, 0.5, 0.53, 0.56, 1)
+        end
+        local glass = f:CreateTexture(nil, "OVERLAY", nil, 3)
+        glass:SetTexture("Interface\\Buttons\\WHITE8X8")
+        glass:SetSize(178, 9)
+        glass:SetPoint("TOP", 0, -4)
+        T.Style.SetGradient(glass, "VERTICAL", 1, 1, 1, 0, 1, 1, 1, 0.3)
         f.ticks = {}
-        local names = { [0] = "N", [8] = "NE", [16] = "E", [24] = "SE", [32] = "S", [40] = "SW", [48] = "W", [56] = "NW" }
-        for i = 0, 63 do
-            local tick
-            if names[i] then
-                tick = T.Style.Text(f, 10, { 0, 0, 0 }, "")
-                tick:SetText(names[i])
-            else
-                tick = f:CreateTexture(nil, "OVERLAY")
-                tick:SetColorTexture(0, 0, 0, 1)
-                tick:SetSize(1, i % 4 == 0 and 10 or 5)
+        local names = { [0] = "N", [18] = "E", [36] = "S", [54] = "W" }
+        for i = 0, 71 do
+            local tick = CreateFrame("Frame", nil, f)
+            tick:SetSize(24, 25)
+            local line = tick:CreateTexture(nil, "OVERLAY")
+            line:SetColorTexture(0.04, 0.04, 0.04, 1)
+            line:SetSize(i % 6 == 0 and 2 or 1, i % 6 == 0 and 7 or i % 2 == 0 and 5 or 3)
+            line:SetPoint("TOP", 0, 0)
+            if i % 6 == 0 then
+                local label = T.Style.Text(tick, names[i] and 10 or 8, { 0.02, 0.02, 0.02 }, "")
+                label:SetPoint("TOP", 0, -9)
+                label:SetText(names[i] or tostring(i * 5))
             end
             f.ticks[i] = tick
         end
-        local center = T.Style.Text(f, 12, { 0, 0, 0 }, "")
-        center:SetPoint("TOP", 0, -1)
-        center:SetText("v")
-        f.marker = T.Style.Text(f, 12, { 0, 0, 0 }, "")
-        f.marker:SetText("^")
+        -- Fixed red lubber line, with a triangular pointer above the moving dial.
+        local center = f:CreateTexture(nil, "OVERLAY", nil, 5)
+        center:SetTexture("Interface\\Minimap\\MinimapArrow")
+        center:SetVertexColor(0.9, 0.08, 0.05, 1)
+        center:SetSize(13, 13)
+        center:SetRotation(math.pi)
+        center:SetPoint("TOP", 0, 2)
+        local needle = f:CreateTexture(nil, "OVERLAY", nil, 4)
+        needle:SetColorTexture(0.85, 0.06, 0.04, 0.85)
+        needle:SetSize(1, 21)
+        needle:SetPoint("TOP", 0, -9)
+        f.marker = f:CreateTexture(nil, "OVERLAY", nil, 5)
+        f.marker:SetColorTexture(1, 0.66, 0.05, 1)
+        f.marker:SetSize(6, 6)
+        f.marker:SetRotation(math.pi / 4)
         f.marker:Hide()
         W:UpdateCompass(0)
         f.tex = f:CreateTexture(nil, "ARTWORK")
@@ -251,14 +282,14 @@ T:NewModule("waypoints", {
         f.tex:SetSize(14, 14)
         f.tex:SetPoint("BOTTOMLEFT", 8, 5)
         f.label = T.Style.Text(f, 10, T.Style.C.text, "OUTLINE")
-        f.label:SetPoint("BOTTOMLEFT", 26, 7)
-        f.label:SetWidth(118)
+        f.label:SetPoint("BOTTOMLEFT", 26, 5)
+        f.label:SetWidth(104)
         f.label:SetWordWrap(false)
         f.distance = T.Style.Text(f, 10, T.Style.C.text, "OUTLINE")
-        f.distance:SetPoint("BOTTOMRIGHT", -8, 7)
+        f.distance:SetPoint("BOTTOMRIGHT", -23, 5)
         local close = CreateFrame("Button", nil, f)
         close:SetSize(18, 18)
-        close:SetPoint("TOPRIGHT", -3, -3)
+        close:SetPoint("BOTTOMRIGHT", -1, 0)
         close:SetFrameLevel(f:GetFrameLevel() + 5)
         close:EnableMouse(true)
         close:RegisterForClicks("LeftButtonUp")

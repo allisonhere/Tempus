@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Added
-- **Compass styles.** Waypoints > Compass style: Drum (the curved metal drum), Flat tape (a dark strip with evenly spaced degrees) and Minimal (just the marks, no panel).
+- **Compass styles.** Waypoints > Compass style: Drum (the curved metal drum), Flat tape (a dark strip with evenly spaced degrees), Minimal (just the marks, no panel) and Small arrow (one small line of text with an arrow that points the way).
 
 ## 2.21.0
 

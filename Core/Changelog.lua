@@ -3,7 +3,7 @@ local _, T = ...
 T.changelog = {
     { version = "Unreleased", sections = {
         { title = "Added", items = {
-            { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum), Flat tape (a dark strip with evenly spaced degrees) and Minimal (just the marks, no panel)." },
+            { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum), Flat tape (a dark strip with evenly spaced degrees), Minimal (just the marks, no panel) and Small arrow (one small line of text with an arrow that points the way)." },
         } },
     } },
     { version = "2.21.0", sections = {

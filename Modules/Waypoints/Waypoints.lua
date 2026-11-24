@@ -47,8 +47,11 @@ W.STYLES = {
     FLAT = { label = "Flat tape", panel = true, fill = { 0.04, 0.05, 0.065, 0.94 },
         tape = { 0.1, 0.12, 0.15, 1 }, tick = { 0.82, 0.85, 0.9 }, text = { 0.92, 0.94, 0.97 } },
     MINIMAL = { label = "Minimal", tick = { 1, 1, 1 }, text = { 1, 1, 1 } },
+    -- No compass at all: a small line of text with an arrow that points the way.
+    ARROW = { label = "Small arrow", compact = true, panel = true, fill = { 0.04, 0.05, 0.065, 0.9 },
+        tick = { 1, 1, 1 }, text = { 1, 1, 1 } },
 }
-W.STYLE_ORDER = { "DRUM", "FLAT", "MINIMAL" }
+W.STYLE_ORDER = { "DRUM", "FLAT", "MINIMAL", "ARROW" }
 
 function W:Style()
     return W.STYLES[self.db and self.db.style] or W.STYLES.DRUM
@@ -59,7 +62,7 @@ function W:UpdateCompass(facing)
     for i = 0, 71 do
         local tick = self.arrow.ticks[i]
         local angle = (i * math.pi / 36 + (facing or 0) + math.pi) % (2 * math.pi) - math.pi
-        tick:SetShown(facing ~= nil and math.abs(angle) <= math.pi / 2)
+        tick:SetShown(facing ~= nil and math.abs(angle) <= math.pi / 2 and not self:Style().compact)
         local curve = math.max(0, math.cos(angle))
         local drum = self:Style().curve
         tick:SetAlpha(0.25 + 0.75 * curve)
@@ -81,6 +84,28 @@ function W:ApplyStyle()
         if st.fill then backdrop:SetFillColor(st.fill[1], st.fill[2], st.fill[3], st.fill[4]) end
     end
     f.tape:SetShown(st.tape ~= nil)
+    for _, tex in ipairs({ f.pointer, f.needle }) do tex:SetShown(not st.compact) end
+    f.tex:ClearAllPoints()
+    f.label:ClearAllPoints()
+    f.distance:ClearAllPoints()
+    f.close:ClearAllPoints()
+    if st.compact then
+        f:SetSize(196, 24)
+        f.tex:SetSize(16, 16)
+        f.tex:SetPoint("LEFT", 6, 0)
+        f.label:SetPoint("LEFT", 27, 0)
+        f.label:SetWidth(84)
+        f.distance:SetPoint("RIGHT", -20, 0)
+        f.close:SetPoint("RIGHT", -1, 0)
+    else
+        f:SetSize(230, 56)
+        f.tex:SetSize(14, 14)
+        f.tex:SetPoint("BOTTOMLEFT", 8, 5)
+        f.label:SetPoint("BOTTOMLEFT", 26, 5)
+        f.label:SetWidth(104)
+        f.distance:SetPoint("BOTTOMRIGHT", -23, 5)
+        f.close:SetPoint("BOTTOMRIGHT", -1, 0)
+    end
     if st.tape then f.tape:SetColorTexture(st.tape[1], st.tape[2], st.tape[3], st.tape[4]) end
     for _, tex in ipairs(f.drumParts) do tex:SetShown(st.drum and true or false) end
     for i = 0, 71 do
@@ -210,7 +235,7 @@ function W:Update()
     if dx then
         local angle, distance = W.Bearing(dx, dy, Number(facing) and facing or 0)
         self.arrow.tex:SetRotation(angle)
-        self.arrow.marker:SetShown(Number(facing))
+        self.arrow.marker:SetShown(Number(facing) and not self:Style().compact)
         self.arrow.marker:ClearAllPoints()
         self.arrow.marker:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(-angle, not self:Style().curve), -27)
         self.arrow.tex:SetShown(Number(facing) and distance > 10)

@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Added", items = {
+            { 0, "|cffffffffFlight timer.|r A bar while you ride a flight path (Convenience > Flight timer, or the Flight timer module). The first time you fly a route it counts up; Tempus remembers how long the flight took, averaging later trips, so from then on it counts down the time left and fills as you go. Unlock the UI to move it, and set its width and height on its page. It learns each route as you fly it, so it cannot show a time for a route you have never flown." },
+        } },
+    } },
     { version = "2.20.2", sections = {
         { title = "Fixed", items = {
             { 0, "|cffffffffGear Advisor leaves out gear that needs a profession you do not have.|r An item whose tooltip shows a red \"Requires Blacksmithing (225)\" style line is no longer listed, and the footer says how many were left out." },

@@ -258,8 +258,8 @@ Add("speed", "Movement speed", {
     text = function()
         local speeds = PlayerSpeeds()
         local bonus = DB.SpeedBonus(speeds, IsFlying and IsFlying(), IsSwimming and IsSwimming())
-        if not bonus then return "Speed --" end
-        return ("Speed |cff%s%+d%%|r%s"):format(bonus > 0 and T.accentHex or "8a93a0", bonus,
+        if not bonus then return "--" end
+        return ("|cff%s%+d%%|r%s"):format(bonus > 0 and T.accentHex or "8a93a0", bonus,
             DB.SpeedReadout(speeds[1], DB.db and DB.db.speedUnit or DB.defaults.speedUnit))
     end,
     tooltip = function(tt)

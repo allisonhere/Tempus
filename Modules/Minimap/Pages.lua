@@ -31,6 +31,9 @@ T:RegisterPage("minimap", { key = "databar", label = "Info Bar", order = 2, buil
     p:Section("Info bar", "Live data texts. Hover one for details; click for a shortcut (bags, character sheet, calendar...).")
     p:Check(cfg, "enabled", "Enabled")
     p:Check(cfg, "time24", "24-hour time")
+    p:Dropdown(cfg, "speedUnit", "Movement speed units", {
+        { "KMH", "Percent + km/h" }, { "MPH", "Percent + mph" }, { "PERCENT", "Percent only" },
+    })
     p:Slider(cfg, "width", "Width", 150, 1600, 10)
     p:Slider(cfg, "height", "Height", 16, 36, 1)
     p:Slider(cfg, "fontSize", "Text size", 8, 16, 1)

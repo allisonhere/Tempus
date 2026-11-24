@@ -66,11 +66,19 @@ end
 
 local function Pin(parent)
     local p = CreateFrame("Frame", nil, parent)
-    p:SetSize(22, 22)
-    p:SetFrameLevel(parent:GetFrameLevel() + 10)
+    p:SetSize(28, 28)
+    p.tempus = true
+    p:SetFrameStrata(parent:GetFrameStrata())
+    p:SetFrameLevel(parent:GetFrameLevel() + 100)
     local tex = p:CreateTexture(nil, "OVERLAY")
-    tex:SetAllPoints()
+    tex.tempus = true
+    tex:SetAllPoints(p)
     tex:SetTexture("Interface\\AddOns\\Tempus\\media\\node-pin")
+    local dot = p:CreateTexture(nil, "OVERLAY", nil, 1)
+    dot.tempus = true
+    dot:SetColorTexture(1, 0.75, 0.1, 1)
+    dot:SetSize(7, 7)
+    dot:SetPoint("CENTER", p, "CENTER", 0, 4)
     p:EnableMouse(true)
     p:SetScript("OnEnter", function()
         local target = W.db.target
@@ -104,6 +112,7 @@ local function Delta(target)
         end
     end
     if map ~= target.map then return end
+    if not C_Map.GetMapWorldSize then return end
     local width, height = C_Map.GetMapWorldSize(map)
     if Number(width) and Number(height) and width > 0 and height > 0 then
         return (target.x - px) * width, (py - target.y) * height
@@ -124,37 +133,6 @@ function W:Update()
             self.arrow:Show()
         end
         return
-    end
-    local dx, dy = Delta(target)
-    self.arrow:Show()
-    self.arrow.label:SetText(target.label)
-    local facing = GetPlayerFacing and GetPlayerFacing()
-    self:UpdateCompass(Number(facing) and facing or nil)
-    if dx and Number(facing) then
-        local angle, distance = W.Bearing(dx, dy, facing)
-        self.arrow.tex:SetRotation(angle)
-        self.arrow.marker:Show()
-        self.arrow.marker:ClearAllPoints()
-        self.arrow.marker:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(-angle), -29)
-        self.arrow.tex:SetShown(distance > 10)
-        self.arrow.distance:SetText(distance <= 10 and "Arrived" or ("%d yd"):format(distance + 0.5))
-        if Minimap and Minimap:IsVisible() then
-            self.mini = self.mini or Pin(Minimap)
-            local radius = C_Minimap and C_Minimap.GetViewRadius and C_Minimap.GetViewRadius()
-            if not Number(radius) or radius <= 0 then
-                local diameters = IsIndoors and IsIndoors() and {300,240,180,120,80,50} or {466.67,400,333.33,266.67,200,133.33}
-                radius = (diameters[(Minimap:GetZoom() or 0) + 1] or 400) / 2
-            end
-            local rotation = GetCVar and GetCVar("rotateMinimap") == "1" and facing or nil
-            local x, y = W.Project(dx, dy, radius, math.min(Minimap:GetWidth(), Minimap:GetHeight()) / 2 - 12, rotation)
-            self.mini:ClearAllPoints()
-            self.mini:SetPoint("CENTER", Minimap, "CENTER", x, y)
-            self.mini:Show()
-        end
-    else
-        self.arrow.tex:Hide()
-        self.arrow.marker:Hide()
-        self.arrow.distance:SetText("-- yd")
     end
     local mapFrame = WorldMapFrame
     if mapFrame and mapFrame:IsShown() and mapFrame.GetCanvas and mapFrame.GetMapID then
@@ -177,6 +155,39 @@ function W:Update()
             self.world:Show()
         end
     end
+    local ok, dx, dy = pcall(Delta, target)
+    if not ok then dx, dy = nil, nil end
+    self.arrow:Show()
+    self.arrow.label:SetText(target.label)
+    local facing = GetPlayerFacing and GetPlayerFacing()
+    self:UpdateCompass(Number(facing) and facing or nil)
+    if dx then
+        local angle, distance = W.Bearing(dx, dy, Number(facing) and facing or 0)
+        self.arrow.tex:SetRotation(angle)
+        self.arrow.marker:SetShown(Number(facing))
+        self.arrow.marker:ClearAllPoints()
+        self.arrow.marker:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(-angle), -29)
+        self.arrow.tex:SetShown(Number(facing) and distance > 10)
+        self.arrow.distance:SetText(distance <= 10 and "Arrived" or ("%d yd"):format(distance + 0.5))
+        if Minimap and Minimap:IsVisible() then
+            self.mini = self.mini or Pin(Minimap)
+            local radius = C_Minimap and C_Minimap.GetViewRadius and C_Minimap.GetViewRadius()
+            if not Number(radius) or radius <= 0 then
+                local diameters = IsIndoors and IsIndoors() and {300,240,180,120,80,50} or {466.67,400,333.33,266.67,200,133.33}
+                radius = (diameters[(Minimap:GetZoom() or 0) + 1] or 400) / 2
+            end
+            local rotation = GetCVar and GetCVar("rotateMinimap") == "1" and Number(facing) and facing or nil
+            local x, y = W.Project(dx, dy, radius, math.min(Minimap:GetWidth(), Minimap:GetHeight()) / 2 - 12, rotation)
+            self.mini:ClearAllPoints()
+            self.mini:SetPoint("CENTER", Minimap, "CENTER", x, y)
+            self.mini:Show()
+        end
+    else
+        self.arrow.tex:Hide()
+        self.arrow.marker:Hide()
+        self.arrow.distance:SetText("-- yd")
+    end
+
 end
 
 T:NewModule("waypoints", {

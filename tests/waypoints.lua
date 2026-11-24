@@ -76,3 +76,31 @@ UI.db.locked = false
 Way:Update()
 assert(Way.arrow.shown, "unlocked compass remains available for positioning")
 print("PASS: compass refresh preserves clicks and close clears the waypoint")
+
+-- Both pins must draw without facing; the world pin must survive unavailable player positions.
+local canvas = widget()
+canvas.GetWidth = function() return 1000 end
+canvas.GetHeight = function() return 600 end
+canvas.GetFrameStrata = function() return "HIGH" end
+WorldMapFrame = { IsShown = function() return true end, GetMapID = function() return 37 end,
+    GetCanvas = function() return canvas end }
+Minimap = widget()
+Minimap.IsVisible = function() return true end
+Minimap.GetWidth = function() return 160 end
+Minimap.GetHeight = function() return 160 end
+Minimap.GetZoom = function() return 0 end
+Minimap.GetFrameStrata = function() return "MEDIUM" end
+C_Map.GetPlayerMapPosition = function() return { GetXY = function() return .4, .5 end } end
+C_Map.GetMapWorldSize = function() return 1000, 600 end
+GetPlayerFacing = function() return nil end
+Way.db.target = { map = 37, x = .5, y = .6, label = "Pin test" }
+Way:Update()
+assert(Way.mini and Way.mini.shown, "minimap pin does not depend on facing")
+assert(Way.world and Way.world.shown, "world pin drawn on destination map")
+C_Map.GetPlayerMapPosition = function() error("position unavailable") end
+Way:Update()
+assert(Way.world.shown, "position error must not hide world map marker")
+assert(not Way.mini.shown, "missing position hides only the minimap marker")
+Way:Command("clear")
+assert(not Way.world.shown and not Way.mini.shown, "clear removes both markers")
+print("PASS: map markers draw without facing and world pin survives missing player position")

@@ -3,7 +3,7 @@ local _, T = ...
 T.changelog = {
     { version = "Unreleased", sections = {
         { title = "Added", items = {
-            { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum, now without the dark box behind it), Flat tape (a dark strip with evenly spaced degrees, no box behind it), Minimal (just the marks, no panel) and Small arrow (one small line of text with an arrow that points the way)." },
+            { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum, now without the dark box behind it), Flat tape (a dark strip with evenly spaced degrees, no box behind it), Minimal (just the marks, no panel) and Small arrow (a real arrow on screen that aims at the destination, with the name and distance under it)." },
         } },
     } },
     { version = "2.21.0", sections = {

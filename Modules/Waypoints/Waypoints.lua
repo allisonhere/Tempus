@@ -47,9 +47,8 @@ W.STYLES = {
     FLAT = { label = "Flat tape",
         tape = { 0.1, 0.12, 0.15, 1 }, tick = { 0.82, 0.85, 0.9 }, text = { 0.92, 0.94, 0.97 } },
     MINIMAL = { label = "Minimal", tick = { 1, 1, 1 }, text = { 1, 1, 1 } },
-    -- No compass at all: a small line of text with an arrow that points the way.
-    ARROW = { label = "Small arrow", compact = true, panel = true, fill = { 0.04, 0.05, 0.065, 0.9 },
-        tick = { 1, 1, 1 }, text = { 1, 1, 1 } },
+    -- No compass at all: a real arrow that aims at the destination, with small text under it.
+    ARROW = { label = "Small arrow", compact = true, tick = { 1, 1, 1 }, text = { 1, 1, 1 } },
 }
 W.STYLE_ORDER = { "DRUM", "FLAT", "MINIMAL", "ARROW" }
 
@@ -90,15 +89,19 @@ function W:ApplyStyle()
     f.distance:ClearAllPoints()
     f.close:ClearAllPoints()
     if st.compact then
-        f:SetSize(196, 24)
-        f.tex:SetSize(16, 16)
-        f.tex:SetPoint("LEFT", 6, 0)
-        f.label:SetPoint("LEFT", 27, 0)
-        f.label:SetWidth(84)
-        f.distance:SetPoint("RIGHT", -20, 0)
-        f.close:SetPoint("RIGHT", -1, 0)
+        f:SetSize(130, 74)
+        f.tex:SetSize(46, 46)
+        f.tex:SetPoint("TOP", 0, -2)
+        f.label:SetPoint("BOTTOM", 0, 14)
+        f.label:SetWidth(124)
+        f.label:SetJustifyH("CENTER")
+        f.distance:SetPoint("BOTTOM", 0, 2)
+        f.distance:SetJustifyH("CENTER")
+        f.close:SetPoint("TOPRIGHT", 0, 0)
     else
         f:SetSize(230, 56)
+        f.label:SetJustifyH("LEFT")
+        f.distance:SetJustifyH("LEFT")
         f.tex:SetSize(14, 14)
         f.tex:SetPoint("BOTTOMLEFT", 8, 5)
         f.label:SetPoint("BOTTOMLEFT", 26, 5)

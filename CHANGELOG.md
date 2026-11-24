@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Added
-- **Waypoints.** `/way x y [label]` marks a destination in your current zone, with a direction arrow, distance in yards and pins on the minimap and world map. `/way #mapID x y [label]` chooses a map; `/way clear` removes the destination. `/tway` works when another addon owns `/way`. Unlock the UI to move the arrow.
+- **Waypoints.** `/way x y [label]` marks a destination in your current zone, with a compass bar at the top of the screen, direction arrow, distance in yards and pins on the minimap and world map. `/way #mapID x y [label]` chooses a map; `/way clear` removes the destination. `/tway` works when another addon owns `/way`. Click the x on the bar to clear it. Unlock the UI to move the bar.
 - **Flight timer.** A bar while you ride a flight path (Convenience > Flight timer, or the Flight timer module). The first time you fly a route it counts up; Tempus remembers how long the flight took, averaging later trips, so from then on it counts down the time left and fills as you go. Unlock the UI to move it, and set its width and height on its page. It learns each route as you fly it, so it cannot show a time for a route you have never flown.
 - **Movement speed on the info bar.** Pick **Movement speed** for any info bar slot (Minimap > Info bar). It shows your speed as a percent over the base run speed, for example `+60%` on a 60% mount, using your flying speed while flying and your swim speed while swimming. Hover it for your run, flight and swim speeds.
 

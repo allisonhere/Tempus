@@ -27,7 +27,7 @@ Forever hides health, auras and range from addons during combat. Tempus is writt
 - **Chat** you can select and copy, history that survives a reload, whisper alerts, clickable links and fading tabs. If [SpellPower](https://www.curseforge.com/wow/addons/spellpower) is installed, its spellcheck and grammar options appear in Tempus's Chat settings.
 - **A square minimap**, an info bar with an optional movement speed increase readout and a choice of km/h or mph, XP and reputation bars, and icons for ore and herb nodes you have gathered.
 - **Flight timer** with the animated Tempus hourglass. Your first trip shows “Learning route” and counts up; after landing, Tempus remembers the duration and counts down on later trips along that route.
-- **Waypoints.** `/way 52.3 41.8 Bank` sets a destination in your current zone, with a direction arrow, distance, and pins on the minimap and world map. Click the x beside the arrow or use `/way clear` to remove it, or `/tway` if another addon uses `/way`.
+- **Waypoints.** `/way 52.3 41.8 Bank` sets a destination in your current zone, with a compass bar at the top of the screen, direction arrow, distance, and pins on the minimap and world map. Click the x on the compass bar or use `/way clear` to remove it, or `/tway` if another addon uses `/way`.
 - **Skins** for Blizzard windows, tooltips and chat, and for Bagnon and DBM.
 - **Style Studio** to preview themes, fonts, bars, colours and icons together, with the accent colour applied everywhere.
 - **Movable everything**, with saved layouts, automatic layouts for solo, party and raid, and a settings search.

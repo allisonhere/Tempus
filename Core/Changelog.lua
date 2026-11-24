@@ -1,7 +1,7 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
-    { version = "Unreleased", sections = {
+    { version = "2.22.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum, now without the dark box behind it), Flat tape (a dark strip with evenly spaced degrees, no box behind it), Minimal (just the marks, no panel) and Small arrow (a real arrow on screen that aims at the destination, with the name and distance under it). Right-clicking any compass style now clears the waypoint." },
         } },

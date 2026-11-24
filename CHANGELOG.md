@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.22.0
 
 ### Added
 - **Compass styles.** Waypoints > Compass style: Drum (the curved metal drum, now without the dark box behind it), Flat tape (a dark strip with evenly spaced degrees, no box behind it), Minimal (just the marks, no panel) and Small arrow (a real arrow on screen that aims at the destination, with the name and distance under it). Right-clicking any compass style now clears the waypoint.

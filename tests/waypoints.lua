@@ -34,3 +34,45 @@ assert(W.db.target.label == "Test", "invalid map leaves destination intact")
 W:Command("clear")
 assert(W.db.target == nil)
 print("PASS: waypoint coordinates, bearing, minimap rotation, clamping and commands")
+
+-- Exercise real UI updates: hiding a button's parent between mouse-down and mouse-up cancels clicks.
+local module
+local UI = { Num = T.Num, NewModule = function(_, _, def) module = def end }
+assert(loadfile("Modules/Waypoints/Waypoints.lua"))("Tempus", UI)
+local Way = UI.Waypoints
+local function widget()
+    local w = { scripts = {}, shown = true, hides = 0 }
+    return setmetatable(w, { __index = function(_, key)
+        if key == "GetFrameLevel" then return function() return 1 end end
+        if key == "CreateTexture" then return widget end
+        if key == "SetScript" then return function(self, event, fn) self.scripts[event] = fn end end
+        if key == "Hide" then return function(self) self.shown = false; self.hides = self.hides + 1 end end
+        if key == "Show" then return function(self) self.shown = true end end
+        if key == "SetShown" then return function(self, value) self.shown = not not value end end
+        return function() end
+    end })
+end
+CreateFrame = widget
+UI.Style = { Text = widget, Backdrop = function() end, C = { text = {} } }
+UI.Movers = { ApplyPoint = function() end, Register = function() end }
+UI.Wrap = function(_, _, fn) return fn end
+UI.Print = function() end
+UI.db = { locked = true, waypoints = {} }
+GameTooltip = widget()
+SlashCmdList = {}
+module.OnEnable()
+Way.db.target = { map = 37, x = .5, y = .6, label = "Test" }
+Way:Update()
+local before = Way.arrow.hides
+Way:Update()
+assert(Way.arrow.shown and Way.arrow.hides == before, "refresh must not interrupt a close click")
+Way.arrow.scripts.OnHide = function() end
+Way.arrow.close.scripts.OnClick()
+assert(not Way.db.target and not Way.arrow.shown, "close clears destination and hides locked compass")
+near(Way.CompassOffset(0), 0)
+near(Way.CompassOffset(math.pi / 2), 140)
+near(Way.CompassOffset(-math.pi / 2), -140)
+UI.db.locked = false
+Way:Update()
+assert(Way.arrow.shown, "unlocked compass remains available for positioning")
+print("PASS: compass refresh preserves clicks and close clears the waypoint")

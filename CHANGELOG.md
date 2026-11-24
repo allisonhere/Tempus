@@ -3,7 +3,7 @@
 ## Unreleased
 
 ### Added
-- **Compass styles.** Waypoints > Compass style: Drum (the curved metal drum), Flat tape (a dark strip with evenly spaced degrees), Minimal (just the marks, no panel) and Small arrow (one small line of text with an arrow that points the way).
+- **Compass styles.** Waypoints > Compass style: Drum (the curved metal drum, now without the dark box behind it), Flat tape (a dark strip with evenly spaced degrees), Minimal (just the marks, no panel) and Small arrow (one small line of text with an arrow that points the way).
 
 ### Fixed
 - **Hearthstone cooldown shows again.** On action bars and in the bag window, an item such as the Hearthstone now greys out while it is on cooldown and shows the sweep, like a spell. If the slot reports no cooldown, Tempus asks the item itself.

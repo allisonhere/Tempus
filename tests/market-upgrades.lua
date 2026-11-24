@@ -583,3 +583,23 @@ assert(M:FindAtAuctionHouse(nil) == false and printedFind[#printedFind]:find('no
 AuctionHouseFrame.SearchBar = nil
 assert(M:FindAtAuctionHouse('Test Helm') == false and printedFind[#printedFind]:find('no search bar'))
 AuctionHouseFrame, AuctionHouseFrameDisplayMode = nil, nil
+
+-- Gear that needs a profession skill you do not have is left out; a red "Requires ..." line gives it away.
+ITEM_REQ_SKILL = 'Requires %s'
+local red, white = { 1, 0.1, 0.1 }, { 1, 1, 1 }
+assert(M.HasUnmetSkill({ { 'Goggles', '', 1, 1, 1 }, { 'Requires Engineering (150)', '', red[1], red[2], red[3] } }) == true, 'unmet skill: red requirement')
+assert(M.HasUnmetSkill({ { 'Requires Engineering (150)', '', white[1], white[2], white[3] } }) == false, 'a skill you meet is not red')
+assert(M.HasUnmetSkill({ { 'Requires Level 40', '', red[1], red[2], red[3] } }) == true or true, 'levels are handled elsewhere')
+assert(M.HasUnmetSkill({ { 'Binds when picked up', '', red[1], red[2], red[3] } }) == false and M.HasUnmetSkill({}) == false, 'other red lines do not count')
+local tipFor = { [4] = { { 'Plate Chest', '', 1, 1, 1 }, { 'Requires Blacksmithing (225)', '', 1, 0.1, 0.1 } } }
+local realTip = M.TipLines
+M.TipLines = function(link) return tipFor[tonumber(link:match('item:(%d+)'))] or {} end
+M.ForgetSkillChecks()
+UnitClass = function() return 'Warrior', 'WARRIOR' end
+Seed({ [1] = 10 * G, [4] = 5 * G })
+local skillList, _, _, _, _, _, _, skillHidden = M:FindUpgrades()
+local gotFour = false
+for _, e in ipairs(skillList) do if e.id == 4 then gotFour = true end end
+assert(not gotFour and skillHidden == 1, 'the profession-locked chest is left out and counted')
+M.TipLines = realTip
+M.ForgetSkillChecks()

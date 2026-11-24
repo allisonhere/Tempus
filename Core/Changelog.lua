@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Fixed", items = {
+            { 0, "|cffffffffGear Advisor leaves out gear that needs a profession you do not have.|r An item whose tooltip shows a red \"Requires Blacksmithing (225)\" style line is no longer listed, and the footer says how many were left out." },
+        } },
+    } },
     { version = "2.20.1", sections = {
         { title = "Fixed", items = {
             { 0, "|cffffffffOpen Gear Advisor on the settings page.|r The window opened behind the settings window, so the button seemed to do nothing. It now opens in front." },

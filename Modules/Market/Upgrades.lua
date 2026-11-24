@@ -357,6 +357,31 @@ function M.Comparator(sort)
     end
 end
 
+-- Gear that needs a profession skill you do not have ("Requires Leatherworking (150)") is shown in red on
+-- its tooltip. True when one of the lines is a skill requirement in red. `lines` are tooltip lines as
+-- { left, right, r, g, b } (see M.ReadTip).
+function M.HasUnmetSkill(lines)
+    local pattern = _G.ITEM_REQ_SKILL or "Requires %s"
+    local escaped = pattern:gsub("([%^%$%(%)%.%[%]%*%+%-%?])", "%%%1"):gsub("%%s", ".+")
+    for _, l in ipairs(lines) do
+        local text = l[1] or ""
+        if text:find("^" .. escaped .. "$") and Num(l[3]) and l[3] > 0.8 and l[4] < 0.3 and l[5] < 0.3 then return true end
+    end
+    return false
+end
+
+-- Cached for the session: reading a tooltip per item is not free, and your skills rarely change mid-session.
+local skillCache = {}
+function M.ForgetSkillChecks() for k in pairs(skillCache) do skillCache[k] = nil end end
+function M.NeedsUnknownSkill(id)
+    local hit = skillCache[id]
+    if hit == nil then
+        hit = M.HasUnmetSkill(M.TipLines("item:" .. id))
+        skillCache[id] = hit
+    end
+    return hit
+end
+
 -- Returns a ranked list, the number of items still waiting on item data, and how many were
 -- requested this pass. Entry: { id, price, age, gain, level, worn, loc, score }.
 local WornLink      -- defined with the detail code below
@@ -391,7 +416,7 @@ function M:FindUpgrades()
     local carried = T.GearAdvisor.Owned.Best(CarriedGear(class, level, instant, getInfo, detailed, function(link, loc)
         return (M.UsefulScore(link, wornLinkFor(loc), class, roleWeights, RANGED[loc]))
     end))
-    local beaten, worse = 0, 0
+    local beaten, worse, skillHidden = 0, 0, 0
     local uniqueOf = C and C.GetItemUniquenessByID
     local wornIds = {}
 
@@ -430,6 +455,8 @@ function M:FindUpgrades()
                     elseif not M.PassesFilters(filters, quality, minLevel, row.c, row.s, loc)
                         or R.UniqueConflict(id, unique == true, wornIds[loc]) then
                         hidden = hidden + 1
+                    elseif M.NeedsUnknownSkill(id) then
+                        skillHidden = skillHidden + 1
                     else
                         -- What the stats are worth to your class; nil when the client gives none.
                         if wornLinks[loc] == nil then wornLinks[loc] = WornLink(loc) or false end
@@ -465,7 +492,7 @@ function M:FindUpgrades()
     end
     if base == "NAME" then table.sort(kept, M.Comparator(sort)) end
     T.GearAdvisor.Verdicts.Tag(kept, Call(GetMoney))
-    return kept, pending, requested, hidden, filters, beaten, worse
+    return kept, pending, requested, hidden, filters, beaten, worse, skillHidden
 end
 
 -- What improves ------------------------------------------------------------------------------
@@ -1220,10 +1247,10 @@ function M:RefreshUpgrades()
     end
     if p.priceHint and p.price then p.priceHint:SetShown((p.price:GetText() or "") == "") end
     self:UpdateHeaders()
-    local list, pending, hidden, filters, beaten, worse = {}, 0, 0, nil, 0, 0
+    local list, pending, hidden, filters, beaten, worse, skillHidden = {}, 0, 0, nil, 0, 0, 0
     if Num(store.scanned) then
-        local ok, l, n, _, h, f, b, w = pcall(self.FindUpgrades, self)
-        if ok then list, pending, hidden, filters, beaten, worse = l, n, h or 0, f, b or 0, w or 0 end
+        local ok, l, n, _, h, f, b, w, sk = pcall(self.FindUpgrades, self)
+        if ok then list, pending, hidden, filters, beaten, worse, skillHidden = l, n, h or 0, f, b or 0, w or 0, sk or 0 end
     end
     local layout = M.Layout(list)
     local maxRank = {}
@@ -1300,7 +1327,8 @@ function M:RefreshUpgrades()
         and (math.floor(scanned / 3600) .. " h") or (math.floor(scanned / 60) .. " min"))
         .. (filters and ("  Using AH filters: " .. M.FilterSummary(filters)) or "")
         .. (beaten > 0 and (("  %d left out: you already carry something as good."):format(beaten)) or "")
-        .. (worse > 0 and (("  %d left out: worse stats for your build."):format(worse)) or "")) or "")
+        .. (worse > 0 and (("  %d left out: worse stats for your build."):format(worse)) or "")
+        .. (skillHidden > 0 and (("  %d left out: need a profession skill you do not have."):format(skillHidden)) or "")) or "")
 end
 
 -- The best set of purchases for a budget (copper), from the listings the window shows. Returns the

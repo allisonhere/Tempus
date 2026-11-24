@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **Gear Advisor leaves out gear that needs a profession you do not have.** An item whose tooltip shows a red "Requires Blacksmithing (225)" style line is no longer listed, and the footer says how many were left out.
+
 ## 2.20.1
 
 ### Fixed

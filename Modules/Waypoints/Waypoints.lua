@@ -34,17 +34,18 @@ end
 -- Compass tape spans 180 degrees; destinations behind you clamp to its edge.
 function W.CompassOffset(angle)
     angle = (angle + math.pi) % (2 * math.pi) - math.pi
-    return math.max(-140, math.min(140, angle * 280 / math.pi))
+    return math.sin(math.max(-math.pi / 2, math.min(math.pi / 2, angle))) * 110
 end
 
 function W:UpdateCompass(facing)
     if not self.arrow.ticks then return end
-    for i = 0, 15 do
+    for i = 0, 63 do
         local tick = self.arrow.ticks[i]
-        local angle = (i * math.pi / 8 + (facing or 0) + math.pi) % (2 * math.pi) - math.pi
+        local angle = (i * math.pi / 32 + (facing or 0) + math.pi) % (2 * math.pi) - math.pi
         tick:SetShown(facing ~= nil and math.abs(angle) <= math.pi / 2)
+        tick:SetAlpha(0.15 + 0.85 * math.max(0, math.cos(angle)))
         tick:ClearAllPoints()
-        tick:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(angle), -14)
+        tick:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(angle), -12)
     end
 end
 
@@ -190,14 +191,37 @@ T:NewModule("waypoints", {
             W.db.point = { "TOP", "UIParent", "TOP", 0, -18 }
             W.db.compassLayout = true
         end
-        f:SetSize(340, 68)
+        f:SetSize(280, 56)
         f:SetFrameStrata("HIGH")
-        T.Style.Backdrop(f, {})
+        T.Style.Backdrop(f, { fill = { 0.035, 0.045, 0.055, 0.96 } })
+        -- Highlights and side shading give the tape the curved face of a compass drum.
+        for _, side in ipairs({ "LEFT", "RIGHT" }) do
+            local shade = f:CreateTexture(nil, "ARTWORK")
+            shade:SetTexture("Interface\\Buttons\\WHITE8X8")
+            shade:SetSize(65, 31)
+            shade:SetPoint("TOP" .. side, side == "LEFT" and 4 or -25, -3)
+            if side == "LEFT" then
+                T.Style.SetGradient(shade, "HORIZONTAL", 0, 0, 0, 0.85, 0, 0, 0, 0)
+            else
+                T.Style.SetGradient(shade, "HORIZONTAL", 0, 0, 0, 0, 0, 0, 0, 0.85)
+            end
+        end
+        local rim = f:CreateTexture(nil, "OVERLAY")
+        rim:SetColorTexture(1, 1, 1, 0.28)
+        rim:SetSize(230, 1)
+        rim:SetPoint("TOP", -8, -3)
         f.ticks = {}
-        local names = { [0] = "N", [2] = "NE", [4] = "E", [6] = "SE", [8] = "S", [10] = "SW", [12] = "W", [14] = "NW" }
-        for i = 0, 15 do
-            local tick = T.Style.Text(f, names[i] and 11 or 9, T.Style.C.text, "OUTLINE")
-            tick:SetText(names[i] or "|")
+        local names = { [0] = "N", [8] = "NE", [16] = "E", [24] = "SE", [32] = "S", [40] = "SW", [48] = "W", [56] = "NW" }
+        for i = 0, 63 do
+            local tick
+            if names[i] then
+                tick = T.Style.Text(f, 10, { 1, 1, 1 }, "OUTLINE")
+                tick:SetText(names[i])
+            else
+                tick = f:CreateTexture(nil, "OVERLAY")
+                tick:SetColorTexture(1, 1, 1, 1)
+                tick:SetSize(1, i % 4 == 0 and 10 or 5)
+            end
             f.ticks[i] = tick
         end
         local center = T.Style.Text(f, 12, T.Style.C.text, "OUTLINE")
@@ -209,14 +233,14 @@ T:NewModule("waypoints", {
         W:UpdateCompass(0)
         f.tex = f:CreateTexture(nil, "ARTWORK")
         f.tex:SetTexture("Interface\\Minimap\\MinimapArrow")
-        f.tex:SetSize(18, 18)
-        f.tex:SetPoint("BOTTOMLEFT", 9, 7)
-        f.label = T.Style.Text(f, 12, T.Style.C.text, "OUTLINE")
-        f.label:SetPoint("BOTTOMLEFT", 32, 10)
-        f.label:SetWidth(182)
+        f.tex:SetSize(14, 14)
+        f.tex:SetPoint("BOTTOMLEFT", 8, 5)
+        f.label = T.Style.Text(f, 10, T.Style.C.text, "OUTLINE")
+        f.label:SetPoint("BOTTOMLEFT", 26, 7)
+        f.label:SetWidth(156)
         f.label:SetWordWrap(false)
-        f.distance = T.Style.Text(f, 11, T.Style.C.text, "OUTLINE")
-        f.distance:SetPoint("BOTTOMRIGHT", -10, 10)
+        f.distance = T.Style.Text(f, 10, T.Style.C.text, "OUTLINE")
+        f.distance:SetPoint("BOTTOMRIGHT", -8, 7)
         local close = CreateFrame("Button", nil, f)
         close:SetSize(18, 18)
         close:SetPoint("TOPRIGHT", -3, -3)

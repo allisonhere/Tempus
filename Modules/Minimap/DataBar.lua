@@ -16,6 +16,7 @@ DB.defaults = {
     slots = { "system", "durability", "bags", "gold", "time", "NONE", "NONE", "NONE" },
     count = 5,
     time24 = true,
+    speedUnit = "KMH",
     point = { "BOTTOM", "UIParent", "BOTTOM", 0, 10 },
 }
 
@@ -244,12 +245,22 @@ local function PlayerSpeeds()
     return { current, run, flight, swim }
 end
 
+function DB.SpeedReadout(current, unit)
+    if unit == "PERCENT" then return "" end
+    if not T.Num(current) or current < 0 then return " --" end
+    -- WoW reports yards per second; one yard is 0.9144 metres.
+    if unit == "MPH" then return (" %.1f mph"):format(current * 3600 / 1760) end
+    return (" %.1f km/h"):format(current * 0.9144 * 3.6)
+end
+
 Add("speed", "Movement speed", {
     interval = 0.5,
     text = function()
-        local bonus = DB.SpeedBonus(PlayerSpeeds(), IsFlying and IsFlying(), IsSwimming and IsSwimming())
+        local speeds = PlayerSpeeds()
+        local bonus = DB.SpeedBonus(speeds, IsFlying and IsFlying(), IsSwimming and IsSwimming())
         if not bonus then return "Speed --" end
-        return ("Speed |cff%s%+d%%|r"):format(bonus > 0 and T.accentHex or "8a93a0", bonus)
+        return ("Speed |cff%s%+d%%|r%s"):format(bonus > 0 and T.accentHex or "8a93a0", bonus,
+            DB.SpeedReadout(speeds[1], DB.db and DB.db.speedUnit or DB.defaults.speedUnit))
     end,
     tooltip = function(tt)
         tt:AddLine("Movement speed", 1, 1, 1)

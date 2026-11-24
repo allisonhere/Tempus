@@ -378,6 +378,14 @@ T:NewModule("waypoints", {
             W:Command("clear")
         end)
         f.close = close
+        -- Right-click anywhere on the compass clears the waypoint, in every style.
+        f:EnableMouse(true)
+        f:HookScript("OnMouseUp", function(_, button)
+            if button == "RightButton" then
+                GameTooltip:Hide()
+                W:Command("clear")
+            end
+        end)
         close:SetScript("OnEnter", function()
             GameTooltip:SetOwner(close, "ANCHOR_RIGHT")
             GameTooltip:AddLine("Clear waypoint")

@@ -1,7 +1,7 @@
 -- Flight timer: a bar while you ride a flight path. The first time you fly a route it counts up; Tempus
 -- remembers how long the flight took (averaging later trips), so the next time it counts down the time left.
 local _, T = ...
-local FT = { defaults = { enabled = true, width = 240, height = 22, point = { "TOP", "UIParent", "TOP", 0, -110 }, times = {} } }
+local FT = { defaults = { enabled = true, width = 200, height = 18, point = { "TOP", "UIParent", "TOP", 0, -110 }, times = {} } }
 T.FlightTimer = FT
 
 local MIN_FLIGHT = 3          -- seconds; anything shorter was not a real flight
@@ -85,6 +85,9 @@ T:NewModule("flighttimer", {
             and point[4] == 0 and point[5] == -190 then
             FT.db.point = { "TOP", "UIParent", "TOP", 0, -110 }
         end
+        if FT.db.width == 240 and FT.db.height == 22 then
+            FT.db.width, FT.db.height = 200, 18
+        end
         local S = T.Style
         local f = CreateFrame("Frame", "TempusFlightTimer", UIParent)
         f:SetSize(FT.db.width, FT.db.height)
@@ -99,7 +102,7 @@ T:NewModule("flighttimer", {
         f.hourglass.tempus = true
         f.hourglass:SetSize(FT.db.height, FT.db.height)
         f.hourglass:SetPoint("LEFT", 2, 0)
-        f.learning = S.Text(f, 11, S.C.text, "OUTLINE")
+        f.learning = S.Text(f, 10, S.C.text, "OUTLINE")
         f.learning:SetPoint("BOTTOMLEFT", f, "TOPLEFT", 0, 3)
         f.learning:SetText("Learning route")
         f.learning:Hide()
@@ -124,12 +127,12 @@ T:NewModule("flighttimer", {
             f.hourglass:SetTexCoord(col / 8, (col + 1) / 8, row / 4, (row + 1) / 4)
         end)
         f.hourglass:SetTexCoord(0, 1 / 8, 0, 1 / 4)
-        f.name = S.Text(f, 11, S.C.text)
+        f.name = S.Text(f, 10, S.C.text)
         f.name:SetPoint("LEFT", FT.db.height + 4, 0)
         f.name:SetWidth(math.max(1, FT.db.width - FT.db.height - 74))
         f.name:SetJustifyH("LEFT")
         f.name:SetWordWrap(false)
-        f.time = S.Text(f, 12, S.C.text, "OUTLINE")
+        f.time = S.Text(f, 11, S.C.text, "OUTLINE")
         f.time:SetPoint("RIGHT", -6, 0)
         FT.frame = f
         T.Movers.ApplyPoint(f, FT.db)

@@ -449,12 +449,21 @@ function Client:EquippedLevel(equipLoc)
     return Client.WornLevel(self.env, equipLoc)
 end
 
-function Client:Cooldown(location)
+function Client:Cooldown(location, itemID)
     local env, C = self.env, self.env.C_Container
     local start, duration, enabled = Call(C and C.GetContainerItemCooldown or env.GetContainerItemCooldown,
         location.container, location.slot)
     if type(start) == "table" then start, duration, enabled = start.startTime, start.duration, start.isEnabled end
-    if not (T.Num(start) and T.Num(duration)) or duration <= 0 or enabled == false or enabled == 0 then return nil end
+    if not (T.Num(start) and T.Num(duration)) or duration <= 0 or enabled == false or enabled == 0 then
+        -- Some items (the Hearthstone) carry their cooldown on the item or its spell, not the slot.
+        local id = itemID
+        local item = id and self.env.C_Item and self.env.C_Item.GetItemCooldown
+        if item then
+            local s2, d2 = Call(item, id)
+            if T.Num(s2) and T.Num(d2) and d2 > 0 then return s2, d2 end
+        end
+        return nil
+    end
     return start, duration
 end
 

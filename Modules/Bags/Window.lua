@@ -297,13 +297,15 @@ function Window:UpdateCooldown(button, record)
     if not cooldown then return end
     local start, duration
     if self.owner.db.showCooldowns and not record.empty then
-        start, duration = self.owner.client:Cooldown(record.location)
+        start, duration = self.owner.client:Cooldown(record.location, record.itemID)
     end
     if start then
         if not pcall(cooldown.SetCooldown, cooldown, start, duration) then cooldown:Clear() end
     else
         cooldown:Clear()
     end
+    -- Grey the icon while it is down, like a spell on a bar.
+    if button.icon then S.SetGrey(button.icon, start ~= nil and duration > S.GCD_MAX) end
 end
 
 function Window:UpdateCooldowns()

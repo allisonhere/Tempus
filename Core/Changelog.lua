@@ -3,7 +3,7 @@ local _, T = ...
 T.changelog = {
     { version = "Unreleased", sections = {
         { title = "Added", items = {
-            { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum), Flat tape (a dark strip with evenly spaced degrees) and Minimal (just the marks, no panel)." },
+            { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum), Flat tape (a dark strip with evenly spaced degrees), Minimal (just the marks, no panel) and Small arrow (one small line of text with an arrow that points the way)." },
         } },
         { title = "Fixed", items = {
             { 0, "|cffffffffHearthstone cooldown shows again.|r On action bars and in the bag window, an item such as the Hearthstone now greys out while it is on cooldown and shows the sweep, like a spell. If the slot reports no cooldown, Tempus asks the item itself." },

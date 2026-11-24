@@ -3,6 +3,7 @@ local _, T = ...
 T.changelog = {
     { version = "Unreleased", sections = {
         { title = "Added", items = {
+            { 0, "|cffffffffWaypoints.|r |cff9fd6ff/way x y [label]|r marks a destination in your current zone, with a direction arrow, distance in yards and pins on the minimap and world map. |cff9fd6ff/way #mapID x y [label]|r chooses a map; |cff9fd6ff/way clear|r removes the destination. |cff9fd6ff/tway|r works when another addon owns |cff9fd6ff/way|r. Unlock the UI to move the arrow." },
             { 0, "|cffffffffFlight timer.|r A bar while you ride a flight path (Convenience > Flight timer, or the Flight timer module). The first time you fly a route it counts up; Tempus remembers how long the flight took, averaging later trips, so from then on it counts down the time left and fills as you go. Unlock the UI to move it, and set its width and height on its page. It learns each route as you fly it, so it cannot show a time for a route you have never flown." },
             { 0, "|cffffffffMovement speed on the info bar.|r Pick |cffffffffMovement speed|r for any info bar slot (Minimap > Info bar). It shows your speed as a percent over the base run speed, for example |cff9fd6ff+60%|r on a 60% mount, using your flying speed while flying and your swim speed while swimming. Hover it for your run, flight and swim speeds." },
         } },

@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Added", items = {
+            { 0, "|cffffffffMovement speed on the info bar.|r Pick |cffffffffMovement speed|r for any info bar slot (Minimap > Info bar). It shows your speed as a percent over the base run speed, for example |cff9fd6ffSpeed +60%|r on a 60% mount, using your flying speed while flying and your swim speed while swimming. Hover it for your run, flight and swim speeds." },
+        } },
+    } },
     { version = "2.20.2", sections = {
         { title = "Fixed", items = {
             { 0, "|cffffffffGear Advisor leaves out gear that needs a profession you do not have.|r An item whose tooltip shows a red \"Requires Blacksmithing (225)\" style line is no longer listed, and the footer says how many were left out." },

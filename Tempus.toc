@@ -58,6 +58,8 @@ Modules\Minimap\StatusBars.lua
 Modules\Minimap\Pages.lua
 Modules\Nodes\Nodes.lua
 Modules\Nodes\Pages.lua
+Modules\Waypoints\Waypoints.lua
+Modules\Waypoints\Pages.lua
 
 Modules\FlightTimer\FlightTimer.lua
 Modules\FlightTimer\Pages.lua

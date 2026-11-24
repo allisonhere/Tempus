@@ -197,6 +197,18 @@ function AB:GreyButton(b)
         local ok, start, duration = pcall(GetActionCooldown, slot)
         if ok then down = S.CooldownDown(start, duration, nil, nil, now) end
     end
+    if not down and GetActionInfo then
+        -- Items (the Hearthstone) can report no cooldown on the slot; ask the item itself.
+        local ok, kind, id = pcall(GetActionInfo, slot)
+        local fn = C_Item and C_Item.GetItemCooldown or GetItemCooldown
+        if ok and kind == "item" and T.Num(id) and fn then
+            local ok2, start, duration = pcall(fn, id)
+            if ok2 then
+                local d = S.CooldownDown(start, duration, nil, nil, now)
+                if d ~= nil then down = d end
+            end
+        end
+    end
     if down == nil and C_ActionBar and C_ActionBar.GetActionCooldownDuration then
         local ok, dur = pcall(C_ActionBar.GetActionCooldownDuration, slot)
         -- No tint fallback: Blizzard colours these icons for range and mana.

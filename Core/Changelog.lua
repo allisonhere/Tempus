@@ -5,6 +5,9 @@ T.changelog = {
         { title = "Added", items = {
             { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum), Flat tape (a dark strip with evenly spaced degrees) and Minimal (just the marks, no panel)." },
         } },
+        { title = "Fixed", items = {
+            { 0, "|cffffffffHearthstone cooldown shows again.|r On action bars and in the bag window, an item such as the Hearthstone now greys out while it is on cooldown and shows the sweep, like a spell. If the slot reports no cooldown, Tempus asks the item itself." },
+        } },
     } },
     { version = "2.21.0", sections = {
         { title = "Added", items = {

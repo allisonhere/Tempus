@@ -1,7 +1,7 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
-    { version = "Unreleased", sections = {
+    { version = "2.20.2", sections = {
         { title = "Fixed", items = {
             { 0, "|cffffffffGear Advisor leaves out gear that needs a profession you do not have.|r An item whose tooltip shows a red \"Requires Blacksmithing (225)\" style line is no longer listed, and the footer says how many were left out." },
         } },

@@ -59,6 +59,8 @@ Modules\Minimap\Pages.lua
 Modules\Nodes\Nodes.lua
 Modules\Nodes\Pages.lua
 
+Modules\FlightTimer\FlightTimer.lua
+Modules\FlightTimer\Pages.lua
 Modules\Cooldowns\Cooldowns.lua
 Modules\Cooldowns\Debuffs.lua
 Modules\Cooldowns\Pages.lua

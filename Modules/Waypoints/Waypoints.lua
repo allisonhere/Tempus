@@ -31,6 +31,23 @@ function W.Project(dx, dy, radius, half, facing)
     return x / scale, y / scale
 end
 
+-- Compass tape spans 180 degrees; destinations behind you clamp to its edge.
+function W.CompassOffset(angle)
+    angle = (angle + math.pi) % (2 * math.pi) - math.pi
+    return math.max(-140, math.min(140, angle * 280 / math.pi))
+end
+
+function W:UpdateCompass(facing)
+    if not self.arrow.ticks then return end
+    for i = 0, 15 do
+        local tick = self.arrow.ticks[i]
+        local angle = (i * math.pi / 8 + (facing or 0) + math.pi) % (2 * math.pi) - math.pi
+        tick:SetShown(facing ~= nil and math.abs(angle) <= math.pi / 2)
+        tick:ClearAllPoints()
+        tick:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(angle), -14)
+    end
+end
+
 function W:Command(text)
     local map = C_Map and C_Map.GetBestMapForUnit("player")
     local point = W.Parse(text, map)
@@ -94,15 +111,15 @@ end
 
 function W:Update()
     local target = self.db.target
-    self.arrow:Hide()
     if self.mini then self.mini:Hide() end
     if self.world then self.world:Hide() end
     if not target then
+        self.arrow:SetShown(not T.db.locked)
         if not T.db.locked then
             self.arrow.tex:Show()
             self.arrow.tex:SetRotation(0)
-            self.arrow.label:SetText("Waypoint arrow")
-            self.arrow.distance:SetText("/way x y [label]")
+            self.arrow.label:SetText("Waypoint compass")
+            self.arrow.distance:SetText("Preview")
             self.arrow:Show()
         end
         return
@@ -111,9 +128,13 @@ function W:Update()
     self.arrow:Show()
     self.arrow.label:SetText(target.label)
     local facing = GetPlayerFacing and GetPlayerFacing()
+    self:UpdateCompass(Number(facing) and facing or nil)
     if dx and Number(facing) then
         local angle, distance = W.Bearing(dx, dy, facing)
         self.arrow.tex:SetRotation(angle)
+        self.arrow.marker:Show()
+        self.arrow.marker:ClearAllPoints()
+        self.arrow.marker:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(-angle), -29)
         self.arrow.tex:SetShown(distance > 10)
         self.arrow.distance:SetText(distance <= 10 and "Arrived" or ("%d yd"):format(distance + 0.5))
         if Minimap and Minimap:IsVisible() then
@@ -131,7 +152,8 @@ function W:Update()
         end
     else
         self.arrow.tex:Hide()
-        self.arrow.distance:SetText("Direction unavailable here")
+        self.arrow.marker:Hide()
+        self.arrow.distance:SetText("-- yd")
     end
     local mapFrame = WorldMapFrame
     if mapFrame and mapFrame:IsShown() and mapFrame.GetCanvas and mapFrame.GetMapID then
@@ -158,29 +180,57 @@ end
 
 T:NewModule("waypoints", {
     label = "Waypoints", desc = "/way x y [label]: a direction arrow, distance and pins on both maps. /way clear removes the destination.",
-    defaults = { point = { "TOP", "UIParent", "TOP", 0, -240 } },
+    defaults = { point = { "TOP", "UIParent", "TOP", 0, -18 } },
     OnEnable = function()
         W.db = T.db.waypoints
         local f = CreateFrame("Frame", "TempusWaypointArrow", UIParent)
         W.arrow = f
-        f:SetSize(220, 86)
+        -- Migrate the old floating arrow once; subsequent compass positions remain movable.
+        if not W.db.compassLayout then
+            W.db.point = { "TOP", "UIParent", "TOP", 0, -18 }
+            W.db.compassLayout = true
+        end
+        f:SetSize(340, 68)
+        f:SetFrameStrata("HIGH")
+        T.Style.Backdrop(f, {})
+        f.ticks = {}
+        local names = { [0] = "N", [2] = "NE", [4] = "E", [6] = "SE", [8] = "S", [10] = "SW", [12] = "W", [14] = "NW" }
+        for i = 0, 15 do
+            local tick = T.Style.Text(f, names[i] and 11 or 9, T.Style.C.text, "OUTLINE")
+            tick:SetText(names[i] or "|")
+            f.ticks[i] = tick
+        end
+        local center = T.Style.Text(f, 12, T.Style.C.text, "OUTLINE")
+        center:SetPoint("TOP", 0, -1)
+        center:SetText("v")
+        f.marker = T.Style.Text(f, 12, T.Style.C.text, "OUTLINE")
+        f.marker:SetText("^")
+        f.marker:Hide()
+        W:UpdateCompass(0)
         f.tex = f:CreateTexture(nil, "ARTWORK")
         f.tex:SetTexture("Interface\\Minimap\\MinimapArrow")
-        f.tex:SetSize(38, 38)
-        f.tex:SetPoint("TOP", 0, 0)
+        f.tex:SetSize(18, 18)
+        f.tex:SetPoint("BOTTOMLEFT", 9, 7)
         f.label = T.Style.Text(f, 12, T.Style.C.text, "OUTLINE")
-        f.label:SetPoint("TOP", 0, -40)
-        f.label:SetWidth(220)
+        f.label:SetPoint("BOTTOMLEFT", 32, 10)
+        f.label:SetWidth(182)
         f.label:SetWordWrap(false)
         f.distance = T.Style.Text(f, 11, T.Style.C.text, "OUTLINE")
-        f.distance:SetPoint("TOP", 0, -57)
+        f.distance:SetPoint("BOTTOMRIGHT", -10, 10)
         local close = CreateFrame("Button", nil, f)
         close:SetSize(18, 18)
-        close:SetPoint("LEFT", f.tex, "RIGHT", 3, 0)
+        close:SetPoint("TOPRIGHT", -3, -3)
+        close:SetFrameLevel(f:GetFrameLevel() + 5)
+        close:EnableMouse(true)
+        close:RegisterForClicks("LeftButtonUp")
         close.text = T.Style.Text(close, 12, T.Style.C.text, "OUTLINE")
         close.text:SetPoint("CENTER")
         close.text:SetText("x")
-        close:SetScript("OnClick", function() W:Command("clear") end)
+        close:SetScript("OnClick", function()
+            GameTooltip:Hide()
+            W:Command("clear")
+        end)
+        f.close = close
         close:SetScript("OnEnter", function()
             GameTooltip:SetOwner(close, "ANCHOR_RIGHT")
             GameTooltip:AddLine("Clear waypoint")
@@ -188,7 +238,7 @@ T:NewModule("waypoints", {
         end)
         close:SetScript("OnLeave", function() GameTooltip:Hide() end)
         T.Movers.ApplyPoint(f, W.db)
-        T.Movers:Register(f, { label = "Waypoint arrow", cfg = function() return W.db end,
+        T.Movers:Register(f, { label = "Waypoint compass", cfg = function() return W.db end,
             enabled = function() return true end, corner = function() return W.db.point[1] end })
         f:Hide()
         SlashCmdList.TEMPUSWAY = function(text) W:Command(text) end

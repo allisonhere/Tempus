@@ -17,7 +17,7 @@ assert(DB.texts.speed.text():find("%+60%%"), DB.texts.speed.text())
 GetUnitSpeed = function() return 0, 7, 7, 4.7 end
 assert(DB.texts.speed.text():find("%+0%%"))
 GetUnitSpeed = nil
-assert(DB.texts.speed.text() == "Speed --")
+assert(DB.texts.speed.text() == "--")
 print("PASS: info bar movement speed")
 assert(DB.SpeedReadout(7, "KMH") == " 23.0 km/h")
 assert(DB.SpeedReadout(7, "MPH") == " 14.3 mph")
@@ -28,3 +28,5 @@ GetUnitSpeed = function() return 11.2, 11.2, 7, 4.7 end
 DB.db = { speedUnit = "MPH" }
 assert(DB.texts.speed.text():find("22.9 mph", 1, true))
 assert(DB.texts.speed.text():find("%+60%%"), "unit readout retains the speed bonus")
+
+assert(not DB.texts.speed.text():find("Speed", 1, true), "compact readout omits the speed label")

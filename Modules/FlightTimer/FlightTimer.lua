@@ -108,7 +108,8 @@ T:NewModule("flighttimer", {
         ev:RegisterEvent("TAXIMAP_OPENED")
         ev:SetScript("OnEvent", T:Wrap("flighttimer.map", function() FT:ReadMap() end))
         local acc = 0
-        f:SetScript("OnUpdate", T:Wrap("flighttimer.tick", function(_, elapsed)
+        -- Keep watching while the display is hidden: hidden frames do not receive OnUpdate.
+        ev:SetScript("OnUpdate", T:Wrap("flighttimer.tick", function(_, elapsed)
             acc = acc + elapsed
             if acc < 0.2 then return end
             acc = 0

@@ -44,7 +44,7 @@ end
 W.STYLES = {
     DRUM = { label = "Drum", curve = true, drum = true,
         tape = { 1, 1, 1, 1 }, tick = { 0.04, 0.04, 0.04 }, text = { 0.02, 0.02, 0.02 }, red = true },
-    FLAT = { label = "Flat tape", panel = true, fill = { 0.04, 0.05, 0.065, 0.94 },
+    FLAT = { label = "Flat tape",
         tape = { 0.1, 0.12, 0.15, 1 }, tick = { 0.82, 0.85, 0.9 }, text = { 0.92, 0.94, 0.97 } },
     MINIMAL = { label = "Minimal", tick = { 1, 1, 1 }, text = { 1, 1, 1 } },
     -- No compass at all: a small line of text with an arrow that points the way.

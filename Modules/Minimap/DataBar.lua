@@ -228,6 +228,42 @@ Add("coords", "Coordinates", {
     click = function() if ToggleWorldMap then ToggleWorldMap() end end,
 })
 
+-- Movement speed as a bonus over the base run speed of 7 yards a second: a 60% mount reads +60%.
+-- `speeds` is what GetUnitSpeed("player") gives: current, run, flight, swim. The speed that applies is the
+-- flight speed when flying, the swim speed when swimming, otherwise the run speed.
+local BASE_SPEED = 7
+function DB.SpeedBonus(speeds, flying, swimming)
+    local v = flying and speeds[3] or swimming and speeds[4] or speeds[2]
+    if not T.Num(v) or v <= 0 then return nil end
+    return math.floor((v / BASE_SPEED - 1) * 100 + 0.5)
+end
+
+local function PlayerSpeeds()
+    if not GetUnitSpeed then return {} end
+    local current, run, flight, swim = GetUnitSpeed("player")
+    return { current, run, flight, swim }
+end
+
+Add("speed", "Movement speed", {
+    interval = 0.5,
+    text = function()
+        local bonus = DB.SpeedBonus(PlayerSpeeds(), IsFlying and IsFlying(), IsSwimming and IsSwimming())
+        if not bonus then return "Speed --" end
+        return ("Speed |cff%s%+d%%|r"):format(bonus > 0 and T.accentHex or "8a93a0", bonus)
+    end,
+    tooltip = function(tt)
+        tt:AddLine("Movement speed", 1, 1, 1)
+        local speeds = PlayerSpeeds()
+        for i, label in ipairs({ "Run", "Flight", "Swim" }) do
+            local v = speeds[i + 1]
+            if T.Num(v) and v > 0 then
+                tt:AddDoubleLine(label, ("%+d%%"):format(math.floor((v / BASE_SPEED - 1) * 100 + 0.5)), 0.7, 0.75, 0.8, 1, 1, 1)
+            end
+        end
+        tt:AddLine("A percent over the base run speed of 7 yards a second.", 0.5, 0.55, 0.6, true)
+    end,
+})
+
 Add("xp", "Experience", {
     events = { "PLAYER_XP_UPDATE", "UPDATE_EXHAUSTION", "PLAYER_LEVEL_UP" },
     text = function()

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Compass styles.** Waypoints > Compass style: Drum (the curved metal drum), Flat tape (a dark strip with evenly spaced degrees) and Minimal (just the marks, no panel).
+
 ## 2.21.0
 
 ### Added

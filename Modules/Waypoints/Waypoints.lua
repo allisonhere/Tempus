@@ -32,9 +32,26 @@ function W.Project(dx, dy, radius, half, facing)
 end
 
 -- Compass tape spans 180 degrees; destinations behind you clamp to its edge.
-function W.CompassOffset(angle)
+-- `linear` spaces degrees evenly (flat styles); otherwise they bunch toward the edges like a drum.
+function W.CompassOffset(angle, linear)
     angle = (angle + math.pi) % (2 * math.pi) - math.pi
-    return math.sin(math.max(-math.pi / 2, math.min(math.pi / 2, angle))) * 85
+    angle = math.max(-math.pi / 2, math.min(math.pi / 2, angle))
+    if linear then return angle / (math.pi / 2) * 85 end
+    return math.sin(angle) * 85
+end
+
+-- Compass looks. drum: curved brushed-metal drum; tape: flat dark strip; panel: a backdrop at all.
+W.STYLES = {
+    DRUM = { label = "Drum", curve = true, drum = true, panel = true, fill = { 0.035, 0.045, 0.055, 0.96 },
+        tape = { 1, 1, 1, 1 }, tick = { 0.04, 0.04, 0.04 }, text = { 0.02, 0.02, 0.02 }, red = true },
+    FLAT = { label = "Flat tape", panel = true, fill = { 0.04, 0.05, 0.065, 0.94 },
+        tape = { 0.1, 0.12, 0.15, 1 }, tick = { 0.82, 0.85, 0.9 }, text = { 0.92, 0.94, 0.97 } },
+    MINIMAL = { label = "Minimal", tick = { 1, 1, 1 }, text = { 1, 1, 1 } },
+}
+W.STYLE_ORDER = { "DRUM", "FLAT", "MINIMAL" }
+
+function W:Style()
+    return W.STYLES[self.db and self.db.style] or W.STYLES.DRUM
 end
 
 function W:UpdateCompass(facing)
@@ -44,12 +61,38 @@ function W:UpdateCompass(facing)
         local angle = (i * math.pi / 36 + (facing or 0) + math.pi) % (2 * math.pi) - math.pi
         tick:SetShown(facing ~= nil and math.abs(angle) <= math.pi / 2)
         local curve = math.max(0, math.cos(angle))
+        local drum = self:Style().curve
         tick:SetAlpha(0.25 + 0.75 * curve)
-        local scale = math.max(0.65, curve)
+        local scale = drum and math.max(0.65, curve) or 1
         tick:SetScale(scale)
         tick:ClearAllPoints()
-        tick:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(angle) / scale, (-7 - 3 * (1 - curve)) / scale)
+        tick:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(angle, not drum) / scale,
+            (-7 - (drum and 3 * (1 - curve) or 0)) / scale)
     end
+end
+
+-- Recolour and show or hide the pieces for the chosen look.
+function W:ApplyStyle()
+    local f, st = self.arrow, self:Style()
+    if not (f and f.ticks) then return end
+    local backdrop = f.tempusBackdrop
+    if type(backdrop) == "table" then
+        backdrop:SetShown(st.panel and true or false)
+        if st.fill then backdrop:SetFillColor(st.fill[1], st.fill[2], st.fill[3], st.fill[4]) end
+    end
+    f.tape:SetShown(st.tape ~= nil)
+    if st.tape then f.tape:SetColorTexture(st.tape[1], st.tape[2], st.tape[3], st.tape[4]) end
+    for _, tex in ipairs(f.drumParts) do tex:SetShown(st.drum and true or false) end
+    for i = 0, 71 do
+        f.tickLines[i]:SetColorTexture(st.tick[1], st.tick[2], st.tick[3], 1)
+        if f.tickLabels[i] then f.tickLabels[i]:SetTextColor(st.text[1], st.text[2], st.text[3]) end
+    end
+    local a = T.accent or { 1, 1, 1 }
+    local r, g, b = 0.9, 0.08, 0.05
+    if not st.red then r, g, b = a[1], a[2], a[3] end
+    f.pointer:SetVertexColor(r, g, b, 1)
+    f.needle:SetColorTexture(r, g, b, 0.85)
+    self:UpdateCompass(0)
 end
 
 function W:Command(text)
@@ -169,7 +212,7 @@ function W:Update()
         self.arrow.tex:SetRotation(angle)
         self.arrow.marker:SetShown(Number(facing))
         self.arrow.marker:ClearAllPoints()
-        self.arrow.marker:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(-angle), -27)
+        self.arrow.marker:SetPoint("TOP", self.arrow, "TOP", W.CompassOffset(-angle, not self:Style().curve), -27)
         self.arrow.tex:SetShown(Number(facing) and distance > 10)
         self.arrow.distance:SetText(distance <= 10 and "Arrived" or ("%d yd"):format(distance + 0.5))
         if Minimap and Minimap:IsVisible() then
@@ -195,7 +238,7 @@ end
 
 T:NewModule("waypoints", {
     label = "Waypoints", desc = "/way x y [label]: a direction arrow, distance and pins on both maps. /way clear removes the destination.",
-    defaults = { point = { "TOP", "UIParent", "TOP", 0, -18 } },
+    defaults = { point = { "TOP", "UIParent", "TOP", 0, -18 }, style = "DRUM" },
     OnEnable = function()
         W.db = T.db.waypoints
         local f = CreateFrame("Frame", "TempusWaypointArrow", UIParent)
@@ -208,13 +251,16 @@ T:NewModule("waypoints", {
         f:SetSize(230, 56)
         f:SetFrameStrata("HIGH")
         T.Style.Backdrop(f, { fill = { 0.035, 0.045, 0.055, 0.96 } })
+        f.drumParts = {}
+        local function Part(tex) f.drumParts[#f.drumParts + 1] = tex return tex end
         local tape = f:CreateTexture(nil, "ARTWORK", nil, -2)
+        f.tape = tape
         tape:SetColorTexture(1, 1, 1, 1)
         tape:SetSize(184, 31)
         tape:SetPoint("TOP", 0, -3)
         -- Broad shading leaves a bright centre and darkens the curved drum's sides.
         for _, side in ipairs({ "LEFT", "RIGHT" }) do
-            local shade = f:CreateTexture(nil, "ARTWORK", nil, -1)
+            local shade = Part(f:CreateTexture(nil, "ARTWORK", nil, -1))
             shade:SetTexture("Interface\\Buttons\\WHITE8X8")
             shade:SetSize(80, 31)
             shade:SetPoint("TOP" .. side, side == "LEFT" and 23 or -23, -3)
@@ -226,25 +272,25 @@ T:NewModule("waypoints", {
         end
         -- Brushed metal bezel, dark lower lip, and a narrow reflection on the glass.
         for _, edge in ipairs({ "TOP", "BOTTOM" }) do
-            local rim = f:CreateTexture(nil, "OVERLAY", nil, 2)
+            local rim = Part(f:CreateTexture(nil, "OVERLAY", nil, 2))
             rim:SetTexture("Interface\\Buttons\\WHITE8X8")
             rim:SetSize(190, 3)
             rim:SetPoint("TOP", 0, edge == "TOP" and -1 or -34)
             T.Style.SetGradient(rim, "VERTICAL", 0.12, 0.14, 0.16, 1, 0.68, 0.71, 0.74, 1)
         end
         for _, side in ipairs({ -1, 1 }) do
-            local cap = f:CreateTexture(nil, "OVERLAY", nil, 2)
+            local cap = Part(f:CreateTexture(nil, "OVERLAY", nil, 2))
             cap:SetTexture("Interface\\Buttons\\WHITE8X8")
             cap:SetSize(3, 32)
             cap:SetPoint("TOP", side * 94, -3)
             T.Style.SetGradient(cap, "HORIZONTAL", 0.18, 0.2, 0.23, 1, 0.5, 0.53, 0.56, 1)
         end
-        local glass = f:CreateTexture(nil, "OVERLAY", nil, 3)
+        local glass = Part(f:CreateTexture(nil, "OVERLAY", nil, 3))
         glass:SetTexture("Interface\\Buttons\\WHITE8X8")
         glass:SetSize(178, 9)
         glass:SetPoint("TOP", 0, -4)
         T.Style.SetGradient(glass, "VERTICAL", 1, 1, 1, 0, 1, 1, 1, 0.3)
-        f.ticks = {}
+        f.ticks, f.tickLines, f.tickLabels = {}, {}, {}
         local names = { [0] = "N", [18] = "E", [36] = "S", [54] = "W" }
         for i = 0, 71 do
             local tick = CreateFrame("Frame", nil, f)
@@ -253,10 +299,12 @@ T:NewModule("waypoints", {
             line:SetColorTexture(0.04, 0.04, 0.04, 1)
             line:SetSize(i % 6 == 0 and 2 or 1, i % 6 == 0 and 7 or i % 2 == 0 and 5 or 3)
             line:SetPoint("TOP", 0, 0)
+            f.tickLines[i] = line
             if i % 6 == 0 then
                 local label = T.Style.Text(tick, names[i] and 10 or 8, { 0.02, 0.02, 0.02 }, "")
                 label:SetPoint("TOP", 0, -9)
                 label:SetText(names[i] or tostring(i * 5))
+                f.tickLabels[i] = label
             end
             f.ticks[i] = tick
         end
@@ -267,16 +315,17 @@ T:NewModule("waypoints", {
         center:SetSize(13, 13)
         center:SetRotation(math.pi)
         center:SetPoint("TOP", 0, 2)
+        f.pointer = center
         local needle = f:CreateTexture(nil, "OVERLAY", nil, 4)
         needle:SetColorTexture(0.85, 0.06, 0.04, 0.85)
         needle:SetSize(1, 21)
         needle:SetPoint("TOP", 0, -9)
+        f.needle = needle
         f.marker = f:CreateTexture(nil, "OVERLAY", nil, 5)
         f.marker:SetColorTexture(1, 0.66, 0.05, 1)
         f.marker:SetSize(6, 6)
         f.marker:SetRotation(math.pi / 4)
         f.marker:Hide()
-        W:UpdateCompass(0)
         f.tex = f:CreateTexture(nil, "ARTWORK")
         f.tex:SetTexture("Interface\\Minimap\\MinimapArrow")
         f.tex:SetSize(14, 14)
@@ -311,6 +360,7 @@ T:NewModule("waypoints", {
         T.Movers:Register(f, { label = "Waypoint compass", cfg = function() return W.db end,
             enabled = function() return true end, corner = function() return W.db.point[1] end })
         f:Hide()
+        W:ApplyStyle()
         SlashCmdList.TEMPUSWAY = function(text) W:Command(text) end
         SLASH_TEMPUSWAY1 = "/tway"
         local occupied = false
@@ -330,6 +380,6 @@ T:NewModule("waypoints", {
     end,
     OnSettings = function()
         W.db = T.db.waypoints
-        if W.arrow then T.Movers.ApplyPoint(W.arrow, W.db) end
+        if W.arrow then T.Movers.ApplyPoint(W.arrow, W.db) W:ApplyStyle() end
     end,
 })

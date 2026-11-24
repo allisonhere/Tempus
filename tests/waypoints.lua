@@ -33,6 +33,15 @@ W:Command("#999 50 60")
 assert(W.db.target.label == "Test", "invalid map leaves destination intact")
 W:Command("clear")
 assert(W.db.target == nil)
+near(W.CompassOffset(math.pi / 4, true), 42.5)
+assert(W.CompassOffset(math.pi / 4) > 42.5, "drum bunches degrees toward the edge")
+near(W.CompassOffset(-math.pi, true), -85)
+for _, key in ipairs(W.STYLE_ORDER) do assert(W.STYLES[key].label and W.STYLES[key].tick and W.STYLES[key].text, key) end
+W.db = { style = "nope" }
+assert(W:Style() == W.STYLES.DRUM, "unknown style falls back to the drum")
+W.db = { style = "FLAT" }
+assert(W:Style() == W.STYLES.FLAT)
+W.db = {}
 print("PASS: waypoint coordinates, bearing, minimap rotation, clamping and commands")
 
 -- Exercise real UI updates: hiding a button's parent between mouse-down and mouse-up cancels clicks.

@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Fixed", items = {
+            { 0, "|cffffffffThe waypoint compass now shows over the world map.|r It used to sit behind the map, so a Ctrl+click waypoint set while the map was open looked like nothing happened. The compass lifts above the map while it is open." },
+        } },
+    } },
     { version = "2.23.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffCtrl+click the world map to set a waypoint.|r The game's own map pin now also becomes the Tempus destination, with the compass, distance and minimap pin. A new map click replaces the previous destination, and setting or clearing a destination any other way removes the map pin too, so the compass always follows the latest one. A small note along the bottom of the world map tells you about it. Turn both off in Waypoints settings." },

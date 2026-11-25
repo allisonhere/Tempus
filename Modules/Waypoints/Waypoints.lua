@@ -249,6 +249,12 @@ end
 
 function W:Update()
     local target = self.db.target
+    -- The world map sits above the compass's usual layer, so lift the compass while the map is open.
+    if self.arrow and self.arrow.SetFrameStrata then
+        local open = WorldMapFrame and WorldMapFrame.IsShown and WorldMapFrame:IsShown()
+        local strata = open and "FULLSCREEN_DIALOG" or "HIGH"
+        if self.strata ~= strata then self.strata = strata self.arrow:SetFrameStrata(strata) end
+    end
     if self.mini then self.mini:Hide() end
     if self.world then self.world:Hide() end
     if not target then

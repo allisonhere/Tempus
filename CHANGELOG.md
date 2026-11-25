@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **The waypoint compass now shows over the world map.** It used to sit behind the map, so a Ctrl+click waypoint set while the map was open looked like nothing happened. The compass lifts above the map while it is open.
+
 ## 2.23.0
 
 ### Added

@@ -154,13 +154,22 @@ function W:UpdateMapHint()
         return
     end
     if not self.hint then
+        -- Its own frame above the map canvas: a label on the map frame itself draws underneath it.
         local parent = map.ScrollContainer or map
-        local hint = T.Style.Text(map, 11, { 1, 1, 1 }, "OUTLINE")
-        hint.tempus = true
-        hint:SetPoint("BOTTOM", parent, "BOTTOM", 0, 8)
-        hint:SetText("Ctrl+click to set a Tempus waypoint")
-        hint:SetAlpha(0.75)
-        self.hint = hint
+        local box = CreateFrame("Frame", nil, map)
+        box.tempus = true
+        box:SetFrameStrata("DIALOG")
+        box:SetFrameLevel(parent:GetFrameLevel() + 50)
+        box:SetPoint("BOTTOM", parent, "BOTTOM", 0, 10)
+        local back = box:CreateTexture(nil, "BACKGROUND")
+        back.tempus = true
+        back:SetAllPoints(box)
+        back:SetColorTexture(0, 0, 0, 0.6)
+        local text = T.Style.Text(box, 12, { 1, 1, 1 }, "OUTLINE")
+        text:SetPoint("CENTER")
+        text:SetText("Ctrl+click the map to set a Tempus waypoint")
+        box:SetSize(text:GetStringWidth() + 20, 22)
+        self.hint = box
     end
     self.hint:Show()
 end

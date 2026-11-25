@@ -53,6 +53,12 @@ C_Map.GetUserWaypoint = function() return nil end
 W.db = { mapClick = true }
 W:FromMapPin()
 assert(W.db.target == nil, "cleared map pin changes nothing")
+W.db = { mapClick = true }
+W:Command("10 10 Mine")
+assert(W.db.target.label == "Mine", "a typed waypoint replaces the map one")
+C_Map.GetUserWaypoint = function() return { uiMapID = 37, position = { GetXY = function() return 0.5, 0.5 end } } end
+W:FromMapPin()
+assert(W.db.target.label == "Map waypoint" and W.db.target.x == 0.5, "a new map pin replaces the typed one")
 W.db = {}
 print("PASS: waypoint coordinates, bearing, minimap rotation, clamping and commands")
 

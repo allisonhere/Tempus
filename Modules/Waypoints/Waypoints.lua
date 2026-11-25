@@ -124,13 +124,23 @@ function W:ApplyStyle()
 end
 
 -- Ctrl+click on the world map places the game's own map pin. Follow it: it becomes the destination.
-function W:FromMapPin()
-    if not self.db or self.db.mapClick == false then return end
-    local pin = C_Map and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
-    if type(pin) ~= "table" or not pin.uiMapID or not pin.position then return end
+local function MapPin()
+    local ok, pin = pcall(function() return C_Map and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint() end)
+    if not ok or type(pin) ~= "table" or not pin.uiMapID or not pin.position then return end
     local x, y = pin.position:GetXY()
     if secret(pin.uiMapID) or not Number(x) or not Number(y) then return end
-    self.db.target = { map = pin.uiMapID, x = x, y = y, label = "Map waypoint" }
+    return pin.uiMapID, x, y
+end
+
+-- A new map pin replaces whatever destination was set before. Called on the game's event and from the
+-- refresh tick, so a missed event cannot leave the compass on the old destination.
+function W:FromMapPin()
+    local map, x, y = MapPin()
+    local sig = map and (map .. ":" .. x .. ":" .. y)
+    if sig == self.lastPin then return end
+    self.lastPin = sig
+    if not map or not self.db or self.db.mapClick == false then return end
+    self.db.target = { map = map, x = x, y = y, label = "Map waypoint" }
     T:Print("Waypoint: Map waypoint (%.1f, %.1f).", x * 100, y * 100)
     self:Update()
 end
@@ -166,7 +176,9 @@ function W:Command(text)
         T:Print("Unknown map ID.") return
     end
     self.db.target = point or nil
-    if not point and self.db.mapClick ~= false and C_Map and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
+    -- Any new or cleared destination retires the game's map pin, so the two never disagree.
+    if self.db.mapClick ~= false and C_Map and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
+    self.lastPin = nil
     T:Print(point and ("Waypoint: %s (%.1f, %.1f)."):format(point.label, point.x * 100, point.y * 100) or "Waypoint cleared.")
     self:Update()
 end
@@ -438,6 +450,7 @@ T:NewModule("waypoints", {
         end
         if not occupied then SLASH_TEMPUSWAY2 = "/way"
         else T:Print("/way belongs to another addon; use /tway for Tempus waypoints.") end
+        do local map, x, y = MapPin(); W.lastPin = map and (map .. ":" .. x .. ":" .. y) end
         local pins = CreateFrame("Frame")
         pins:RegisterEvent("USER_WAYPOINT_UPDATED")
         pins:SetScript("OnEvent", T:Wrap("waypoints.mappin", function() W:FromMapPin() end))
@@ -449,6 +462,7 @@ T:NewModule("waypoints", {
             accumulated = 0
             W:Update()
             W:UpdateMapHint()
+            W:FromMapPin()
         end))
     end,
     OnSettings = function()

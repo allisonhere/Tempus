@@ -485,7 +485,8 @@ T:NewModule("waypoints", {
             accumulated = 0
             W:Update()
             W:UpdateMapHint()
-            W:FromMapPin()
+            -- Guarded so a failure here can never repeat ten times a second.
+            pcall(W.FromMapPin, W)
         end))
     end,
     OnSettings = function()

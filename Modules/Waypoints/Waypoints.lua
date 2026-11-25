@@ -135,6 +135,26 @@ function W:FromMapPin()
     self:Update()
 end
 
+-- A faint note along the bottom of the world map, so the Ctrl+click is discoverable.
+function W:UpdateMapHint()
+    local map = WorldMapFrame
+    local on = self.db and self.db.mapClick ~= false and map and map.IsShown and map:IsShown()
+    if not on then
+        if self.hint then self.hint:Hide() end
+        return
+    end
+    if not self.hint then
+        local parent = map.ScrollContainer or map
+        local hint = T.Style.Text(map, 11, { 1, 1, 1 }, "OUTLINE")
+        hint.tempus = true
+        hint:SetPoint("BOTTOM", parent, "BOTTOM", 0, 8)
+        hint:SetText("Ctrl+click to set a Tempus waypoint")
+        hint:SetAlpha(0.75)
+        self.hint = hint
+    end
+    self.hint:Show()
+end
+
 function W:Command(text)
     local map = C_Map and C_Map.GetBestMapForUnit("player")
     local point = W.Parse(text, map)
@@ -428,6 +448,7 @@ T:NewModule("waypoints", {
             if accumulated < 0.1 then return end
             accumulated = 0
             W:Update()
+            W:UpdateMapHint()
         end))
     end,
     OnSettings = function()

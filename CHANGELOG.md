@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.23.2
 
 ### Fixed
 - **World map waypoints no longer announce themselves twice after a temporary map read failure.** Tempus now keeps the last good pin while the game is still making the new pin readable.

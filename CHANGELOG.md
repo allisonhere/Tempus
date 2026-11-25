@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Ctrl+click the world map to set a waypoint.** The game's own map pin now also becomes the Tempus destination, with the compass, distance and minimap pin. Clearing the waypoint (right-click the compass, the x, or `/way clear`) removes the map pin too. Turn it off in Waypoints settings.
+
 ## 2.22.0
 
 ### Added

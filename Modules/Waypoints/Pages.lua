@@ -6,6 +6,7 @@ T:RegisterPage("minimap", { key = "waypoints", label = "Waypoints", order = 5, b
     for _, key in ipairs(T.Waypoints and T.Waypoints.STYLE_ORDER or { "DRUM" }) do
         styles[#styles + 1] = { key, T.Waypoints and T.Waypoints.STYLES[key].label or "Drum" }
     end
+    p:Check(cfg, "mapClick", "Ctrl+click the world map to set a waypoint")
     p:Dropdown(cfg, "style", "Compass style", styles)
-    p:Section("Compass bar", "A compact compass bar at the top of the screen shows heading marks, your destination and distance in yards. The small arrow points straight toward the destination. It does not plan a path around obstacles. The minimap pin stays at the edge for distant destinations. Open the destination's zone on the world map to see its pin. Unlock the UI to move the compass bar. The destination is kept after a reload; right-click the compass, click the x at its top right, or use /way clear to remove it.")
+    p:Section("Compass bar", "A compact compass bar at the top of the screen shows heading marks, your destination and distance in yards. The small arrow points straight toward the destination. It does not plan a path around obstacles. The minimap pin stays at the edge for distant destinations. Open the destination's zone on the world map to see its pin. Unlock the UI to move the compass bar. The destination is kept after a reload; right-click the compass, click the x at its top right, or use /way clear to remove it. Ctrl+click the world map to set a destination by clicking.")
 end })

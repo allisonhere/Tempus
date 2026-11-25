@@ -123,6 +123,18 @@ function W:ApplyStyle()
     self:UpdateCompass(0)
 end
 
+-- Ctrl+click on the world map places the game's own map pin. Follow it: it becomes the destination.
+function W:FromMapPin()
+    if not self.db or self.db.mapClick == false then return end
+    local pin = C_Map and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+    if type(pin) ~= "table" or not pin.uiMapID or not pin.position then return end
+    local x, y = pin.position:GetXY()
+    if secret(pin.uiMapID) or not Number(x) or not Number(y) then return end
+    self.db.target = { map = pin.uiMapID, x = x, y = y, label = "Map waypoint" }
+    T:Print("Waypoint: Map waypoint (%.1f, %.1f).", x * 100, y * 100)
+    self:Update()
+end
+
 function W:Command(text)
     local map = C_Map and C_Map.GetBestMapForUnit("player")
     local point = W.Parse(text, map)
@@ -134,6 +146,7 @@ function W:Command(text)
         T:Print("Unknown map ID.") return
     end
     self.db.target = point or nil
+    if not point and self.db.mapClick ~= false and C_Map and C_Map.ClearUserWaypoint then pcall(C_Map.ClearUserWaypoint) end
     T:Print(point and ("Waypoint: %s (%.1f, %.1f)."):format(point.label, point.x * 100, point.y * 100) or "Waypoint cleared.")
     self:Update()
 end
@@ -266,7 +279,7 @@ end
 
 T:NewModule("waypoints", {
     label = "Waypoints", desc = "/way x y [label]: a direction arrow, distance and pins on both maps. /way clear removes the destination.",
-    defaults = { point = { "TOP", "UIParent", "TOP", 0, -18 }, style = "DRUM" },
+    defaults = { point = { "TOP", "UIParent", "TOP", 0, -18 }, style = "DRUM", mapClick = true },
     OnEnable = function()
         W.db = T.db.waypoints
         local f = CreateFrame("Frame", "TempusWaypointArrow", UIParent)
@@ -405,6 +418,9 @@ T:NewModule("waypoints", {
         end
         if not occupied then SLASH_TEMPUSWAY2 = "/way"
         else T:Print("/way belongs to another addon; use /tway for Tempus waypoints.") end
+        local pins = CreateFrame("Frame")
+        pins:RegisterEvent("USER_WAYPOINT_UPDATED")
+        pins:SetScript("OnEvent", T:Wrap("waypoints.mappin", function() W:FromMapPin() end))
         local driver = CreateFrame("Frame")
         local accumulated = 0
         driver:SetScript("OnUpdate", T:Wrap("waypoints.update", function(_, elapsed)

@@ -42,6 +42,18 @@ assert(W:Style() == W.STYLES.DRUM, "unknown style falls back to the drum")
 W.db = { style = "FLAT" }
 assert(W:Style() == W.STYLES.FLAT)
 W.db = {}
+W.db = { mapClick = true }
+C_Map.GetUserWaypoint = function() return { uiMapID = 37, position = { GetXY = function() return 0.25, 0.75 end } } end
+W:FromMapPin()
+assert(W.db.target.map == 37 and W.db.target.x == 0.25 and W.db.target.y == 0.75, "map pin becomes the destination")
+W.db = { mapClick = false }
+W:FromMapPin()
+assert(W.db.target == nil, "map click can be turned off")
+C_Map.GetUserWaypoint = function() return nil end
+W.db = { mapClick = true }
+W:FromMapPin()
+assert(W.db.target == nil, "cleared map pin changes nothing")
+W.db = {}
 print("PASS: waypoint coordinates, bearing, minimap rotation, clamping and commands")
 
 -- Exercise real UI updates: hiding a button's parent between mouse-down and mouse-up cancels clicks.

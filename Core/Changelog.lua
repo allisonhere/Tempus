@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Added", items = {
+            { 0, "|cffffffffCtrl+click the world map to set a waypoint.|r The game's own map pin now also becomes the Tempus destination, with the compass, distance and minimap pin. Clearing the waypoint (right-click the compass, the x, or |cff9fd6ff/way clear|r) removes the map pin too. Turn it off in Waypoints settings." },
+        } },
+    } },
     { version = "2.22.0", sections = {
         { title = "Added", items = {
             { 0, "|cffffffffCompass styles.|r Waypoints > Compass style: Drum (the curved metal drum, now without the dark box behind it), Flat tape (a dark strip with evenly spaced degrees, no box behind it), Minimal (just the marks, no panel) and Small arrow (a real arrow on screen that aims at the destination, with the name and distance under it). Right-clicking any compass style now clears the waypoint." },

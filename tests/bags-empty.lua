@@ -42,14 +42,21 @@ assert(moves[2].from[2] == 2 and moves[2].to[1] == 2, "arrows to the quiver")
 for _, m in ipairs(moves) do assert(c:MoveItem(m.from, m.to), "move runs") end
 assert(slots[0][2] == 201 and slots[2][1] == 202 and slots[1][3] == 203 and not slots[1][1], "items landed")
 assert(not c:MoveItem({ 1, 3 }, { 0, 1 }), "never drops onto an occupied slot")
+local moveItem = env.C_Container.PickupContainerItem
+env.C_Container.PickupContainerItem = function() end
+assert(not c:MoveItem({ 1, 3 }, { 2, 2 }), "a refused item move is not reported as successful")
+env.C_Container.PickupContainerItem = moveItem
 
 -- Taking the bag off: it lands in a free plain slot, never the quiver or the backpack slot 0.
 env.C_Container.ContainerIDToInventoryID = function(b) return 19 + b end
 local bagOff
-env.PickupBagFromSlot = function(inv) cursor, bagOff = "bag" .. inv, inv end
+env.PickupBagFromSlot = function() error("protected") end
 slots[1][3] = nil
 slots[0][1] = nil
 assert(c:IsEmpty(1), "bag 1 is empty now")
+local failed, reason = c:UnequipBag(1)
+assert(not failed and reason:find("pick up"), "a refused bag pickup is reported")
+env.PickupBagFromSlot = function(inv) cursor, bagOff = "bag" .. inv, inv end
 local ok = c:UnequipBag(1)
 assert(ok and bagOff == 20 and slots[0][1] == "bag20" and cursor == nil, "bag went into the backpack's free slot")
 local okB, why = c:UnequipBag(0)
@@ -58,9 +65,15 @@ slots[0][1], slots[1][3] = 101, 203
 
 -- Dragging bags on and off the bar.
 local putBag, putPack
-env.PutItemInBag = function(inv) putBag, cursor = inv, nil end
+local pickupBag = env.PickupBagFromSlot
+env.PickupBagFromSlot = function() error("protected") end
+assert(not c:PickupBag(2), "a refused bag pickup is not reported as successful")
+env.PickupBagFromSlot = pickupBag
+env.PutItemInBag = function() error("protected") end
 env.PutItemInBackpack = function() putPack, cursor = true, nil end
 assert(c:PickupBag(2) and cursor == "bag21", "a bag comes off onto the cursor")
+assert(not c:DropOnBag(1) and cursor == "bag21", "a refused bag drop leaves the item on the cursor")
+env.PutItemInBag = function(inv) putBag, cursor = inv, nil end
 assert(c:DropOnBag(1) and putBag == 20 and cursor == nil, "dropped on a bag slot it equips there")
 assert(not c:DropOnBag(1), "nothing on the cursor, nothing to drop")
 assert(not c:PickupBag(0), "the backpack cannot be dragged off")

@@ -1,6 +1,12 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Fixed", items = {
+            { 0, "|cffffffffWorld map waypoints no longer announce themselves twice after a temporary map read failure.|r Tempus now keeps the last good pin while the game is still making the new pin readable." },
+            { 0, "|cffffffffBag moves no longer claim success when the game refuses them.|r Emptying or dragging a bag now checks that each pickup and drop actually happened." },
+        } },
+    } },
     { version = "2.23.1", sections = {
         { title = "Fixed", items = {
             { 0, "|cffffffffCtrl+click on the world map no longer throws a Lua error.|r The game's map pin could not be read in the instant it was placed; Tempus now retries on its next refresh." },

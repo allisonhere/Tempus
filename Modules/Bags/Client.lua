@@ -28,6 +28,19 @@ local function Call(fn, ...)
     if ok then return a, b, c, d, e, f, g, h, i, j, k, l, m end
 end
 
+local function TryCall(fn, ...)
+    if type(fn) ~= "function" then return false end
+    return pcall(fn, ...)
+end
+
+local function CursorFull(env)
+    return type(env.CursorHasItem) == "function" and Call(env.CursorHasItem) and true or false
+end
+
+local function ClearHeldCursor(env)
+    if CursorFull(env) and type(env.ClearCursor) == "function" then Call(env.ClearCursor) end
+end
+
 -- Like Call, for functions with more return values than Call forwards.
 local function CallAll(fn, ...)
     if type(fn) ~= "function" then return end
@@ -140,14 +153,20 @@ function Client:UnequipBag(container)
     if not (T.Num(invSlot) and type(pickBag) == "function" and type(pickup) == "function") then
         return false, "this client cannot move bags"
     end
-    if env.CursorHasItem and Call(env.CursorHasItem) then return false, "your cursor is holding something" end
+    if CursorFull(env) then return false, "your cursor is holding something" end
     for _, id in ipairs(self:ContainerIDs("CARRIED")) do
         if id ~= container and id >= (env.BACKPACK_CONTAINER or 0) and self:BagFamily(id) == 0 then
             for slot = 1, self:SlotCount(id) do
                 if self:SlotItem(id, slot) == nil then
-                    Call(pickBag, invSlot)
-                    Call(pickup, id, slot)
-                    if env.CursorHasItem and Call(env.CursorHasItem) and env.ClearCursor then Call(env.ClearCursor) end
+                    local picked = TryCall(pickBag, invSlot)
+                    if not picked or type(env.CursorHasItem) == "function" and not CursorFull(env) then
+                        return false, "the client did not pick up the bag"
+                    end
+                    local dropped = TryCall(pickup, id, slot)
+                    if not dropped or type(env.CursorHasItem) == "function" and CursorFull(env) then
+                        ClearHeldCursor(env)
+                        return false, "the client did not put the bag in the free slot"
+                    end
                     return true
                 end
             end
@@ -220,37 +239,43 @@ function Client:PickupBag(container)
     if container == (env.BACKPACK_CONTAINER or 0) then return false end
     local invSlot = Call(C and C.ContainerIDToInventoryID or env.ContainerIDToInventoryID, container)
     if not T.Num(invSlot) or type(env.PickupBagFromSlot) ~= "function" then return false end
-    Call(env.PickupBagFromSlot, invSlot)
-    return true
+    local ok = TryCall(env.PickupBagFromSlot, invSlot)
+    return ok and (type(env.CursorHasItem) ~= "function" or CursorFull(env))
 end
 
 -- Drop whatever the cursor holds on a bag slot: a bag gets equipped there (swapping with the
--- one already in it), any other item goes into that bag. False when the cursor is empty.
+-- one already in it), any other item goes into that bag. False when the cursor is empty or the drop fails.
 function Client:DropOnBag(container)
     local env, C = self.env, self.env.C_Container
-    if not (env.CursorHasItem and Call(env.CursorHasItem)) then return false end
+    if not CursorFull(env) then return false end
+    local ok
     if container == (env.BACKPACK_CONTAINER or 0) then
-        Call(env.PutItemInBackpack)
-        return true
+        ok = TryCall(env.PutItemInBackpack)
+    else
+        local invSlot = Call(C and C.ContainerIDToInventoryID or env.ContainerIDToInventoryID, container)
+        if not T.Num(invSlot) then return false end
+        ok = TryCall(env.PutItemInBag, invSlot)
     end
-    local invSlot = Call(C and C.ContainerIDToInventoryID or env.ContainerIDToInventoryID, container)
-    if not T.Num(invSlot) then return false end
-    Call(env.PutItemInBag, invSlot)
-    return true
+    return ok and not CursorFull(env)
 end
 
--- Pick up an item and drop it in another slot. False when the cursor is busy or either slot is locked.
+-- Pick up an item and drop it in another slot. False when the cursor is busy, a slot is unusable,
+-- or the client refuses either half of the move.
 function Client:MoveItem(from, to)
     local env, C = self.env, self.env.C_Container
     local pickup = C and C.PickupContainerItem or env.PickupContainerItem
     if type(pickup) ~= "function" then return false end
-    if env.CursorHasItem and Call(env.CursorHasItem) then return false end
-    local _, lockedFrom = self:SlotItem(from[1], from[2])
+    if CursorFull(env) then return false end
+    local sourceItem, lockedFrom = self:SlotItem(from[1], from[2])
     local destItem, lockedTo = self:SlotItem(to[1], to[2])
-    if lockedFrom or lockedTo or destItem ~= nil then return false end
-    Call(pickup, from[1], from[2])
-    Call(pickup, to[1], to[2])
-    if env.CursorHasItem and Call(env.CursorHasItem) and env.ClearCursor then Call(env.ClearCursor) end
+    if sourceItem == nil or lockedFrom or lockedTo or destItem ~= nil then return false end
+    local picked = TryCall(pickup, from[1], from[2])
+    if not picked or type(env.CursorHasItem) == "function" and not CursorFull(env) then return false end
+    local dropped = TryCall(pickup, to[1], to[2])
+    if not dropped or type(env.CursorHasItem) == "function" and CursorFull(env) then
+        ClearHeldCursor(env)
+        return false
+    end
     return true
 end
 

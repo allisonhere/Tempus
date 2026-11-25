@@ -46,6 +46,12 @@ W.db = { mapClick = true }
 C_Map.GetUserWaypoint = function() return { uiMapID = 37, position = { GetXY = function() return 0.25, 0.75 end } } end
 W:FromMapPin()
 assert(W.db.target.map == 37 and W.db.target.x == 0.25 and W.db.target.y == 0.75, "map pin becomes the destination")
+local messageCount = #messages
+C_Map.GetUserWaypoint = function() error("pin is temporarily unreadable") end
+W:FromMapPin()
+C_Map.GetUserWaypoint = function() return { uiMapID = 37, position = { GetXY = function() return 0.25, 0.75 end } } end
+W:FromMapPin()
+assert(#messages == messageCount, "a transient pin read failure must not rediscover and announce the same pin")
 W.db = { mapClick = false }
 W:FromMapPin()
 assert(W.db.target == nil, "map click can be turned off")

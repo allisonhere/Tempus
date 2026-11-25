@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- **World map waypoints no longer announce themselves twice after a temporary map read failure.** Tempus now keeps the last good pin while the game is still making the new pin readable.
+- **Bag moves no longer claim success when the game refuses them.** Emptying or dragging a bag now checks that each pickup and drop actually happened.
+
 ## 2.23.1
 
 ### Fixed

@@ -134,16 +134,18 @@ local function ReadPin()
     return pin.uiMapID, x, y
 end
 
--- The game can fire its event before the pin is fully readable; a failed read just means "try again".
+-- The game can fire its event before the pin is fully readable. Keep read failure separate from
+-- a real "no pin" result so a transient error does not retire and then rediscover the same pin.
 local function MapPin()
     local ok, map, x, y = pcall(ReadPin)
-    if ok then return map, x, y end
+    return ok, map, x, y
 end
 
 -- A new map pin replaces whatever destination was set before. Called on the game's event and from the
 -- refresh tick, so a missed event cannot leave the compass on the old destination.
 function W:FromMapPin()
-    local map, x, y = MapPin()
+    local readable, map, x, y = MapPin()
+    if not readable then return end
     local sig = map and (map .. ":" .. x .. ":" .. y)
     if sig == self.lastPin then return end
     self.lastPin = sig
@@ -473,7 +475,10 @@ T:NewModule("waypoints", {
         end
         if not occupied then SLASH_TEMPUSWAY2 = "/way"
         else T:Print("/way belongs to another addon; use /tway for Tempus waypoints.") end
-        do local map, x, y = MapPin(); W.lastPin = map and (map .. ":" .. x .. ":" .. y) end
+        do
+            local readable, map, x, y = MapPin()
+            W.lastPin = readable and map and (map .. ":" .. x .. ":" .. y)
+        end
         local pins = CreateFrame("Frame")
         pins:RegisterEvent("USER_WAYPOINT_UPDATED")
         pins:SetScript("OnEvent", T:Wrap("waypoints.mappin", function() W:FromMapPin() end))

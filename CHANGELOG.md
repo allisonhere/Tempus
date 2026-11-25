@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.23.1
 
 ### Fixed
 - **Ctrl+click on the world map no longer throws a Lua error.** The game's map pin could not be read in the instant it was placed; Tempus now retries on its next refresh.

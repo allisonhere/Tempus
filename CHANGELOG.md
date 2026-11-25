@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- **Ctrl+click on the world map no longer throws a Lua error.** The game's map pin could not be read in the instant it was placed; Tempus now retries on its next refresh.
 - **The waypoint compass now shows over the world map.** It used to sit behind the map, so a Ctrl+click waypoint set while the map was open looked like nothing happened. The compass lifts above the map while it is open.
 
 ## 2.23.0

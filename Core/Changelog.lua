@@ -3,6 +3,7 @@ local _, T = ...
 T.changelog = {
     { version = "Unreleased", sections = {
         { title = "Fixed", items = {
+            { 0, "|cffffffffCtrl+click on the world map no longer throws a Lua error.|r The game's map pin could not be read in the instant it was placed; Tempus now retries on its next refresh." },
             { 0, "|cffffffffThe waypoint compass now shows over the world map.|r It used to sit behind the map, so a Ctrl+click waypoint set while the map was open looked like nothing happened. The compass lifts above the map while it is open." },
         } },
     } },

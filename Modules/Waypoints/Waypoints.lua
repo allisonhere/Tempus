@@ -124,12 +124,20 @@ function W:ApplyStyle()
 end
 
 -- Ctrl+click on the world map places the game's own map pin. Follow it: it becomes the destination.
-local function MapPin()
-    local ok, pin = pcall(function() return C_Map and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint() end)
-    if not ok or type(pin) ~= "table" or not pin.uiMapID or not pin.position then return end
-    local x, y = pin.position:GetXY()
+local function ReadPin()
+    local pin = C_Map and C_Map.GetUserWaypoint and C_Map.GetUserWaypoint()
+    if type(pin) ~= "table" or not pin.uiMapID or not pin.position then return end
+    local position = pin.position
+    local x, y
+    if type(position.GetXY) == "function" then x, y = position:GetXY() else x, y = position.x, position.y end
     if secret(pin.uiMapID) or not Number(x) or not Number(y) then return end
     return pin.uiMapID, x, y
+end
+
+-- The game can fire its event before the pin is fully readable; a failed read just means "try again".
+local function MapPin()
+    local ok, map, x, y = pcall(ReadPin)
+    if ok then return map, x, y end
 end
 
 -- A new map pin replaces whatever destination was set before. Called on the game's event and from the

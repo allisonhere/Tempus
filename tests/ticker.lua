@@ -243,4 +243,58 @@ T.db.lists.tickspells.a = "Eviscerate"
 TK:PickSpells(300)
 assert(not TK.smartOn and #TK.spells == 1)
 
+-- Rage: a plain gauge that never ticks; the warrior and bear slots follow what the game lets you cast.
+assert(TK.Mode("rage", nil, nil, 0, true) == "RAGE" and TK.Mode("rage", 5, nil, 5.5, true) == "RAGE", "rage is always a gauge")
+assert(TK.ColorFor("RAGE", "rage") == TK.RAGE_COLOR, "rage has its own colour")
+local rageIds = { ["Mortal Strike"] = 12294, Bloodthirst = 23881, ["Heroic Strike"] = 78, Execute = 5308,
+    Overpower = 7384, ["Mangle (Bear)"] = 33878, Maul = 6807, Swipe = 779 }
+local rageHave, rageUsable = { [78] = true, [5308] = true, [7384] = true }, {}
+IsPlayerSpell = function(id) return rageHave[id] == true end
+local secretAnswer = {}
+local hideAnswers = false
+C_Spell = {
+    GetSpellInfo = function(name) return rageIds[name] and { spellID = rageIds[name], name = name } end,
+    GetSpellPowerCost = function() return { { type = 1, cost = 15 } } end,
+    IsSpellUsable = function(id) if hideAnswers then return secretAnswer end return rageUsable[id] == true, false end,
+}
+local function RageNames(class)
+    local out = {}
+    for _, s in ipairs(TK.SmartSpells(1, class, 300)) do out[#out + 1] = s.name end
+    return table.concat(out, ",")
+end
+assert(RageNames("WARRIOR") == "Heroic Strike", "only the rage sink learned: one slot, not repeated")
+rageUsable[5308] = true
+assert(RageNames("WARRIOR") == "Heroic Strike,Execute", "Execute while the game lets you cast it")
+rageUsable[5308], rageUsable[7384] = false, true
+assert(RageNames("WARRIOR") == "Heroic Strike,Overpower", "Overpower after a dodge")
+rageUsable[5308] = true
+assert(RageNames("WARRIOR") == "Heroic Strike,Execute", "Execute wins over Overpower")
+rageHave[12294], rageUsable[5308], rageUsable[7384] = true, false, false
+assert(RageNames("WARRIOR") == "Mortal Strike,Heroic Strike", "main attack, then the rage sink")
+rageUsable[5308] = true
+T.issecret = function(v) return v == secretAnswer end
+hideAnswers = true
+assert(RageNames("WARRIOR") == "Mortal Strike,Heroic Strike", "a hidden answer never swaps in Execute")
+hideAnswers = false
+T.issecret = function() return false end
+assert(RageNames("DRUID") == "", "no bear spells learned yet")
+rageHave[6807], rageHave[779] = true, true
+assert(RageNames("DRUID") == "Maul,Swipe", "bear: Maul and Swipe")
+rageHave[33878] = true
+assert(RageNames("DRUID") == "Mangle (Bear),Swipe", "bear: Mangle replaces Maul")
+
+-- Warrior run against the fake client: rage shows the bar once you hold some, and never ticks.
+UnitClass = function() return "Warrior", "WARRIOR" end
+ptype, energy = 1, 0
+TK.lastTick = nil
+TK:Refresh()
+assert(TK.kind == "rage" and shown == false, "no rage, out of combat: hidden")
+energy = 25; now = 400; TK:OnPower()
+assert(shown == true, "holding rage shows the bar")
+energy = 45; now = 401; TK:OnPower()
+assert(TK.lastTick == nil, "a rage gain is not a tick")
+TK.db.rage = false
+TK:Refresh()
+assert(TK.kind == nil, "the Rage option turns the gauge off")
+
 print("ticker ok")

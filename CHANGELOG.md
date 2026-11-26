@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.25.0
+
+### Added
+- **Smart strip slots for warriors and bears, and a rage bar.** The Resource ticker now shows your rage as a plain red gauge (it does not tick) for warriors and druids in bear form, with a new Rage option on the Resource ticker page. With your own spell list empty, a warrior's strip shows Mortal Strike, Bloodthirst or Heroic Strike, plus a second slot that becomes Execute or Overpower while the game says you can cast them and Heroic Strike otherwise. A bear's strip shows Mangle (or Maul) and Swipe. Spells you have not learned are skipped.
+
 ## 2.24.0
 
 ### Changed

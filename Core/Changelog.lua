@@ -3,7 +3,8 @@ local _, T = ...
 T.changelog = {
     { version = "Unreleased", sections = {
         { title = "Changed", items = {
-            { 0, "|cffffffffTimer dots count down on their border.|r The border of each dot drains clockwise as your bleed or buff runs out, shifting green to yellow to red and pulsing in the last 3 seconds, in place of the rising fill. The dots are bigger, with a new size slider on the Resource ticker page." },
+            { 0, "|cffffffffTimer dots count down on their border.|r The border of each dot drains clockwise as your bleed or buff runs out, shifting green to yellow to red and pulsing in the last 3 seconds, in place of the rising fill. The dots are bigger." },
+            { 0, "|cffffffffCountdown settings.|r The Resource ticker page now sets the dot size, draining border or falling fill, border thickness, when the pulse starts (or never), and whether the finisher slot has a countdown border. Rogues can have that slot count down Rupture or Slice and Dice." },
             { 0, "|cffffffffResource ticker strip contrast.|r A spell you can cast now is a richer emerald green with white text. Slots you cannot press yet are much fainter, with grey text." },
         } },
         { title = "Added", items = {

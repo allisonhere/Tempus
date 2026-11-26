@@ -22,6 +22,11 @@ TK.defaults = {
     dotNumbers = true,          -- seconds left inside each timer dot
     dots = true,                -- bleed / buff timers at the right end of the bar
     dotSize = 18,               -- big enough for the draining border to read
+    dotStyle = "BORDER",        -- how a dot counts down: BORDER (draining border) | FILL (falling fill)
+    slotGauge = true,           -- the countdown border on the strip's finisher slot
+    rogueGauge = "NONE",        -- what a rogue's finisher slot counts down: NONE | Rupture | Slice and Dice
+    gaugeThickness = 2,
+    gaugePulse = 3,             -- seconds left when a countdown starts pulsing (0 = never)
     width = 220, height = 8,
     visibility = "AUTO",        -- AUTO (in combat or not full) | COMBAT | ALWAYS
     point = { "CENTER", "UIParent", "CENTER", 0, -238 },
@@ -234,6 +239,8 @@ function TK.SmartSpells(ptype, class, now)
     elseif class == "ROGUE" then
         builder = (behind and HasDagger() and Usable(ptype, "Backstab")) or Usable(ptype, "Sinister Strike")
         finisher = Usable(ptype, "Eviscerate")
+        local track = TK.db and TK.db.rogueGauge
+        if finisher and track and track ~= "NONE" then finisher.gauge = track end
     end
     local out = {}
     if builder then out[#out + 1] = builder end
@@ -540,9 +547,6 @@ end
 
 -- Border gauge ------------------------------------------------------------------------------
 -- A frame's border as a countdown: it unwinds clockwise from the top-left over a dim outline.
-TK.GAUGE_THICKNESS = 2
-TK.GAUGE_PULSE = 3          -- seconds left when the border starts pulsing
-
 -- How much of each side (top, right, bottom, left) is still lit with frac of the time left, on a
 -- w by h frame with edges t thick. The sides fit between the top and bottom edges.
 function TK.GaugeLengths(frac, w, h, t)
@@ -558,9 +562,9 @@ function TK.GaugeLengths(frac, w, h, t)
     return out
 end
 
--- Brightness of the lit part: steady, then pulsing twice a second near the end.
-function TK.GaugeAlpha(left, now)
-    if left > TK.GAUGE_PULSE then return 1 end
+-- Brightness of the lit part: steady, then pulsing twice a second in the last pulse seconds.
+function TK.GaugeAlpha(left, now, pulse)
+    if left > (pulse or TK.defaults.gaugePulse) then return 1 end
     return 0.35 + 0.65 * math.abs(math.cos(now * math.pi * 2))
 end
 
@@ -584,10 +588,11 @@ local function HideGauge(g)
 end
 
 local function PaintGauge(g, f, w, h, left, total, now)
-    local t = TK.GAUGE_THICKNESS
+    -- Never thicker than half the frame, or the edges would cross.
+    local t = math.max(1, math.min(TK.db.gaugeThickness, math.floor(math.min(w, h) / 2)))
     local frac = left / total
     local r, gr, b = TK.DotColor(frac)
-    local alpha = TK.GaugeAlpha(left, now)
+    local alpha = TK.GaugeAlpha(left, now, TK.db.gaugePulse)
     local side = math.max(0, h - 2 * t)
     local lengths = TK.GaugeLengths(frac, w, h, t)
     local function Edge(tex, i, len)
@@ -633,16 +638,27 @@ function TK:PaintDots(now)
             d:ClearAllPoints()
             d:SetPoint("TOPLEFT", dots, "TOPLEFT", (i - 1) * (size + 3), 0)
             local numbers = self.db.dotNumbers ~= false
-            if left then
+            local border = self.db.dotStyle ~= "FILL"
+            if left and border then
                 PaintGauge(d.gauge, d, size, size, left, total, now)
                 d.fill:Hide()
-                if numbers then d.text:SetFormattedText("%d", math.ceil(left)) else d.text:SetText("") end
             else
                 HideGauge(d.gauge)
-                d.fill:SetVertexColor(0.5, 0.52, 0.58, 0.25)
+                d.fill:ClearAllPoints()
+                d.fill:SetPoint("BOTTOMLEFT", 1, 1)
+                d.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+                if left then
+                    local frac = left / total
+                    local r, g, b = TK.DotColor(frac)
+                    d.fill:SetVertexColor(r, g, b, TK.GaugeAlpha(left, now, self.db.gaugePulse))
+                    d.fill:SetHeight(math.max(1, (size - 2) * frac))
+                else
+                    d.fill:SetVertexColor(0.5, 0.52, 0.58, 0.25)
+                    d.fill:SetHeight(size - 2)
+                end
                 d.fill:Show()
-                d.text:SetText("")
             end
+            if left and numbers then d.text:SetFormattedText("%d", math.ceil(left)) else d.text:SetText("") end
             d.label:SetText(sp.name:sub(1, 1))
             -- The letter stands in whenever there is no number to show.
             d.label:SetShown(not (left and numbers))
@@ -659,8 +675,6 @@ local function BuildDots(f)
         S.Backdrop(d)
         d.fill = d:CreateTexture(nil, "ARTWORK")
         d.fill:SetTexture(S.BarTexture(T.db and T.db.barTexture))
-        d.fill:SetPoint("TOPLEFT", 1, -1)
-        d.fill:SetPoint("BOTTOMRIGHT", -1, 1)
         d.gauge = BuildGauge(d)
         d.text = d:CreateFontString(nil, "OVERLAY")
         d.text:SetPoint("CENTER")
@@ -737,9 +751,9 @@ function TK:PaintStrip(now)
             local left, total
             if sp.gauge then
                 if sample then left, total = SampleTime(now)
-                else left, total = TK.RunningLeft(sp.gauge, true, now) end
+                else left, total = TK.RunningLeft(sp.gauge, sp.gauge ~= "Slice and Dice", now) end
             end
-            if left then
+            if left and db.slotGauge then
                 seg.gauge = seg.gauge or BuildGauge(seg)
                 PaintGauge(seg.gauge, seg, w, h, left, total, now)
             else

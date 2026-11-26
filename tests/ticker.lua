@@ -228,6 +228,11 @@ assert(Names("ROGUE") == "Sinister Strike,Eviscerate", "no dagger")
 GetInventoryItemID = function() return 1 end
 GetItemInfoInstant = function() return 1, "", "", "", 1, 2, 15 end
 assert(Names("ROGUE") == "Backstab,Eviscerate", "dagger and behind")
+assert(not TK.SmartSpells(3, "ROGUE", 300)[2].gauge, "rogue slot countdown is off by default")
+TK.db.rogueGauge = "Slice and Dice"
+assert(TK.SmartSpells(3, "ROGUE", 300)[2].gauge == "Slice and Dice", "chosen countdown")
+TK.db.rogueGauge = "NONE"
+assert(TK.GaugeAlpha(2, 1.25, 0) == 1 and TK.GaugeAlpha(5, 1.25, 6) < 0.5, "pulse start is a setting")
 -- Your own list turns the slots off.
 UnitClass = function() return "Rogue", "ROGUE" end
 T.db.lists = { tickspells = {} }

@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "2.25.0", sections = {
+        { title = "Added", items = {
+            { 0, "|cffffffffTimer dots for warlocks.|r The Resource ticker's timer dots now track Corruption, Curse of Agony, Immolate and Unstable Affliction on your target, with the same draining border and seconds as the cat and rogue dots. Spells you have not learned are skipped. In combat the dots time themselves from your casts, using the length last seen out of combat or the usual one." },
+        } },
+    } },
     { version = "2.24.0", sections = {
         { title = "Changed", items = {
             { 0, "|cffffffffTimer dots count down on their border.|r The border of each dot drains clockwise as your bleed or buff runs out, shifting green to yellow to red and pulsing in the last 3 seconds, in place of the rising fill. The dots are bigger." },

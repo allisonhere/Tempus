@@ -243,4 +243,20 @@ T.db.lists.tickspells.a = "Eviscerate"
 TK:PickSpells(300)
 assert(not TK.smartOn and #TK.spells == 1)
 
+-- Warlock dots: your DoTs, each with its own label and a cast timer for combat.
+local lockDots = TK.DEFAULT_DOTS.WARLOCK
+assert(#lockDots > 0 and #lockDots <= TK.MAX_DOTS, "warlock dots fit the row")
+local seenShort = {}
+for _, d in ipairs(lockDots) do
+    assert(d.debuff and d.short and not seenShort[d.short], d.name .. ": a debuff on the target with its own label")
+    seenShort[d.short] = true
+    assert(TK.DOT_DURATION[d.name], d.name .. " has a usual length")
+end
+TK.dotList, TK.dotTimers = lockDots, {}
+GetTime = function() return 500 end
+UnitGUID = function() return "Creature-9" end
+TK:OnCast("Curse of Agony")
+assert(TK.TimerLeft("Curse of Agony", true, 510) == 14, "Curse of Agony runs from the cast")
+assert(TK.TimerLeft("Corruption", true, 510) == nil, "a DoT you did not cast has no timer")
+
 print("ticker ok")

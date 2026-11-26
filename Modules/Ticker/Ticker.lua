@@ -466,15 +466,19 @@ end
 -- Timer dots -------------------------------------------------------------------------------
 -- A small square at the right end of the bar for each of your bleeds and buffs. Its border drains
 -- as the time runs out and goes green -> yellow -> red; dim when it is not up.
+-- short is the letter(s) shown while no number is: needed where two names start alike.
 TK.DEFAULT_DOTS = {
     DRUID = { { name = "Rake", debuff = true }, { name = "Rip", debuff = true }, { name = "Savage Roar" } },
     ROGUE = { { name = "Slice and Dice" }, { name = "Rupture", debuff = true } },
+    WARLOCK = { { name = "Corruption", debuff = true, short = "Co" }, { name = "Curse of Agony", debuff = true, short = "Ag" },
+        { name = "Immolate", debuff = true, short = "Im" }, { name = "Unstable Affliction", debuff = true, short = "UA" } },
 }
 TK.MAX_DOTS = 4
 -- In combat the client hides auras from addons (yours and your target's), so the dots also time
 -- themselves from your own casts. Used when the real aura cannot be read; durations are the
 -- usual ones, replaced by what the client reported the last time it let us read the aura.
-TK.DOT_DURATION = { ["Rake"] = 9, ["Rip"] = 12, ["Savage Roar"] = 18, ["Slice and Dice"] = 21, ["Rupture"] = 16 }
+TK.DOT_DURATION = { ["Rake"] = 9, ["Rip"] = 12, ["Savage Roar"] = 18, ["Slice and Dice"] = 21, ["Rupture"] = 16,
+    ["Corruption"] = 18, ["Curse of Agony"] = 24, ["Immolate"] = 15, ["Unstable Affliction"] = 15 }
 TK.dotTimers = {}
 TK.learned = {}
 
@@ -659,7 +663,7 @@ function TK:PaintDots(now)
                 d.fill:Show()
             end
             if left and numbers then d.text:SetFormattedText("%d", math.ceil(left)) else d.text:SetText("") end
-            d.label:SetText(sp.name:sub(1, 1))
+            d.label:SetText(sp.short or sp.name:sub(1, 1))
             -- The letter stands in whenever there is no number to show.
             d.label:SetShown(not (left and numbers))
             d:Show()

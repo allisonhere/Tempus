@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.25.0
+
+### Added
+- **Timer dots for warlocks.** The Resource ticker's timer dots now track Corruption, Curse of Agony, Immolate and Unstable Affliction on your target, with the same draining border and seconds as the cat and rogue dots. Spells you have not learned are skipped. In combat the dots time themselves from your casts, using the length last seen out of combat or the usual one.
+
 ## 2.24.0
 
 ### Changed

@@ -67,10 +67,13 @@ end
 -- Afford strip ---------------------------------------------------------------------------
 -- A strip under the bar with one segment per tracked spell (the "builders" you press on a tick:
 -- Claw and Shred for a cat, Sinister Strike for a rogue, or your own list). Each segment is
---   NOW   bright green: you can afford the spell right now,
+--   NOW   solid emerald with white text: you can afford the spell right now (faint green with
+--         grey text when you have the energy but something else blocks the cast),
 --   TICK  amber, fading up as the tick approaches: the coming tick gets you there,
 --   LATER dim: even the next tick will not be enough.
-local AFFORD = { NOW = { 0.35, 0.9, 0.45 }, TICK = { 1, 0.8, 0.3 }, LATER = { 0.5, 0.52, 0.58 } }
+local AFFORD = { NOW = { 0.13, 0.87, 0.52 }, TICK = { 1, 0.8, 0.3 }, LATER = { 0.5, 0.52, 0.58 } }
+-- Brightness of a segment you cannot press: far below 1, so a ready one stands out.
+local BLOCKED_ALPHA, LATER_ALPHA = 0.28, 0.16
 TK.AFFORD_COLORS = AFFORD
 TK.DEFAULT_SPELLS = { DRUID = { "Claw", "Shred" }, ROGUE = { "Sinister Strike", "Backstab" } }
 TK.MAX_SEGMENTS = 4
@@ -82,7 +85,7 @@ function TK.AffordState(power, cost, expected, done)
     if T.Num(expected) and power + expected >= cost then
         return "TICK", 0.35 + 0.65 * math.max(0, math.min(1, T.Num(done) and done or 0))
     end
-    return "LATER", 0.35
+    return "LATER", LATER_ALPHA
 end
 
 local function SpellID(entry)
@@ -639,16 +642,20 @@ function TK:PaintStrip(now)
             elseif usable == false and noPower == false then
                 -- Enough energy, but blocked by something else (position, target, form): light it
                 -- softer so you still see the energy is there.
-                state, alpha = "NOW", 0.55
+                state, alpha = "NOW", BLOCKED_ALPHA
             else
                 state, alpha = TK.AffordState(self.last, sp.cost, expected, done)
-                if usable == false and state == "NOW" then state, alpha = "LATER", 0.35 end
+                if usable == false and state == "NOW" then state, alpha = "LATER", LATER_ALPHA end
             end
             seg:SetSize(w, h)
             seg:ClearAllPoints()
             seg:SetPoint("TOPLEFT", strip, "TOPLEFT", (i - 1) * (w + gap), 0)
             local c = AFFORD[state or "LATER"]
-            seg.fill:SetVertexColor(c[1], c[2], c[3], alpha or 0.35)
+            seg.fill:SetVertexColor(c[1], c[2], c[3], alpha or LATER_ALPHA)
+            -- The label dims with its segment; amber stays white as the tick is about to land.
+            local lit = state == "TICK" or (state == "NOW" and alpha == 1)
+            local shade = lit and 1 or 0.55
+            seg.text:SetTextColor(shade, shade, shade)
             seg.text:SetShown(h >= 9)
             local running = sp.dot and TK.RunningLeft(sp.name, true, now)
             if running then seg.text:SetFormattedText("%s %ds", sp.name, math.ceil(running))

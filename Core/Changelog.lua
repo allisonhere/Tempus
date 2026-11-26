@@ -1,6 +1,11 @@
 -- Generated from CHANGELOG.md by tools/gen_changelog.py. Do not edit by hand.
 local _, T = ...
 T.changelog = {
+    { version = "Unreleased", sections = {
+        { title = "Added", items = {
+            { 0, "|cffffffffSmart strip slots for cats and rogues.|r With your own spell list empty, the Resource ticker strip now shows a builder and a finisher picked for the moment: Claw while the mob is attacking you and Shred while it is attacking someone else (Sinister Strike or Backstab with a dagger for rogues), then Rip with its time left, and Ferocious Bite while Rip is running (Eviscerate for rogues). New spells fill in as you learn them. Turn it off on the Resource ticker page." },
+        } },
+    } },
     { version = "2.23.2", sections = {
         { title = "Fixed", items = {
             { 0, "|cffffffffWorld map waypoints no longer announce themselves twice after a temporary map read failure.|r Tempus now keeps the last good pin while the game is still making the new pin readable." },

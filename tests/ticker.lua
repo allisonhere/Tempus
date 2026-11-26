@@ -146,4 +146,81 @@ assert(TK.TimerLeft("Rip", true, 104) == nil, "another target does not show it")
 assert(TK.TimerLeft("Savage Roar", false, 104) == 14, "buffs follow you")
 assert(TK.TimerLeft("Claw", false, 104) == nil, "untracked spell has no timer")
 
+-- Smart slots: the builder follows who the mob is attacking, the finisher follows your Rip.
+local ids = { Claw = 1082, Shred = 5221, Rip = 1079, ["Ferocious Bite"] = 22568,
+    ["Sinister Strike"] = 1752, Backstab = 53, Eviscerate = 2098 }
+local have = { [1082] = true, [5221] = true, [1079] = true }
+IsPlayerSpell = function(id) return have[id] == true end
+C_Spell = {
+    GetSpellInfo = function(name) return ids[name] and { spellID = ids[name], name = name } end,
+    GetSpellPowerCost = function() return { { type = 3, cost = 30 } } end,
+}
+UnitAura = nil
+TK.dotTimers = {}
+local exists = { target = true, targettarget = true }
+local onMe, grouped = true, false
+UnitExists = function(u) return exists[u] == true end
+UnitIsUnit = function() return onMe end
+IsInGroup = function() return grouped end
+local function Names(class, at)
+    local out = {}
+    for _, s in ipairs(TK.SmartSpells(3, class, at or 300)) do out[#out + 1] = s.name end
+    return table.concat(out, ",")
+end
+assert(Names("DRUID") == "Claw,Rip", "mob on you: Claw")
+onMe = false
+assert(Names("DRUID") == "Shred,Rip", "mob on someone else: Shred")
+exists.targettarget = false
+assert(Names("DRUID") == "Claw,Rip", "an idle mob is not on someone else")
+exists.targettarget, exists.target = true, false
+assert(Names("DRUID") == "Claw,Rip", "no target")
+exists.target = true
+have[5221] = nil
+assert(Names("DRUID") == "Claw,Rip", "Shred not learned yet")
+have[5221] = true
+-- The game's own error beats the guess for a few seconds.
+SPELL_FAILED_NOT_BEHIND = "You must be behind your target."
+TK:OnError("Not enough energy", 300)
+assert(Names("DRUID") == "Shred,Rip")
+TK:OnError(SPELL_FAILED_NOT_BEHIND, 300)
+assert(Names("DRUID", 301) == "Claw,Rip", "told we are in front")
+assert(Names("DRUID", 305) == "Shred,Rip", "and tries Shred again later")
+-- Hidden answer: fall back to group and role.
+local hidden = {}
+T.issecret = function(v) return v == hidden end
+UnitIsUnit = function() return hidden end
+assert(Names("DRUID", 310) == "Claw,Rip", "hidden and solo: Claw")
+grouped = true
+assert(Names("DRUID", 310) == "Shred,Rip", "hidden in a group: Shred")
+UnitGroupRolesAssigned = function() return "TANK" end
+assert(Names("DRUID", 310) == "Claw,Rip", "hidden and tanking: Claw")
+UnitGroupRolesAssigned = nil
+T.issecret = function() return false end
+UnitIsUnit = function() return onMe end
+-- Ferocious Bite takes the slot only while Rip runs.
+have[22568] = true
+assert(Names("DRUID", 320) == "Shred,Rip", "Rip first")
+TK.dotTimers.Rip = { exp = 332, dur = 12 }
+assert(Names("DRUID", 321) == "Shred,Ferocious Bite", "Rip ticking: Bite")
+assert(Names("DRUID", 333) == "Shred,Rip", "Rip fell off")
+have[22568] = nil
+local slots = TK.SmartSpells(3, "DRUID", 321)
+assert(slots[2].name == "Rip" and slots[2].dot, "without Bite the Rip slot shows its time")
+-- Rogues: Backstab needs a dagger.
+TK.frontUntil = nil
+have = { [1752] = true, [53] = true, [2098] = true }
+assert(Names("ROGUE") == "Sinister Strike,Eviscerate", "no dagger")
+GetInventoryItemID = function() return 1 end
+GetItemInfoInstant = function() return 1, "", "", "", 1, 2, 15 end
+assert(Names("ROGUE") == "Backstab,Eviscerate", "dagger and behind")
+-- Your own list turns the slots off.
+UnitClass = function() return "Rogue", "ROGUE" end
+T.db.lists = { tickspells = {} }
+TK.ptype = 3
+TK:PickSpells(300)
+assert(TK.smartOn and #TK.spells == 2)
+T.db.lists.tickspells.a = "Eviscerate"
+TK:PickSpells(300)
+assert(not TK.smartOn and #TK.spells == 1)
+
 print("ticker ok")

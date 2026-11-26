@@ -10,7 +10,7 @@ Forever hides health, auras and range from addons during combat. Tempus is writt
 - **Nameplates** that show threat, interruptible casts (with your own interrupt's cooldown), quest progress, a level and danger strip, and the buffs you can dispel or steal.
 - **Buffs and debuffs** with timers, a watch list for buffs you never want to forget, and expiry warnings.
 - **Combat Pulse**, one compact strip with your DPS, a swing line, and small cues that appear only when they matter: an interruptible cast, a buff to purge, threat trouble, the execute range.
-- **Swing timer, resource ticker, cooldown row and danger alerts** for auto attacks, energy and mana ticks, spells you pick, and elites or crowds you should notice. Under the tick bar, a strip lights up when you can cast Claw, Shred or your own picks, and small dots time your bleeds and buffs. Both can be moved.
+- **Swing timer, resource ticker, cooldown row and danger alerts** for auto attacks, energy and mana ticks, spells you pick, and elites or crowds you should notice. Under the tick bar, a strip lights up when you can cast your builder and finisher (it picks between spells such as Claw and Shred based on who the mob is attacking) or your own picks, and small dots time your bleeds and buffs. Both can be moved.
 - **Cooldown and debuff timelines.** Show your cooldowns, or your own debuffs on the target, as icons that fall down a themed timeline toward the moment they are ready or run out. Background, fade, columns and size are adjustable, with a live preview in settings.
 - **Action bars** with fading, hotkeys and range colouring.
 

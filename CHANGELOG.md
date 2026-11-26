@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Smart strip slots for cats and rogues.** With your own spell list empty, the Resource ticker strip now shows a builder and a finisher picked for the moment: Claw while the mob is attacking you and Shred while it is attacking someone else (Sinister Strike or Backstab with a dagger for rogues), then Rip with its time left, and Ferocious Bite while Rip is running (Eviscerate for rogues). New spells fill in as you learn them. Turn it off on the Resource ticker page.
+
 ## 2.23.2
 
 ### Fixed

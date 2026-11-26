@@ -15,6 +15,7 @@ TK.defaults = {
     showFsr = true,             -- the 5-second countdown after spending mana
     showText = true,            -- current power on the bar
     afford = true,              -- the strip under the bar: can you afford your spells now / at the next tick
+    smart = true,               -- with no list of your own: pick the builder and finisher for the situation
     affordHeight = 12,
     stripPos = {},              -- where you dragged the strip / the dots (empty = follow the bar)
     dotsPos = {},
@@ -126,13 +127,9 @@ function TK.IsUsable(id)
     return usable == true, noPower == true
 end
 
--- The spells to watch: your own list if you made one, else the class defaults. Each is
--- { name, cost } for spells you know that cost the current power; at most MAX_SEGMENTS.
-function TK.TrackedSpells(ptype, listed, class)
-    local entries = {}
-    for _, v in pairs(listed or {}) do entries[#entries + 1] = v end
-    table.sort(entries, function(a, b) return tostring(a):lower() < tostring(b):lower() end)
-    if #entries == 0 then entries = TK.DEFAULT_SPELLS[class] or {} end
+-- { name, cost, id } for each entry you know that costs the current power, in the order given;
+-- at most MAX_SEGMENTS.
+function TK.ResolveSpells(ptype, entries)
     local out = {}
     for _, entry in ipairs(entries) do
         local id = SpellID(entry)
@@ -145,6 +142,91 @@ function TK.TrackedSpells(ptype, listed, class)
                 if #out >= TK.MAX_SEGMENTS then break end
             end
         end
+    end
+    return out
+end
+
+-- The spells to watch: your own list if you made one, else the class defaults.
+function TK.TrackedSpells(ptype, listed, class)
+    local entries = {}
+    for _, v in pairs(listed or {}) do entries[#entries + 1] = v end
+    table.sort(entries, function(a, b) return tostring(a):lower() < tostring(b):lower() end)
+    if #entries == 0 then entries = TK.DEFAULT_SPELLS[class] or {} end
+    return TK.ResolveSpells(ptype, entries)
+end
+
+-- Smart slots ----------------------------------------------------------------------------
+-- With no list of your own, cats and rogues get a builder and a finisher picked for the moment.
+TK.SMART = { DRUID = true, ROGUE = true }
+TK.FRONT_HOLD = 4           -- seconds to trust the game's "you must be behind your target"
+
+-- A unit answer that may be missing or hidden: true, false, or nil when the client will not say.
+local function Answer(fn, ...)
+    if type(fn) ~= "function" then return nil end
+    local ok, v = pcall(fn, ...)
+    if not ok or (T.issecret and T.issecret(v)) then return nil end
+    return v and true or false
+end
+
+-- Can you attack from behind? Addons cannot see facing, so: a mob attacking you faces you,
+-- a mob attacking someone else can be got behind. When the client will not say who it is
+-- attacking, assume behind only in a group where you are not the tank.
+function TK.CanBeBehind(now)
+    if TK.frontUntil and now < TK.frontUntil then return false end
+    if Answer(UnitExists, "target") == false then return false end
+    local has = Answer(UnitExists, "targettarget")
+    if has == false then return false end
+    local onMe = has and Answer(UnitIsUnit, "targettarget", "player")
+    if onMe ~= nil then return not onMe end
+    if not Answer(IsInGroup) then return false end
+    local ok, role = pcall(UnitGroupRolesAssigned or function() end, "player")
+    return not (ok and role == "TANK")
+end
+
+-- The game's red "You must be behind your target": you are in front, whatever we guessed.
+function TK:OnError(message, now)
+    if type(message) ~= "string" or (T.issecret and T.issecret(message)) then return end
+    if SPELL_FAILED_NOT_BEHIND and message == SPELL_FAILED_NOT_BEHIND then
+        self.frontUntil = now + TK.FRONT_HOLD
+    end
+end
+
+local function HasDagger()
+    local fn = (C_Item and C_Item.GetItemInfoInstant) or GetItemInfoInstant
+    if not (fn and GetInventoryItemID) then return false end
+    local okI, item = pcall(GetInventoryItemID, "player", 16)
+    if not okI or not item then return false end
+    local ok, _, _, _, _, _, classID, subClassID = pcall(fn, item)
+    return ok and classID == 2 and subClassID == 15
+end
+
+-- Seconds left on your bleed on the current target (or your buff), from the aura or your cast.
+function TK.RunningLeft(name, harmful, now)
+    local left = TK.AuraLeft(harmful and "target" or "player", name, harmful, now)
+    return left or (TK.TimerLeft(name, harmful, now))
+end
+
+local function Usable(ptype, name) return TK.ResolveSpells(ptype, { name })[1] end
+
+-- The builder and finisher for right now, skipping any you have not learned.
+function TK.SmartSpells(ptype, class, now)
+    local behind = TK.CanBeBehind(now)
+    local builder, finisher
+    if class == "DRUID" then
+        builder = (behind and Usable(ptype, "Shred")) or Usable(ptype, "Claw")
+        local rip = Usable(ptype, "Rip")
+        -- Ferocious Bite takes the slot while your Rip is still ticking.
+        local bite = (not rip or TK.RunningLeft("Rip", true, now)) and Usable(ptype, "Ferocious Bite")
+        finisher = bite or rip
+    elseif class == "ROGUE" then
+        builder = (behind and HasDagger() and Usable(ptype, "Backstab")) or Usable(ptype, "Sinister Strike")
+        finisher = Usable(ptype, "Eviscerate")
+    end
+    local out = {}
+    if builder then out[#out + 1] = builder end
+    if finisher then
+        if finisher.name == "Rip" then finisher.dot = true end
+        out[#out + 1] = finisher
     end
     return out
 end
@@ -173,7 +255,21 @@ function TK.Debug()
         tostring(C_Spell and type(C_Spell.GetSpellPowerCost)), tostring(type(GetSpellPowerCost)), tostring(type(IsPlayerSpell)))
     local entries = {}
     for _, v in pairs(T.db.lists and T.db.lists.tickspells or {}) do entries[#entries + 1] = v end
-    if #entries == 0 then entries = TK.DEFAULT_SPELLS[class] or {} end
+    if #entries == 0 then
+        entries = TK.DEFAULT_SPELLS[class] or {}
+        if db and db.smart and TK.SMART[class] then
+            entries = {}
+            for _, s in ipairs(TK.spells or {}) do entries[#entries + 1] = s.name end
+            local function Read(fn, ...)
+                local ok, v = pcall(fn or function() end, ...)
+                if not ok then return "error" end
+                return T.issecret and T.issecret(v) and "SECRET" or tostring(v)
+            end
+            Add("smart slots: behind guess=%s, target=%s, target's target=%s, is you=%s, front hold=%s",
+                tostring(TK.CanBeBehind(GetTime())), Read(UnitExists, "target"), Read(UnitExists, "targettarget"),
+                Read(UnitIsUnit, "targettarget", "player"), tostring(TK.frontUntil and GetTime() < TK.frontUntil or false))
+        end
+    end
     if #entries == 0 then Add("no spells to track for %s: add some on the Resource ticker page", tostring(class)) end
     for _, entry in ipairs(entries) do
         local id = SpellID(entry)
@@ -223,7 +319,17 @@ function TK:RebuildSpells()
         if (not id or SpellKnown(id)) and #dl < TK.MAX_DOTS then dl[#dl + 1] = d end
     end
     self.dotList = dl
-    self.spells = self.ptype and TK.TrackedSpells(self.ptype, T.db.lists and T.db.lists.tickspells, class) or {}
+    self:PickSpells(GetTime and GetTime() or 0)
+end
+
+-- The strip's spells: the smart slots when they apply, else your list or the class defaults.
+function TK:PickSpells(now)
+    local class = UnitClass and select(2, UnitClass("player"))
+    local listed = T.db.lists and T.db.lists.tickspells
+    self.smartOn = self.db and self.db.smart and TK.SMART[class] and not (listed and next(listed)) and true or false
+    if not self.ptype then self.spells = {}
+    elseif self.smartOn then self.spells = TK.SmartSpells(self.ptype, class, now)
+    else self.spells = TK.TrackedSpells(self.ptype, listed, class) end
 end
 
 -- Regen per tick the client reports for the current power.
@@ -544,7 +650,9 @@ function TK:PaintStrip(now)
             local c = AFFORD[state or "LATER"]
             seg.fill:SetVertexColor(c[1], c[2], c[3], alpha or 0.35)
             seg.text:SetShown(h >= 9)
-            seg.text:SetText(sp.name .. " " .. sp.cost)
+            local running = sp.dot and TK.RunningLeft(sp.name, true, now)
+            if running then seg.text:SetFormattedText("%s %ds", sp.name, math.ceil(running))
+            else seg.text:SetText(sp.name .. " " .. sp.cost) end
             seg:Show()
         else
             seg:Hide()
@@ -598,6 +706,11 @@ local function OnUpdate()
             self:Refresh()
             self:OnPower()
         end
+    end
+    -- The smart slots follow your target, so look again several times a second.
+    if self.smartOn and not self.preview and now - (self.pickAt or 0) >= 0.2 then
+        self.pickAt = now
+        self:PickSpells(now)
     end
     Paint(self, self.db, now)
     self:PaintStrip(now)
@@ -752,8 +865,11 @@ T:NewModule("ticker", {
             pcall(ev.RegisterUnitEvent, ev, event, "player")
         end
         pcall(ev.RegisterUnitEvent, ev, "UNIT_SPELLCAST_SUCCEEDED", "player")
-        ev:SetScript("OnEvent", T:Wrap("ticker.events", function(_, event, _, _, spellID)
-            if event == "UNIT_SPELLCAST_SUCCEEDED" then
+        pcall(ev.RegisterEvent, ev, "UI_ERROR_MESSAGE")
+        ev:SetScript("OnEvent", T:Wrap("ticker.events", function(_, event, _, message, spellID)
+            if event == "UI_ERROR_MESSAGE" then
+                TK:OnError(message, GetTime())
+            elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
                 local name
                 if C_Spell and C_Spell.GetSpellName then
                     local ok, n = pcall(C_Spell.GetSpellName, spellID)

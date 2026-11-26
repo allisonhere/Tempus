@@ -290,7 +290,7 @@ function TK.Debug()
                 Read(UnitIsUnit, "targettarget", "player"), tostring(TK.frontUntil and GetTime() < TK.frontUntil or false))
         end
     end
-    if #entries == 0 then Add("no spells to track for %s: add some on the Resource ticker page", tostring(class)) end
+    if #entries == 0 then Add("no spells to track for %s: add some on the Strip & countdowns page", tostring(class)) end
     for _, entry in ipairs(entries) do
         local id = SpellID(entry)
         local known = id and SpellKnown(id)
@@ -948,7 +948,7 @@ T:NewModule("ticker", {
         TK.dots = BuildDots(f)
         local function Extra(frame, label, key)
             T.Movers:Register(frame, {
-                label = label, page = "ticker",
+                label = label, page = "tickerstrip",
                 cfg = function() return TK.db[key] end,
                 corner = function() return "TOPLEFT" end,
                 enabled = function() return TK.db.enabled and TK.db[key == "stripPos" and "afford" or "dots"] end,

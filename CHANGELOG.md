@@ -4,7 +4,7 @@
 
 ### Changed
 - **Timer dots count down on their border.** The border of each dot drains clockwise as your bleed or buff runs out, shifting green to yellow to red and pulsing in the last 3 seconds, in place of the rising fill. The dots are bigger.
-- **Countdown settings.** The Resource ticker page now sets the dot size, draining border or falling fill, border thickness, when the pulse starts (or never), and whether the finisher slot has a countdown border. Rogues can have that slot count down Rupture or Slice and Dice.
+- **Countdown settings.** A new Strip & countdowns page under Combat, split from the Resource ticker page, sets the dot size, draining border or falling fill, border thickness, when the pulse starts (or never), and whether the finisher slot has a countdown border. Rogues can have that slot count down Rupture or Slice and Dice.
 - **Resource ticker strip contrast.** A spell you can cast now is a richer emerald green with white text. Slots you cannot press yet are much fainter, with grey text.
 
 ### Added

@@ -3,9 +3,11 @@
 ## Unreleased
 
 ### Changed
+- **Timer dots count down on their border.** The border of each dot drains clockwise as your bleed or buff runs out, shifting green to yellow to red and pulsing in the last 3 seconds, in place of the rising fill. The dots are bigger, with a new size slider on the Resource ticker page.
 - **Resource ticker strip contrast.** A spell you can cast now is a richer emerald green with white text. Slots you cannot press yet are much fainter, with grey text.
 
 ### Added
+- **Rip countdown on the finisher slot.** While your Rip is on the target, the border of a cat's finisher slot drains with the time left, even while the slot shows Ferocious Bite.
 - **Smart strip slots for cats and rogues.** With your own spell list empty, the Resource ticker strip now shows a builder and a finisher picked for the moment: Claw while the mob is attacking you and Shred while it is attacking someone else (Sinister Strike or Backstab with a dagger for rogues), then Rip with its time left, and Ferocious Bite while Rip is running (Eviscerate for rogues). New spells fill in as you learn them. Turn it off on the Resource ticker page.
 
 ## 2.23.2

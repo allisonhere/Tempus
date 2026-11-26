@@ -21,6 +21,7 @@ TK.defaults = {
     dotsPos = {},
     dotNumbers = true,          -- seconds left inside each timer dot
     dots = true,                -- bleed / buff timers at the right end of the bar
+    dotSize = 18,               -- big enough for the draining border to read
     width = 220, height = 8,
     visibility = "AUTO",        -- AUTO (in combat or not full) | COMBAT | ALWAYS
     point = { "CENTER", "UIParent", "CENTER", 0, -238 },
@@ -203,10 +204,17 @@ local function HasDagger()
     return ok and classID == 2 and subClassID == 15
 end
 
--- Seconds left on your bleed on the current target (or your buff), from the aura or your cast.
+-- Seconds left and total duration of your bleed on the current target (or your buff), from the
+-- aura or your cast.
 function TK.RunningLeft(name, harmful, now)
-    local left = TK.AuraLeft(harmful and "target" or "player", name, harmful, now)
-    return left or (TK.TimerLeft(name, harmful, now))
+    local left, total = TK.AuraLeft(harmful and "target" or "player", name, harmful, now)
+    if left then
+        -- A readable aura is the truth: keep the cast timer and learned length in step.
+        TK.learned[name] = total
+        TK.dotTimers[name] = { exp = now + left, dur = total, guid = harmful and TK.TargetGUID() or nil }
+        return left, total
+    end
+    return TK.TimerLeft(name, harmful, now)
 end
 
 local function Usable(ptype, name) return TK.ResolveSpells(ptype, { name })[1] end
@@ -221,6 +229,8 @@ function TK.SmartSpells(ptype, class, now)
         -- Ferocious Bite takes the slot while your Rip is still ticking.
         local bite = (not rip or TK.RunningLeft("Rip", true, now)) and Usable(ptype, "Ferocious Bite")
         finisher = bite or rip
+        -- The slot's border counts Rip down, whichever of the two is showing.
+        if finisher then finisher.gauge = "Rip" end
     elseif class == "ROGUE" then
         builder = (behind and HasDagger() and Usable(ptype, "Backstab")) or Usable(ptype, "Sinister Strike")
         finisher = Usable(ptype, "Eviscerate")
@@ -447,8 +457,8 @@ local function BuildStrip(f)
 end
 
 -- Timer dots -------------------------------------------------------------------------------
--- A small square at the right end of the bar for each of your bleeds and buffs. It drains as the
--- time runs out and goes green -> yellow -> red; dim when it is not up.
+-- A small square at the right end of the bar for each of your bleeds and buffs. Its border drains
+-- as the time runs out and goes green -> yellow -> red; dim when it is not up.
 TK.DEFAULT_DOTS = {
     DRUID = { { name = "Rake", debuff = true }, { name = "Rip", debuff = true }, { name = "Savage Roar" } },
     ROGUE = { { name = "Slice and Dice" }, { name = "Rupture", debuff = true } },
@@ -466,6 +476,7 @@ local function TargetGUID()
     local ok, g = pcall(UnitGUID, "target")
     if ok and type(g) == "string" and not (T.issecret and T.issecret(g)) then return g end
 end
+TK.TargetGUID = TargetGUID
 
 -- Your cast of a tracked spell succeeded: start its timer (on the target, for a debuff).
 function TK:OnCast(name)
@@ -527,6 +538,78 @@ function TK.AuraLeft(unit, name, harmful, now)
     end
 end
 
+-- Border gauge ------------------------------------------------------------------------------
+-- A frame's border as a countdown: it unwinds clockwise from the top-left over a dim outline.
+TK.GAUGE_THICKNESS = 2
+TK.GAUGE_PULSE = 3          -- seconds left when the border starts pulsing
+
+-- How much of each side (top, right, bottom, left) is still lit with frac of the time left, on a
+-- w by h frame with edges t thick. The sides fit between the top and bottom edges.
+function TK.GaugeLengths(frac, w, h, t)
+    frac = math.max(0, math.min(1, T.Num(frac) and frac or 0))
+    local side = math.max(0, h - 2 * t)
+    local sides = { w, side, w, side }
+    local gone = (1 - frac) * 2 * (w + side)
+    local out = {}
+    for i, len in ipairs(sides) do
+        out[i] = math.max(0, math.min(len, len - gone))
+        gone = math.max(0, gone - len)
+    end
+    return out
+end
+
+-- Brightness of the lit part: steady, then pulsing twice a second near the end.
+function TK.GaugeAlpha(left, now)
+    if left > TK.GAUGE_PULSE then return 1 end
+    return 0.35 + 0.65 * math.abs(math.cos(now * math.pi * 2))
+end
+
+-- Each lit edge is anchored at its clockwise end, so it shrinks toward the next corner.
+local function BuildGauge(f)
+    local g = { track = {}, lit = {} }
+    for i = 1, 4 do
+        g.track[i] = f:CreateTexture(nil, "OVERLAY", nil, 1)
+        g.lit[i] = f:CreateTexture(nil, "OVERLAY", nil, 2)
+        g.track[i]:SetTexture(S.WHITE)
+        g.lit[i]:SetTexture(S.WHITE)
+        g.track[i]:Hide()
+        g.lit[i]:Hide()
+    end
+    return g
+end
+
+local function HideGauge(g)
+    if not g then return end
+    for i = 1, 4 do g.track[i]:Hide() g.lit[i]:Hide() end
+end
+
+local function PaintGauge(g, f, w, h, left, total, now)
+    local t = TK.GAUGE_THICKNESS
+    local frac = left / total
+    local r, gr, b = TK.DotColor(frac)
+    local alpha = TK.GaugeAlpha(left, now)
+    local side = math.max(0, h - 2 * t)
+    local lengths = TK.GaugeLengths(frac, w, h, t)
+    local function Edge(tex, i, len)
+        if len <= 0 then tex:Hide() return end
+        tex:ClearAllPoints()
+        if i == 1 then tex:SetPoint("TOPRIGHT", f, "TOPRIGHT", 0, 0) tex:SetSize(len, t)
+        elseif i == 2 then tex:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, t) tex:SetSize(t, len)
+        elseif i == 3 then tex:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0) tex:SetSize(len, t)
+        else tex:SetPoint("TOPLEFT", f, "TOPLEFT", 0, -t) tex:SetSize(t, len) end
+        tex:Show()
+    end
+    for i = 1, 4 do
+        g.track[i]:SetVertexColor(r, gr, b, 0.2)
+        Edge(g.track[i], i, (i % 2 == 1) and w or side)
+        g.lit[i]:SetVertexColor(r, gr, b, alpha)
+        Edge(g.lit[i], i, lengths[i])
+    end
+end
+
+-- A looping 12-second countdown for the settings preview and the unlocked frames.
+local function SampleTime(now) return 12 - now % 12, 12 end
+
 function TK:PaintDots(now)
     local dots = self.dots
     if not dots then return end
@@ -535,44 +618,34 @@ function TK:PaintDots(now)
         list = { { name = "Rake", debuff = true }, { name = "Rip", debuff = true }, { name = "Savage Roar" } }
     end
     if not (self.db.dots and list and #list > 0 and (self.kind or (T.db and not T.db.locked))) then dots:Hide() return end
-    local h = self.db.height
+    local size = self.db.dotSize
     local n = math.min(#list, TK.MAX_DOTS)
-    dots:SetSize(n * (h + 4) + (n - 1) * 3, h + 4)
+    dots:SetSize(n * size + (n - 1) * 3, size)
     dots:Show()
     for i, d in ipairs(dots.items) do
         local sp = list[i]
         if not sp then
             d:Hide()
         else
-            local left, total = TK.AuraLeft(sp.debuff and "target" or "player", sp.name, sp.debuff, now)
-            if left then
-                -- A readable aura is the truth: keep the cast timer and learned length in step.
-                TK.learned[sp.name] = total
-                TK.dotTimers[sp.name] = { exp = now + left, dur = total, guid = sp.debuff and TargetGUID() or nil }
-            else
-                left, total = TK.TimerLeft(sp.name, sp.debuff, now)
-            end
-            d:SetSize(h + 4, h + 4)
+            local left, total = TK.RunningLeft(sp.name, sp.debuff, now)
+            if not left and i == 1 and (self.preview or (T.db and not T.db.locked)) then left, total = SampleTime(now) end
+            d:SetSize(size, size)
             d:ClearAllPoints()
-            d:SetPoint("TOPLEFT", dots, "TOPLEFT", (i - 1) * (h + 7), 0)
+            d:SetPoint("TOPLEFT", dots, "TOPLEFT", (i - 1) * (size + 3), 0)
+            local numbers = self.db.dotNumbers ~= false
             if left then
-                local frac = left / total
-                local r, g, b = TK.DotColor(frac)
-                d.fill:SetVertexColor(r, g, b, 1)
-                d.fill:ClearAllPoints()
-                d.fill:SetPoint("BOTTOMLEFT", 1, 1)
-                d.fill:SetPoint("BOTTOMRIGHT", -1, 1)
-                d.fill:SetHeight(math.max(1, (h + 2) * frac))
-                if self.db.dotNumbers ~= false then d.text:SetFormattedText("%d", math.ceil(left)) else d.text:SetText("") end
+                PaintGauge(d.gauge, d, size, size, left, total, now)
+                d.fill:Hide()
+                if numbers then d.text:SetFormattedText("%d", math.ceil(left)) else d.text:SetText("") end
             else
+                HideGauge(d.gauge)
                 d.fill:SetVertexColor(0.5, 0.52, 0.58, 0.25)
-                d.fill:ClearAllPoints()
-                d.fill:SetPoint("TOPLEFT", 1, -1)
-                d.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+                d.fill:Show()
                 d.text:SetText("")
             end
             d.label:SetText(sp.name:sub(1, 1))
-            d.label:SetShown(not left)
+            -- The letter stands in whenever there is no number to show.
+            d.label:SetShown(not (left and numbers))
             d:Show()
         end
     end
@@ -586,6 +659,9 @@ local function BuildDots(f)
         S.Backdrop(d)
         d.fill = d:CreateTexture(nil, "ARTWORK")
         d.fill:SetTexture(S.BarTexture(T.db and T.db.barTexture))
+        d.fill:SetPoint("TOPLEFT", 1, -1)
+        d.fill:SetPoint("BOTTOMRIGHT", -1, 1)
+        d.gauge = BuildGauge(d)
         d.text = d:CreateFontString(nil, "OVERLAY")
         d.text:SetPoint("CENTER")
         S.ApplyFont(d.text, 9, nil, "OUTLINE")
@@ -616,7 +692,8 @@ function TK:PaintStrip(now)
     local strip, db = self.strip, self.db
     if not strip then return end
     local unlocked = T.db and not T.db.locked
-    local spells = (self.preview or unlocked) and { { name = "Claw", cost = 45 }, { name = "Shred", cost = 60 } } or self.spells
+    local sample = self.preview or unlocked
+    local spells = sample and { { name = "Claw", cost = 45 }, { name = "Rip", cost = 30, gauge = "Rip" } } or self.spells
     if not (db.afford and spells and #spells > 0 and (self.kind or unlocked)) then
         strip:Hide()
         return
@@ -657,7 +734,18 @@ function TK:PaintStrip(now)
             local shade = lit and 1 or 0.55
             seg.text:SetTextColor(shade, shade, shade)
             seg.text:SetShown(h >= 9)
-            local running = sp.dot and TK.RunningLeft(sp.name, true, now)
+            local left, total
+            if sp.gauge then
+                if sample then left, total = SampleTime(now)
+                else left, total = TK.RunningLeft(sp.gauge, true, now) end
+            end
+            if left then
+                seg.gauge = seg.gauge or BuildGauge(seg)
+                PaintGauge(seg.gauge, seg, w, h, left, total, now)
+            else
+                HideGauge(seg.gauge)
+            end
+            local running = sp.dot and left
             if running then seg.text:SetFormattedText("%s %ds", sp.name, math.ceil(running))
             else seg.text:SetText(sp.name .. " " .. sp.cost) end
             seg:Show()

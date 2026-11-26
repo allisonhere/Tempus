@@ -206,6 +206,21 @@ assert(Names("DRUID", 333) == "Shred,Rip", "Rip fell off")
 have[22568] = nil
 local slots = TK.SmartSpells(3, "DRUID", 321)
 assert(slots[2].name == "Rip" and slots[2].dot, "without Bite the Rip slot shows its time")
+assert(slots[2].gauge == "Rip", "the finisher slot counts Rip down")
+have[22568] = true
+slots = TK.SmartSpells(3, "DRUID", 321)
+assert(slots[2].name == "Ferocious Bite" and slots[2].gauge == "Rip", "also while it shows Bite")
+-- Border gauge: unwinds clockwise from the top-left.
+local function Lit(frac) return table.concat(TK.GaugeLengths(frac, 20, 14, 2), ",") end
+assert(Lit(1) == "20,10,20,10", "full border")
+assert(Lit(0.75) == "5,10,20,10", "the top goes first")
+assert(Lit(0.5) == "0,0,20,10", "half: bottom and left remain")
+assert(Lit(0) == "0,0,0,0" and Lit(-1) == Lit(0) and Lit(2) == Lit(1), "empty, and out of range clamps")
+assert(TK.GaugeAlpha(8, 1.25) == 1, "steady while there is time")
+assert(TK.GaugeAlpha(2, 1.25) < 0.5 and TK.GaugeAlpha(2, 1.5) == 1, "pulses near the end")
+TK.dotTimers.Rip = { exp = 332, dur = 12 }
+local rl, rt = TK.RunningLeft("Rip", true, 326)
+assert(rl == 6 and rt == 12, "time left comes with the total")
 -- Rogues: Backstab needs a dagger.
 TK.frontUntil = nil
 have = { [1752] = true, [53] = true, [2098] = true }

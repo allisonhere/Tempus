@@ -33,13 +33,14 @@ T:RegisterPage("combat", { key = "ticker", label = "Resource ticker", order = 6.
     p:Check(cfg, "showFsr", "Five-second rule countdown after spending mana")
     p:Check(cfg, "showText", "Show current power (or seconds left of the five-second rule)")
     p:Dropdown(cfg, "visibility", "Show", { { "AUTO", "In combat or not full" }, { "COMBAT", "In combat" }, { "ALWAYS", "Always" } })
-    p:Section("Afford strip", "A strip under the bar with one segment per spell you press on a tick, such as Claw and Shred for a cat or Sinister Strike for a rogue. Green means the game says you can cast it right now (the same check your action bar icons use), so you can watch the ticks without looking down. When your energy number is readable, amber also fades up as the next tick approaches if that tick will get you there. Grey means not yet. With the list below empty, cats and rogues get two slots picked for the moment: a builder (Shred or Backstab when the mob is attacking someone else, else Claw or Sinister Strike) and a finisher (Rip, then Ferocious Bite while Rip is running; Eviscerate for rogues). Anything you add to the list replaces that; spells you do not know are skipped.")
+    p:Section("Afford strip", "A strip under the bar with one segment per spell you press on a tick, such as Claw and Shred for a cat or Sinister Strike for a rogue. Green means the game says you can cast it right now (the same check your action bar icons use), so you can watch the ticks without looking down. When your energy number is readable, amber also fades up as the next tick approaches if that tick will get you there. Grey means not yet. With the list below empty, cats and rogues get two slots picked for the moment: a builder (Shred or Backstab when the mob is attacking someone else, else Claw or Sinister Strike) and a finisher (Rip, then Ferocious Bite while Rip is running; Eviscerate for rogues). While Rip is on your target, the border of a cat's finisher slot drains with the time left (green, yellow, then red, pulsing in the last 3 seconds), even while the slot shows Ferocious Bite. Anything you add to the list replaces that; spells you do not know are skipped.")
     p:Check(cfg, "afford", "Show the afford strip")
     p:Check(cfg, "smart", "Pick the builder and finisher automatically (when the list is empty)")
     p:Slider(cfg, "affordHeight", "Strip height", 4, 24, 1)
     p:Add(T.UI.W.List("tickspells", "Spell name or ID, e.g. Claw", true), 236, true)
     p:Check(cfg, "dots", "Show timer dots at the right end of the bar (Rake, Rip, Savage Roar; Slice and Dice, Rupture)")
     p:Check(cfg, "dotNumbers", "Show the seconds counting down inside each timer dot")
+    p:Slider(cfg, "dotSize", "Timer dot size", 12, 32, 1)
     p:Add(T.UI.W.Button("Reset strip and dot positions", function()
         local TK = T.Ticker
         if not TK or not TK.db then return end

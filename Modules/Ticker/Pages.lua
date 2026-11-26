@@ -29,12 +29,13 @@ end
 
 T:RegisterPage("combat", { key = "ticker", label = "Resource ticker", order = 6.5, build = function(p)
     local cfg = function() return T.db.ticker end
-    p:Section("Resource ticker", "Energy and mana come in on a fixed 2-second clock. This bar fills toward your next tick, so you can wait for it before an expensive move or a cast. After you spend mana, spirit regen stops for five seconds: the bar turns violet and counts that down first. The bar learns the tick timing from the ticks it sees, so it starts once your power has ticked up once. Unlock the UI to move it. Needs the Resource ticker module (General > Modules).")
+    p:Section("Resource ticker", "Energy and mana come in on a fixed 2-second clock. This bar fills toward your next tick, so you can wait for it before an expensive move or a cast. After you spend mana, spirit regen stops for five seconds: the bar turns violet and counts that down first. The bar learns the tick timing from the ticks it sees, so it starts once your power has ticked up once. Rage does not tick, so for warriors and bears the bar is a plain red gauge of your rage. Unlock the UI to move it. Needs the Resource ticker module (General > Modules).")
     p:Add(TickerDemo(), DEMO_H, true)
     p:Check(cfg, "enabled", "Show the resource ticker")
     p:Add(PreviewButton())
     p:Check(cfg, "energy", "Energy ticks (rogues, druids in cat form)")
     p:Check(cfg, "mana", "Mana ticks")
+    p:Check(cfg, "rage", "Rage gauge (warriors, druids in bear form)")
     p:Check(cfg, "showFsr", "Five-second rule countdown after spending mana")
     p:Check(cfg, "showText", "Show current power (or seconds left of the five-second rule)")
     p:Dropdown(cfg, "visibility", "Show", { { "AUTO", "In combat or not full" }, { "COMBAT", "In combat" }, { "ALWAYS", "Always" } })
@@ -45,10 +46,10 @@ end })
 
 T:RegisterPage("combat", { key = "tickerstrip", label = "Strip & countdowns", order = 6.6, build = function(p)
     local cfg = function() return T.db.ticker end
-    p:Section("Afford strip", "A strip under the bar with one segment per spell you press on a tick, such as Claw and Shred for a cat or Sinister Strike for a rogue. Green means the game says you can cast it right now (the same check your action bar icons use), so you can watch the ticks without looking down. When your energy number is readable, amber also fades up as the next tick approaches if that tick will get you there. Grey means not yet. With the list below empty, cats and rogues get two slots picked for the moment: a builder (Shred or Backstab when the mob is attacking someone else, else Claw or Sinister Strike) and a finisher (Rip, then Ferocious Bite while Rip is running; Eviscerate for rogues). Anything you add to the list replaces that; spells you do not know are skipped. Needs the Resource ticker module (General > Modules).")
+    p:Section("Afford strip", "A strip under the bar with one segment per spell you press on a tick, such as Claw and Shred for a cat or Sinister Strike for a rogue. Green means the game says you can cast it right now (the same check your action bar icons use), so you can watch the ticks without looking down. When your energy number is readable, amber also fades up as the next tick approaches if that tick will get you there. Grey means not yet. With the list below empty, cats, rogues, warriors and bears get two slots picked for the moment. A cat or rogue gets a builder (Shred or Backstab when the mob is attacking someone else, else Claw or Sinister Strike) and a finisher (Rip, then Ferocious Bite while Rip is running; Eviscerate for rogues). A warrior gets Mortal Strike, Bloodthirst or Heroic Strike, then Execute or Overpower while the game lets you cast them, else Heroic Strike. A bear gets Mangle or Maul, then Swipe. Anything you add to the list replaces that; spells you do not know are skipped. Needs the Resource ticker module (General > Modules).")
     p:Add(PreviewButton())
     p:Check(cfg, "afford", "Show the afford strip")
-    p:Check(cfg, "smart", "Pick the builder and finisher automatically (when the list is empty)")
+    p:Check(cfg, "smart", "Pick the two slots automatically (when the list is empty)")
     p:Slider(cfg, "affordHeight", "Strip height", 4, 24, 1)
     p:Add(T.UI.W.List("tickspells", "Spell name or ID, e.g. Claw", true), 236, true)
     p:Section("Timer dots and countdowns", "Dots time your bleeds, buffs and damage-over-time spells, going green, yellow, then red as they run out. The finisher slot on the afford strip can count one down on its border too: Rip for a cat, even while the slot shows Ferocious Bite, or your choice below for a rogue. The slot countdown needs the automatic builder and finisher.")

@@ -2,7 +2,8 @@
 -- Energy and mana come in on a fixed 2-second server clock; the bar learns its phase from
 -- the ticks it sees (a gain the size a regular tick should be). For mana it also shows the
 -- five-second rule: after you spend mana, spirit regen stops for 5 seconds, and the bar
--- counts that down in its own colour before going back to tick timing.
+-- counts that down in its own colour before going back to tick timing. Rage never ticks, so
+-- for warriors and bears the bar is a plain gauge and the strip still tells what you can cast.
 local _, T = ...
 local S = T.Style
 local TK = {}
@@ -12,6 +13,7 @@ TK.defaults = {
     enabled = true,
     energy = true,              -- energy ticks (rogues, druids in cat form)
     mana = true,                -- mana ticks and the five-second rule
+    rage = true,                -- rage bar and strip (warriors, druids in bear form); rage has no ticks
     showFsr = true,             -- the 5-second countdown after spending mana
     showText = true,            -- current power on the bar
     afford = true,              -- the strip under the bar: can you afford your spells now / at the next tick
@@ -37,12 +39,14 @@ TK.FSR = 5                  -- the five-second rule
 local ENERGY_COLOR = { 1, 0.86, 0.45 }   -- warm gold
 local MANA_COLOR = { 0.45, 0.68, 1 }     -- clear blue
 local FSR_COLOR = { 0.72, 0.62, 0.95 }   -- soft violet: mana regen is paused
-TK.ENERGY_COLOR, TK.MANA_COLOR, TK.FSR_COLOR = ENERGY_COLOR, MANA_COLOR, FSR_COLOR
+local RAGE_COLOR = { 0.85, 0.27, 0.27 }     -- red: rage fills as you fight
+TK.ENERGY_COLOR, TK.MANA_COLOR, TK.FSR_COLOR, TK.RAGE_COLOR = ENERGY_COLOR, MANA_COLOR, FSR_COLOR, RAGE_COLOR
 
-local POWER_MANA, POWER_ENERGY = 0, 3
+local POWER_MANA, POWER_RAGE, POWER_ENERGY = 0, 1, 3
 if Enum and Enum.PowerType then
     POWER_MANA = Enum.PowerType.Mana or POWER_MANA
     POWER_ENERGY = Enum.PowerType.Energy or POWER_ENERGY
+    POWER_RAGE = Enum.PowerType.Rage or POWER_RAGE
 end
 
 -- Does a gain of delta look like a regular tick? expected is what a tick should give (nil
@@ -64,8 +68,10 @@ function TK.Phase(lastTick, now, period)
     return period - since, since / period
 end
 
--- What the bar shows right now: "FSR" (5-second rule counting down), "TICK" or nil.
+-- What the bar shows right now: "RAGE" (a plain gauge, rage does not tick), "FSR" (5-second rule
+-- counting down), "TICK" or nil.
 function TK.Mode(kind, lastTick, fsrEnd, now, showFsr)
+    if kind == "rage" then return "RAGE" end
     if kind == "mana" and showFsr and fsrEnd and now < fsrEnd then return "FSR" end
     if lastTick then return "TICK" end
 end
@@ -165,8 +171,8 @@ function TK.TrackedSpells(ptype, listed, class)
 end
 
 -- Smart slots ----------------------------------------------------------------------------
--- With no list of your own, cats and rogues get a builder and a finisher picked for the moment.
-TK.SMART = { DRUID = true, ROGUE = true }
+-- With no list of your own, cats, bears, rogues and warriors get two slots picked for the moment.
+TK.SMART = { DRUID = true, ROGUE = true, WARRIOR = true }
 TK.FRONT_HOLD = 4           -- seconds to trust the game's "you must be behind your target"
 
 -- A unit answer that may be missing or hidden: true, false, or nil when the client will not say.
@@ -224,11 +230,31 @@ end
 
 local function Usable(ptype, name) return TK.ResolveSpells(ptype, { name })[1] end
 
--- The builder and finisher for right now, skipping any you have not learned.
+-- The first of these you have learned (and that costs the current power).
+local function FirstOf(ptype, ...)
+    for i = 1, select("#", ...) do
+        local s = Usable(ptype, (select(i, ...)))
+        if s then return s end
+    end
+end
+
+-- True when the game says you can cast it this instant (Execute needs a low-health target,
+-- Overpower needs a dodge). A hidden answer counts as no.
+local function CastableNow(spell) return spell ~= nil and spell.id ~= nil and TK.IsUsable(spell.id) == true end
+
+-- The two slots for right now, skipping any you have not learned.
+--   cat    builder: Shred from behind, else Claw. finisher: Rip, then Ferocious Bite while Rip runs.
+--   rogue  builder: Backstab (dagger, from behind), else Sinister Strike. finisher: Eviscerate.
+--   bear   Mangle (or Maul), then Swipe.
+--   warrior main attack (Mortal Strike, Bloodthirst, else Heroic Strike), then Execute or
+--          Overpower while the game lets you cast them, else Heroic Strike as the rage sink.
 function TK.SmartSpells(ptype, class, now)
-    local behind = TK.CanBeBehind(now)
     local builder, finisher
-    if class == "DRUID" then
+    if class == "DRUID" and ptype == POWER_RAGE then
+        builder = FirstOf(ptype, "Mangle (Bear)", "Maul")
+        finisher = FirstOf(ptype, "Swipe (Bear)", "Swipe")
+    elseif class == "DRUID" then
+        local behind = TK.CanBeBehind(now)
         builder = (behind and Usable(ptype, "Shred")) or Usable(ptype, "Claw")
         local rip = Usable(ptype, "Rip")
         -- Ferocious Bite takes the slot while your Rip is still ticking.
@@ -237,10 +263,20 @@ function TK.SmartSpells(ptype, class, now)
         -- The slot's border counts Rip down, whichever of the two is showing.
         if finisher then finisher.gauge = "Rip" end
     elseif class == "ROGUE" then
+        local behind = TK.CanBeBehind(now)
         builder = (behind and HasDagger() and Usable(ptype, "Backstab")) or Usable(ptype, "Sinister Strike")
         finisher = Usable(ptype, "Eviscerate")
         local track = TK.db and TK.db.rogueGauge
         if finisher and track and track ~= "NONE" then finisher.gauge = track end
+    elseif class == "WARRIOR" then
+        builder = FirstOf(ptype, "Mortal Strike", "Bloodthirst", "Heroic Strike")
+        local execute, overpower = Usable(ptype, "Execute"), Usable(ptype, "Overpower")
+        if CastableNow(execute) then finisher = execute
+        elseif CastableNow(overpower) then finisher = overpower
+        else
+            local strike = Usable(ptype, "Heroic Strike")
+            if strike and not (builder and builder.name == strike.name) then finisher = strike end
+        end
     end
     local out = {}
     if builder then out[#out + 1] = builder end
@@ -373,6 +409,7 @@ local function CurrentKind(db)
     if not ok then return nil end
     if ptype == POWER_ENERGY and db.energy then return "energy", POWER_ENERGY end
     if ptype == POWER_MANA and db.mana then return "mana", POWER_MANA end
+    if ptype == POWER_RAGE and db.rage then return "rage", POWER_RAGE end
 end
 
 local function Power(ptype)
@@ -384,6 +421,7 @@ end
 -- Bar colour for what it shows: violet during the five-second rule, else by power type.
 function TK.ColorFor(mode, kind)
     if mode == "FSR" then return FSR_COLOR end
+    if kind == "rage" then return RAGE_COLOR end
     return kind == "energy" and ENERGY_COLOR or MANA_COLOR
 end
 
@@ -411,10 +449,12 @@ local function Paint(v, db, now)
     elseif mode == "TICK" then
         local _, done = TK.Phase(v.lastTick, now)
         v.bar:SetValue(done)
+    elseif mode == "RAGE" then
+        v.bar:SetValue(T.Num(v.last) and T.Num(v.max) and v.max > 0 and v.last / v.max or 0)
     else
         v.bar:SetValue(0)
     end
-    v.spark:SetShown(mode ~= nil)
+    v.spark:SetShown(mode == "FSR" or mode == "TICK")
     if db.showText and v.last then
         if mode == "FSR" then v.text:SetFormattedText("%.1f", v.fsrEnd - now)
         else v.text:SetText(v.last) end
@@ -790,7 +830,7 @@ function TK:OnPower()
         local delta = cur - prev
         if delta < 0 and kind == "mana" then
             self.fsrEnd = now + TK.FSR
-        elseif delta > 0 then
+        elseif delta > 0 and kind ~= "rage" then
             local inFsr = self.fsrEnd and now < self.fsrEnd
             if TK.IsTick(delta, ExpectedTick(kind, inFsr), cur >= max) then self.lastTick = now end
         end
@@ -854,7 +894,10 @@ function TK:UpdateShown()
     local f, db = self.frame, self.db
     if not (f and db) then return end
     local inCombat = UnitAffectingCombat and UnitAffectingCombat("player")
-    local notFull = self.last and self.max and self.last < self.max
+    -- Rage rests at zero, so "not full" would keep the bar up for ever: show it once you hold some.
+    local notFull
+    if self.kind == "rage" then notFull = T.Num(self.last) and self.last > 0
+    else notFull = self.last and self.max and self.last < self.max end
     local vis = db.visibility
     local show = db.enabled and self.kind and (self.preview or not T.db.locked or vis == "ALWAYS"
         or inCombat or (vis == "AUTO" and notFull))
@@ -939,7 +982,7 @@ end
 
 T:NewModule("ticker", {
     label = "Resource ticker",
-    desc = "A thin bar timing your next energy or mana tick, with the five-second rule for casters.",
+    desc = "A thin bar timing your next energy or mana tick, with the five-second rule for casters, or your rage for warriors and bears.",
     defaults = TK.defaults,
     OnEnable = function()
         TK.db = T.db.ticker
